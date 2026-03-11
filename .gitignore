@@ -1,9 +1,11 @@
 # Secrets
 .env
 
-# Data (scraped CSVs and logs — too large/ephemeral for git)
-data/
-*.csv
+# Secrets/logs
+data/*/game.log
+
+# Debug artifacts only
+warriors_listings.csv
 
 # Debug artifacts
 investigate_*.json
