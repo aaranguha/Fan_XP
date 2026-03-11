@@ -1,0 +1,21 @@
+# Secrets
+.env
+
+# Data (scraped CSVs and logs — too large/ephemeral for git)
+data/
+*.csv
+
+# Debug artifacts
+investigate_*.json
+investigate_tm.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store
+
+# Claude
+.claude/
