@@ -126,9 +126,18 @@ def scrape_listings(event_url: str) -> tuple[list[dict], dict]:
         page.goto(event_url, wait_until="load", timeout=45000)
         page.wait_for_timeout(WAIT_MS)
 
+        # Retry once if inventory XHR wasn't captured (TM bot detection during live games)
+        if not captured["inventory"]:
+            print("  No inventory request captured — retrying in 15s...")
+            page.wait_for_timeout(15000)
+            captured["inventory"] = None
+            captured["pricing"] = None
+            page.goto(event_url, wait_until="load", timeout=45000)
+            page.wait_for_timeout(WAIT_MS)
+
         if not captured["inventory"]:
             raise RuntimeError(
-                "No inventory request captured — TM may have changed their page."
+                "No inventory request captured after retry — TM may have changed their page."
             )
 
         def browser_fetch(url: str, headers: dict) -> dict:
