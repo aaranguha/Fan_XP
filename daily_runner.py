@@ -63,7 +63,7 @@ def get_home_teams_today() -> list[str]:
     return slugs
 
 
-def launch_team(slug: str) -> subprocess.Popen:
+def launch_team(slug: str, today: str) -> subprocess.Popen:
     """
     Launch run_game.py for a team as a background process.
     Stdout and stderr are appended to data/<slug>/game.log.
@@ -79,7 +79,7 @@ def launch_team(slug: str) -> subprocess.Popen:
     log_file.flush()
 
     proc = subprocess.Popen(
-        [PYTHON, "run_game.py", slug],
+        [PYTHON, "run_game.py", slug, today],
         stdout=log_file,
         stderr=log_file,
     )
@@ -106,7 +106,7 @@ def main():
     for i, slug in enumerate(slugs):
         if i > 0:
             time.sleep(5)   # stagger launches to avoid TM API rate limit (429)
-        proc, log_file = launch_team(slug)
+        proc, log_file = launch_team(slug, today)
         procs.append((slug, proc, log_file))
         print(f"  [{slug}] PID {proc.pid}  →  data/{slug}/game.log")
 

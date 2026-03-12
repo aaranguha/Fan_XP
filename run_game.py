@@ -157,15 +157,16 @@ def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str) -> list[dic
 def main():
     load_dotenv()
 
-    if len(sys.argv) != 2:
-        print("Usage: python run_game.py <team_slug>")
-        print("  e.g. python run_game.py warriors")
+    if len(sys.argv) not in (2, 3):
+        print("Usage: python run_game.py <team_slug> [YYYY-MM-DD]")
+        print("  e.g. python run_game.py warriors 2026-03-11")
         sys.exit(1)
 
-    team = get_team(sys.argv[1])
+    team      = get_team(sys.argv[1])
+    game_date = sys.argv[2] if len(sys.argv) == 3 else None
 
-    print(f"Looking up next {team['slug'].title()} home game (1 API call)...")
-    event   = find_next_home_game(team["tm_keyword"])
+    print(f"Looking up {team['slug'].title()} home game{' on ' + game_date if game_date else ''} (1 API call)...")
+    event   = find_next_home_game(team["tm_keyword"], game_date)
     name    = event.get("name", "Game")
     game_dt = event.get("dates", {}).get("start", {}).get("localDate", "?")
     url     = event.get("url")

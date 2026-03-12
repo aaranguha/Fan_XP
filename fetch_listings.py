@@ -45,28 +45,35 @@ WAIT_MS    = 12000   # ms to wait after page load for all XHR calls to fire
 
 # ── Event discovery ───────────────────────────────────────────────────────────
 
-def find_next_home_game(tm_keyword: str) -> dict:
-    """Return the next upcoming home game for the given team via TM Discovery API."""
+def find_next_home_game(tm_keyword: str, game_date: str | None = None) -> dict:
+    """
+    Return the home game for the given team via TM Discovery API.
+    If game_date (YYYY-MM-DD) is provided, restrict results to that day only.
+    """
     if not TM_API_KEY:
         raise RuntimeError("TICKETMASTER_API_KEY not set in .env")
 
+    params = {
+        "apikey":             TM_API_KEY,
+        "keyword":            tm_keyword,
+        "classificationName": "Basketball",
+        "sort":               "date,asc",
+        "size":               5,
+    }
+    if game_date:
+        params["startDateTime"] = f"{game_date}T00:00:00Z"
+        params["endDateTime"]   = f"{game_date}T23:59:59Z"
+
     resp = requests.get(
         "https://app.ticketmaster.com/discovery/v2/events.json",
-        params={
-            "apikey":             TM_API_KEY,
-            "keyword":            tm_keyword,
-            "classificationName": "Basketball",
-            "sort":               "date,asc",
-            "size":               5,
-        },
+        params=params,
         timeout=15,
     )
     resp.raise_for_status()
     events = resp.json().get("_embedded", {}).get("events", [])
     if not events:
-        raise RuntimeError(f"No upcoming home games found for '{tm_keyword}' on Ticketmaster.")
-    # Return the first event whose name starts with the team keyword
-    # (filters out G-League affiliates that share part of the team name)
+        raise RuntimeError(f"No home game found for '{tm_keyword}' on {game_date or 'upcoming dates'}.")
+    # Filter out G-League affiliates
     keyword_lower = tm_keyword.lower()
     for event in events:
         if event.get("name", "").lower().startswith(keyword_lower):
