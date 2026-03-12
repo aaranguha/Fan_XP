@@ -41,6 +41,7 @@ from compare_snapshots import (
     print_report,
 )
 
+
 # ── Timing config ──────────────────────────────────────────────────────────────
 PRE_GAME_OFFSET_MIN   = 60   # scrape this many minutes BEFORE tip-off
 HALFTIME_FALLBACK_MIN = 52   # fallback offset AFTER tip-off if live clock unavailable
@@ -139,6 +140,9 @@ def wait_for_halftime(tipoff: datetime, nba_city: str) -> None:
 
 
 def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str) -> list[dict]:
+    if os.path.isfile(out_csv):
+        print(f"\n  [{snapshot}] Already exists — skipping scrape. Loading {out_csv}")
+        return load_csv(out_csv)
     scraped_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"\n[{scraped_at}] Starting {snapshot} scrape...")
     facets, offer_price_map = scrape_listings(url)
