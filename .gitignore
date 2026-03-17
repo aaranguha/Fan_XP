@@ -1,8 +1,8 @@
 # Secrets
 .env
 
-# Secrets/logs
-data/*/game.log
+# All scraped data — collected locally, not tracked in git
+data/
 
 # Debug artifacts only
 warriors_listings.csv
