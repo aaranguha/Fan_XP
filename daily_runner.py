@@ -116,7 +116,12 @@ def main():
     for slug, proc, log_file in procs:
         proc.wait()
         log_file.close()
-        status = "done" if proc.returncode == 0 else f"FAILED (exit {proc.returncode})"
+        if proc.returncode == 0:
+            status = "done"
+        elif proc.returncode == 2:
+            status = "FAILED (Bot Detection)"
+        else:
+            status = f"FAILED (exit {proc.returncode})"
         print(f"  [{slug}] {status}")
 
     print("\nAll done. Check data/<team>/no_shows.csv for results.")

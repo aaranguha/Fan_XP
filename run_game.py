@@ -20,6 +20,7 @@ Keep the terminal open. Your machine just needs to stay awake.
 
 import os
 import re
+import shutil
 import sys
 import time
 from datetime import datetime, timezone, timedelta
@@ -194,22 +195,30 @@ def main():
     print(f"  Data folder:      {gdir}/")
     print()
 
-    # ── Snapshot 1: pre-game ───────────────────────────────────────────────────
-    sleep_until(pre_game_time, "pre_game")
-    pre_rows = run_snapshot(event, url, "pre_game", pg_csv)
+    try:
+        # ── Snapshot 1: pre-game ───────────────────────────────────────────────
+        sleep_until(pre_game_time, "pre_game")
+        pre_rows = run_snapshot(event, url, "pre_game", pg_csv)
 
-    # ── Snapshot 2: halftime (live clock) ─────────────────────────────────────
-    print("\nWaiting for halftime...")
-    wait_for_halftime(tipoff, team["nba_city"])
-    ht_rows = run_snapshot(event, url, "halftime", ht_csv)
+        # ── Snapshot 2: halftime (live clock) ─────────────────────────────────
+        print("\nWaiting for halftime...")
+        wait_for_halftime(tipoff, team["nba_city"])
+        ht_rows = run_snapshot(event, url, "halftime", ht_csv)
 
-    # ── Compare ────────────────────────────────────────────────────────────────
-    print("\nComparing snapshots...")
-    pre_rows = load_csv(pg_csv)
-    ht_rows  = load_csv(ht_csv)
-    no_shows = compare(pre_rows, ht_rows)
-    save_no_shows(no_shows, noshows)
-    print_report(pre_rows, ht_rows, no_shows, noshows)
+        # ── Compare ────────────────────────────────────────────────────────────
+        print("\nComparing snapshots...")
+        pre_rows = load_csv(pg_csv)
+        ht_rows  = load_csv(ht_csv)
+        no_shows = compare(pre_rows, ht_rows)
+        save_no_shows(no_shows, noshows)
+        print_report(pre_rows, ht_rows, no_shows, noshows)
+
+    except RuntimeError as e:
+        if "No inventory request captured" in str(e):
+            print(f"\n  BOT DETECTION — TM blocked the scrape. Cleaning up {gdir}/")
+            shutil.rmtree(gdir, ignore_errors=True)
+            sys.exit(2)
+        raise
 
 
 if __name__ == "__main__":
