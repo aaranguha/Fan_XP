@@ -170,9 +170,13 @@ def main():
     name    = event.get("name", "Game")
     game_dt = event.get("dates", {}).get("start", {}).get("localDate", "?")
     url     = event.get("url")
-
-    if not url:
-        raise RuntimeError("Event has no URL in TM API response.")
+    # Some teams (e.g. Wizards) have a non-TM URL in the API — build TM URL from event ID instead
+    if not url or "ticketmaster.com" not in url:
+        event_id = event.get("id")
+        if not event_id:
+            raise RuntimeError("Event has no URL or ID in TM API response.")
+        url = f"https://www.ticketmaster.com/event/{event_id}"
+        print(f"  Non-TM URL detected — using: {url}")
 
     gdir    = game_dir(team["slug"], game_dt, name)
     pg_csv  = pre_game_csv(gdir)
