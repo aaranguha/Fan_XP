@@ -21,6 +21,7 @@ Keep the terminal open. Your machine just needs to stay awake.
 import os
 import re
 import shutil
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone, timedelta
@@ -140,13 +141,13 @@ def wait_for_halftime(tipoff: datetime, nba_city: str) -> None:
         time.sleep(POLL_INTERVAL_SEC)
 
 
-def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str) -> list[dict]:
+def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str, max_retries: int = 1) -> list[dict]:
     if os.path.isfile(out_csv):
         print(f"\n  [{snapshot}] Already exists — skipping scrape. Loading {out_csv}")
         return load_csv(out_csv)
     scraped_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"\n[{scraped_at}] Starting {snapshot} scrape...")
-    facets, offer_price_map = scrape_listings(url)
+    facets, offer_price_map = scrape_listings(url, max_retries=max_retries)
     rows = []
     for f in facets:
         rows.extend(parse_facet(f, offer_price_map, scraped_at))
@@ -158,6 +159,10 @@ def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str) -> list[dic
 def main():
     load_dotenv()
 
+    # Prevent Mac from sleeping while this runner is active (display + system).
+    # caffeinate exits automatically when this process exits.
+    _caffeinate = subprocess.Popen(["caffeinate", "-di"])
+
     if len(sys.argv) not in (2, 3):
         print("Usage: python run_game.py <team_slug> [YYYY-MM-DD]")
         print("  e.g. python run_game.py warriors 2026-03-11")
@@ -165,6 +170,10 @@ def main():
 
     team      = get_team(sys.argv[1])
     game_date = sys.argv[2] if len(sys.argv) == 3 else None
+
+    # Warriors get extra retries on bot detection
+    PRIORITY_TEAMS = {"warriors"}
+    max_retries = 4 if team["slug"] in PRIORITY_TEAMS else 1
 
     print(f"Looking up {team['slug'].title()} home game{' on ' + game_date if game_date else ''} (1 API call)...")
     event   = find_next_home_game(team["tm_keyword"], game_date)
@@ -198,12 +207,12 @@ def main():
     try:
         # ── Snapshot 1: pre-game ───────────────────────────────────────────────
         sleep_until(pre_game_time, "pre_game")
-        pre_rows = run_snapshot(event, url, "pre_game", pg_csv)
+        pre_rows = run_snapshot(event, url, "pre_game", pg_csv, max_retries=max_retries)
 
         # ── Snapshot 2: halftime (live clock) ─────────────────────────────────
         print("\nWaiting for halftime...")
         wait_for_halftime(tipoff, team["nba_city"])
-        ht_rows = run_snapshot(event, url, "halftime", ht_csv)
+        ht_rows = run_snapshot(event, url, "halftime", ht_csv, max_retries=max_retries)
 
         # ── Compare ────────────────────────────────────────────────────────────
         print("\nComparing snapshots...")
@@ -213,12 +222,19 @@ def main():
         save_no_shows(no_shows, noshows)
         print_report(pre_rows, ht_rows, no_shows, noshows)
 
-    except RuntimeError as e:
+    except Exception as e:
+        # Clean up folder if no CSV data was saved
+        if os.path.isdir(gdir):
+            files = [f for f in os.listdir(gdir) if f.endswith(".csv")]
+            if not files:
+                shutil.rmtree(gdir, ignore_errors=True)
         if "No inventory request captured" in str(e):
-            print(f"\n  BOT DETECTION — TM blocked the scrape. Cleaning up {gdir}/")
-            shutil.rmtree(gdir, ignore_errors=True)
+            print(f"\n  BOT DETECTION — TM blocked the scrape.")
+            _caffeinate.terminate()
             sys.exit(2)
         raise
+    finally:
+        _caffeinate.terminate()
 
 
 if __name__ == "__main__":

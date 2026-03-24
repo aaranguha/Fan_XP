@@ -39,8 +39,9 @@ load_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-TM_API_KEY = os.getenv("TICKETMASTER_API_KEY", "")
-WAIT_MS    = 12000   # ms to wait after page load for all XHR calls to fire
+TM_API_KEY       = os.getenv("TICKETMASTER_API_KEY", "")
+WAIT_MS          = 12000   # ms to wait after page load for all XHR calls to fire
+CHROME_PROFILE   = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".tm_chrome_profile")
 
 
 # ── Event discovery ───────────────────────────────────────────────────────────
@@ -88,7 +89,7 @@ def find_next_home_game(tm_keyword: str, game_date: str | None = None) -> dict:
 
 # ── Browser scraping ──────────────────────────────────────────────────────────
 
-def scrape_listings(event_url: str) -> tuple[list[dict], dict]:
+def scrape_listings(event_url: str, max_retries: int = 1) -> tuple[list[dict], dict]:
     """
     Load the TM event page, intercept two XHR calls:
       - services.ticketmaster.com full-inventory facets → ALL available seats (primary + resale)
@@ -103,8 +104,13 @@ def scrape_listings(event_url: str) -> tuple[list[dict], dict]:
     offer_price_map: dict[str, float] = {}
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
-        ctx = browser.new_context(
+        # Use a persistent Chrome profile so TM sees real cookies/history each run.
+        # First run creates the profile dir; after that cookies accumulate like a
+        # real browser and TM is far less likely to trigger bot detection.
+        ctx = pw.chromium.launch_persistent_context(
+            CHROME_PROFILE,
+            headless=False,
+            args=["--disable-blink-features=AutomationControlled"],
             user_agent=(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -138,9 +144,11 @@ def scrape_listings(event_url: str) -> tuple[list[dict], dict]:
         page.goto(event_url, wait_until="load", timeout=45000)
         page.wait_for_timeout(WAIT_MS)
 
-        # Retry once if inventory XHR wasn't captured (TM bot detection during live games)
-        if not captured["inventory"]:
-            print("  No inventory request captured — retrying in 15s...")
+        # Retry up to max_retries times if inventory XHR wasn't captured
+        for attempt in range(max_retries):
+            if captured["inventory"]:
+                break
+            print(f"  No inventory request captured — retrying in 15s... (attempt {attempt + 1}/{max_retries})")
             page.wait_for_timeout(15000)
             captured["inventory"] = None
             captured["pricing"] = None
@@ -148,6 +156,7 @@ def scrape_listings(event_url: str) -> tuple[list[dict], dict]:
             page.wait_for_timeout(WAIT_MS)
 
         if not captured["inventory"]:
+            ctx.close()
             raise RuntimeError(
                 "No inventory request captured after retry — TM may have changed their page."
             )
@@ -178,7 +187,7 @@ def scrape_listings(event_url: str) -> tuple[list[dict], dict]:
         else:
             print("  Warning: no pricing request captured — prices will be empty.")
 
-        browser.close()
+        ctx.close()
 
     print(f"  Price map built for {len(offer_price_map)} offers.")
     return all_facets, offer_price_map
@@ -216,6 +225,7 @@ def save_csv(rows: list[dict], path: str) -> None:
     if not rows:
         print("No rows to save.")
         return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     file_exists = os.path.isfile(path)
     with open(path, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))

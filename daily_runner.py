@@ -17,12 +17,13 @@ Cron setup (runs at 6 AM local time every day):
 """
 
 import os
+import shutil
 import subprocess
 import sys
 import time
 from datetime import datetime
 
-from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
+import requests
 from teams import TEAMS, data_dir
 
 PYTHON = sys.executable
@@ -42,23 +43,33 @@ NBA_TRICODE_TO_SLUG = {
 }
 
 
-def get_home_teams_today() -> list[str]:
+def get_home_teams_today(today: str) -> list[str]:
     """
     Return slugs for all teams with a home game today.
-    Uses nba_api live scoreboard — no TM API calls.
+    Uses NBA CDN season schedule — returns the full day's slate at any time of day,
+    unlike ScoreboardV3 which only shows games that are live/near-live.
     """
-    board = live_scoreboard.ScoreBoard()
-    games = board.games.get_dict()
+    url  = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json"
+    resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+    resp.raise_for_status()
+
+    # CDN dates are formatted "MM/DD/YYYY HH:MM:SS"
+    date_prefix = datetime.strptime(today, "%Y-%m-%d").strftime("%m/%d/%Y")
+    game_dates  = resp.json()["leagueSchedule"]["gameDates"]
 
     slugs = []
-    for game in games:
-        tricode = game.get("homeTeam", {}).get("teamTricode", "")
-        slug    = NBA_TRICODE_TO_SLUG.get(tricode)
-        if slug:
-            home_city = game.get("homeTeam", {}).get("teamCity", "")
-            away_city = game.get("awayTeam", {}).get("teamCity", "")
-            print(f"  Home game found: {home_city} vs {away_city}  →  slug: {slug}")
-            slugs.append(slug)
+    for gd in game_dates:
+        if not gd["gameDate"].startswith(date_prefix):
+            continue
+        for game in gd["games"]:
+            tricode   = game.get("homeTeam", {}).get("teamTricode", "")
+            slug      = NBA_TRICODE_TO_SLUG.get(tricode)
+            if slug:
+                home_city = game["homeTeam"]["teamCity"]
+                away_city = game["awayTeam"]["teamCity"]
+                print(f"  Home game found: {home_city} vs {away_city}  →  slug: {slug}")
+                slugs.append(slug)
+        break  # found today's date block
 
     return slugs
 
@@ -91,7 +102,7 @@ def main():
     print(f"[{today}] Checking today's NBA schedule...")
 
     try:
-        slugs = get_home_teams_today()
+        slugs = get_home_teams_today(today)
     except Exception as e:
         print(f"Error fetching schedule: {e}")
         sys.exit(1)
@@ -99,6 +110,10 @@ def main():
     if not slugs:
         print("No home games today.")
         return
+
+    # Priority teams launch first
+    PRIORITY = ["warriors"]
+    slugs = sorted(slugs, key=lambda s: (0 if s in PRIORITY else 1, s))
 
     print(f"\nLaunching {len(slugs)} game runner(s)...\n")
 
@@ -123,6 +138,25 @@ def main():
         else:
             status = f"FAILED (exit {proc.returncode})"
         print(f"  [{slug}] {status}")
+
+    # Remove empty game folders, then empty team folders
+    for team_dir in os.listdir("data"):
+        team_path = os.path.join("data", team_dir)
+        if not os.path.isdir(team_path):
+            continue
+        for game_folder in os.listdir(team_path):
+            game_path = os.path.join(team_path, game_folder)
+            if not os.path.isdir(game_path):
+                continue
+            csvs = [f for f in os.listdir(game_path) if f.endswith(".csv")]
+            if not csvs:
+                print(f"  Removing empty folder: {game_path}")
+                shutil.rmtree(game_path, ignore_errors=True)
+        # Remove team folder if it has no game data at all
+        remaining = [f for f in os.listdir(team_path) if f != "game.log"]
+        if not remaining:
+            print(f"  Removing empty team folder: {team_path}")
+            shutil.rmtree(team_path, ignore_errors=True)
 
     print("\nAll done. Check data/<team>/no_shows.csv for results.")
 

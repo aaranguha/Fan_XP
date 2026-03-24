@@ -1,8 +1,13 @@
 # Secrets
 .env
 
-# All scraped data — collected locally, not tracked in git
-data/
+# Persistent Chrome profile for TM scraping
+.tm_chrome_profile/
+
+# Logs only — scraped CSVs are tracked
+data/*.log
+data/nightly_report.txt
+data/**/*.log
 
 # Debug artifacts only
 warriors_listings.csv
