@@ -32,6 +32,8 @@ from teams import get_team, game_dir, pre_game_csv, halftime_csv, no_shows_csv, 
 from fetch_listings import (
     find_next_home_game,
     scrape_listings,
+    launch_browser_session,
+    close_browser_session,
     parse_facet,
     save_csv,
     print_summary,
@@ -49,6 +51,10 @@ PRE_GAME_OFFSET_MIN   = 60   # scrape this many minutes BEFORE tip-off
 HALFTIME_FALLBACK_MIN = 52   # fallback offset AFTER tip-off if live clock unavailable
 POLL_INTERVAL_SEC     = 30   # how often to check the live game clock
 Q2_TRIGGER_MIN        = 2    # trigger halftime scrape when Q2 clock ≤ this many minutes
+WARM_INTERVAL_MIN     = 25   # how often to refresh TM page during keep-alive wait
+
+# Teams that keep the browser open between pre-game and halftime to avoid bot detection
+KEEP_ALIVE_TEAMS = {"warriors"}
 
 
 def get_tipoff_utc(event: dict) -> datetime:
@@ -87,7 +93,17 @@ def find_team_game(games: list[dict], nba_city: str) -> dict | None:
     return None
 
 
-def wait_for_halftime(tipoff: datetime, nba_city: str) -> None:
+def warm_browser(page, event_url: str) -> None:
+    """Refresh the TM event page to keep the browser session alive."""
+    print(f"  [keep-alive] Refreshing TM page to warm session...")
+    try:
+        page.goto(event_url, wait_until="load", timeout=45000)
+        page.wait_for_timeout(12000)
+    except Exception as e:
+        print(f"  [keep-alive] Warning: warm refresh failed: {e}")
+
+
+def wait_for_halftime(tipoff: datetime, nba_city: str, warm_page=None, warm_url: str = "") -> None:
     """
     Poll NBA live scoreboard every 30s and return when Q2 has ≤2 min left.
     Falls back to a fixed offset if nba_api is unavailable or game not found.
@@ -108,6 +124,8 @@ def wait_for_halftime(tipoff: datetime, nba_city: str) -> None:
     print(f"  Polling live game clock every {POLL_INTERVAL_SEC}s "
           f"(fallback at {fallback_time.strftime('%H:%M UTC')})...")
 
+    last_warm = datetime.now(timezone.utc)
+
     while True:
         elapsed = (datetime.now(timezone.utc) - tipoff).total_seconds() / 60
         if elapsed < 20:
@@ -117,6 +135,13 @@ def wait_for_halftime(tipoff: datetime, nba_city: str) -> None:
         if datetime.now(timezone.utc) >= fallback_time:
             print("  Fallback deadline reached — triggering halftime scrape.")
             return
+
+        # Periodically refresh TM page to keep browser session warm
+        if warm_page and warm_url:
+            since_warm = (datetime.now(timezone.utc) - last_warm).total_seconds() / 60
+            if since_warm >= WARM_INTERVAL_MIN:
+                warm_browser(warm_page, warm_url)
+                last_warm = datetime.now(timezone.utc)
 
         try:
             board = nba_scoreboard.ScoreBoard()
@@ -141,13 +166,13 @@ def wait_for_halftime(tipoff: datetime, nba_city: str) -> None:
         time.sleep(POLL_INTERVAL_SEC)
 
 
-def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str, max_retries: int = 1) -> list[dict]:
+def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str, max_retries: int = 1, team_slug: str = "default", session=None) -> list[dict]:
     if os.path.isfile(out_csv):
         print(f"\n  [{snapshot}] Already exists — skipping scrape. Loading {out_csv}")
         return load_csv(out_csv)
     scraped_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"\n[{scraped_at}] Starting {snapshot} scrape...")
-    facets, offer_price_map = scrape_listings(url, max_retries=max_retries)
+    facets, offer_price_map = scrape_listings(url, max_retries=max_retries, team_slug=team_slug, session=session)
     rows = []
     for f in facets:
         rows.extend(parse_facet(f, offer_price_map, scraped_at))
@@ -171,9 +196,8 @@ def main():
     team      = get_team(sys.argv[1])
     game_date = sys.argv[2] if len(sys.argv) == 3 else None
 
-    # Warriors get extra retries on bot detection
-    PRIORITY_TEAMS = {"warriors"}
-    max_retries = 4 if team["slug"] in PRIORITY_TEAMS else 1
+    max_retries = 4 if team["slug"] in KEEP_ALIVE_TEAMS else 1
+    keep_alive  = team["slug"] in KEEP_ALIVE_TEAMS
 
     print(f"Looking up {team['slug'].title()} home game{' on ' + game_date if game_date else ''} (1 API call)...")
     event   = find_next_home_game(team["tm_keyword"], game_date)
@@ -201,18 +225,26 @@ def main():
     print(f"  Tip-off:          {tipoff.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Pre-game scrape:  {pre_game_time.strftime('%H:%M UTC')}  ({PRE_GAME_OFFSET_MIN} min before tip-off)")
     print(f"  Halftime scrape:  Live clock (Q2 ≤{Q2_TRIGGER_MIN} min)  |  fallback: {HALFTIME_FALLBACK_MIN} min after tip-off")
+    if keep_alive:
+        print(f"  Keep-alive:       Browser stays open, refreshes TM every {WARM_INTERVAL_MIN} min")
     print(f"  Data folder:      {gdir}/")
     print()
 
+    browser_session = None
     try:
+        if keep_alive:
+            print("  [keep-alive] Launching persistent browser session...")
+            browser_session = launch_browser_session(team["slug"])
+
         # ── Snapshot 1: pre-game ───────────────────────────────────────────────
         sleep_until(pre_game_time, "pre_game")
-        pre_rows = run_snapshot(event, url, "pre_game", pg_csv, max_retries=max_retries)
+        pre_rows = run_snapshot(event, url, "pre_game", pg_csv, max_retries=max_retries, team_slug=team["slug"], session=browser_session)
 
         # ── Snapshot 2: halftime (live clock) ─────────────────────────────────
         print("\nWaiting for halftime...")
-        wait_for_halftime(tipoff, team["nba_city"])
-        ht_rows = run_snapshot(event, url, "halftime", ht_csv, max_retries=max_retries)
+        warm_page = browser_session[2] if browser_session else None  # page object
+        wait_for_halftime(tipoff, team["nba_city"], warm_page=warm_page, warm_url=url)
+        ht_rows = run_snapshot(event, url, "halftime", ht_csv, max_retries=max_retries, team_slug=team["slug"], session=browser_session)
 
         # ── Compare ────────────────────────────────────────────────────────────
         print("\nComparing snapshots...")
@@ -234,6 +266,8 @@ def main():
             sys.exit(2)
         raise
     finally:
+        if browser_session:
+            close_browser_session(browser_session[0], browser_session[1])
         _caffeinate.terminate()
 
 

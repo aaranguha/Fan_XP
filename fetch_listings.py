@@ -39,9 +39,9 @@ load_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-TM_API_KEY       = os.getenv("TICKETMASTER_API_KEY", "")
-WAIT_MS          = 12000   # ms to wait after page load for all XHR calls to fire
-CHROME_PROFILE   = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".tm_chrome_profile")
+TM_API_KEY          = os.getenv("TICKETMASTER_API_KEY", "")
+WAIT_MS             = 12000   # ms to wait after page load for all XHR calls to fire
+CHROME_PROFILE_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".tm_chrome_profile")
 
 
 # ── Event discovery ───────────────────────────────────────────────────────────
@@ -89,39 +89,58 @@ def find_next_home_game(tm_keyword: str, game_date: str | None = None) -> dict:
 
 # ── Browser scraping ──────────────────────────────────────────────────────────
 
-def scrape_listings(event_url: str, max_retries: int = 1) -> tuple[list[dict], dict]:
+def launch_browser_session(team_slug: str):
+    """
+    Launch a persistent browser session for long-lived use (e.g. keep-alive between scrapes).
+    Returns (pw, ctx, page). Caller must call close_browser_session() when done.
+    """
+    pw = sync_playwright().start()
+    chrome_profile = os.path.join(CHROME_PROFILE_BASE, team_slug)
+    ctx = pw.chromium.launch_persistent_context(
+        chrome_profile,
+        headless=False,
+        args=["--disable-blink-features=AutomationControlled"],
+        user_agent=(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/122.0.0.0 Safari/537.36"
+        ),
+        viewport={"width": 1280, "height": 800},
+        locale="en-US",
+    )
+    page = ctx.new_page()
+    Stealth().apply_stealth_sync(page)
+    return pw, ctx, page
+
+
+def close_browser_session(pw, ctx) -> None:
+    ctx.close()
+    pw.stop()
+
+
+def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "default", session=None) -> tuple[list[dict], dict]:
     """
     Load the TM event page, intercept two XHR calls:
       - services.ticketmaster.com full-inventory facets → ALL available seats (primary + resale)
       - offeradapter price facets → offer_id → price map
+
+    Pass session=(pw, ctx, page) to reuse an existing browser (keeps cookies warm).
+    If session is None, a new browser is launched and closed after scraping.
 
     Returns:
         (facets, offer_price_map)
         facets          — list of raw facet dicts, one per listing group
         offer_price_map — {offer_id: price_usd}
     """
-    stealth_config  = Stealth()
     offer_price_map: dict[str, float] = {}
+    owns_browser = session is None
 
-    with sync_playwright() as pw:
-        # Use a persistent Chrome profile so TM sees real cookies/history each run.
-        # First run creates the profile dir; after that cookies accumulate like a
-        # real browser and TM is far less likely to trigger bot detection.
-        ctx = pw.chromium.launch_persistent_context(
-            CHROME_PROFILE,
-            headless=False,
-            args=["--disable-blink-features=AutomationControlled"],
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/122.0.0.0 Safari/537.36"
-            ),
-            viewport={"width": 1280, "height": 800},
-            locale="en-US",
-        )
-        page = ctx.new_page()
-        stealth_config.apply_stealth_sync(page)
+    if owns_browser:
+        pw, ctx, page = launch_browser_session(team_slug)
+    else:
+        pw, ctx, page = session
 
+    try:
         # Capture two endpoints:
         #   inventory — services.ticketmaster.com facets with section+seating (all seats)
         #   pricing   — offeradapter facets with by=offers (offer→price map)
@@ -140,54 +159,61 @@ def scrape_listings(event_url: str, max_retries: int = 1) -> tuple[list[dict], d
 
         page.on("request", on_request)
 
-        print(f"  Loading: {event_url}")
-        page.goto(event_url, wait_until="load", timeout=45000)
-        page.wait_for_timeout(WAIT_MS)
-
-        # Retry up to max_retries times if inventory XHR wasn't captured
-        for attempt in range(max_retries):
-            if captured["inventory"]:
-                break
-            print(f"  No inventory request captured — retrying in 15s... (attempt {attempt + 1}/{max_retries})")
-            page.wait_for_timeout(15000)
-            captured["inventory"] = None
-            captured["pricing"] = None
+        try:
+            print(f"  Loading: {event_url}")
             page.goto(event_url, wait_until="load", timeout=45000)
             page.wait_for_timeout(WAIT_MS)
 
-        if not captured["inventory"]:
+            # Retry up to max_retries times if inventory XHR wasn't captured
+            for attempt in range(max_retries):
+                if captured["inventory"]:
+                    break
+                print(f"  No inventory request captured — retrying in 15s... (attempt {attempt + 1}/{max_retries})")
+                page.wait_for_timeout(15000)
+                captured["inventory"] = None
+                captured["pricing"] = None
+                page.goto(event_url, wait_until="load", timeout=45000)
+                page.wait_for_timeout(WAIT_MS)
+
+            if not captured["inventory"]:
+                raise RuntimeError(
+                    "No inventory request captured after retry — TM may have changed their page."
+                )
+
+            def browser_fetch(url: str, headers: dict) -> dict:
+                resp = page.request.get(url, headers=headers)
+                return resp.json()
+
+            # Fetch all available seats (single call, no pagination needed)
+            inv = captured["inventory"]
+            inventory_data = browser_fetch(inv["url"], inv["headers"])
+            all_facets = inventory_data.get("facets", [])
+            total_seats = sum(f.get("count", 0) for f in all_facets)
+            print(f"  Found {len(all_facets)} listing groups covering {total_seats} seats.")
+
+            # Build offer→price map
+            if captured["pricing"]:
+                try:
+                    pr = captured["pricing"]
+                    pricing_data = browser_fetch(pr["url"], pr["headers"])
+                    for facet in pricing_data.get("facets", []):
+                        price_ranges = facet.get("totalPriceRange", [])
+                        price = price_ranges[0].get("min") if price_ranges else None
+                        for offer_id in facet.get("offers", []):
+                            offer_price_map[offer_id] = price
+                except Exception as e:
+                    print(f"  Warning: could not fetch price data: {e}")
+            else:
+                print("  Warning: no pricing request captured — prices will be empty.")
+
+        finally:
+            # Always remove the listener so it doesn't accumulate on reused pages
+            page.remove_listener("request", on_request)
+
+    finally:
+        if owns_browser:
             ctx.close()
-            raise RuntimeError(
-                "No inventory request captured after retry — TM may have changed their page."
-            )
-
-        def browser_fetch(url: str, headers: dict) -> dict:
-            resp = page.request.get(url, headers=headers)
-            return resp.json()
-
-        # Fetch all available seats (single call, no pagination needed)
-        inv = captured["inventory"]
-        inventory_data = browser_fetch(inv["url"], inv["headers"])
-        all_facets = inventory_data.get("facets", [])
-        total_seats = sum(f.get("count", 0) for f in all_facets)
-        print(f"  Found {len(all_facets)} listing groups covering {total_seats} seats.")
-
-        # Build offer→price map
-        if captured["pricing"]:
-            try:
-                pr = captured["pricing"]
-                pricing_data = browser_fetch(pr["url"], pr["headers"])
-                for facet in pricing_data.get("facets", []):
-                    price_ranges = facet.get("totalPriceRange", [])
-                    price = price_ranges[0].get("min") if price_ranges else None
-                    for offer_id in facet.get("offers", []):
-                        offer_price_map[offer_id] = price
-            except Exception as e:
-                print(f"  Warning: could not fetch price data: {e}")
-        else:
-            print("  Warning: no pricing request captured — prices will be empty.")
-
-        ctx.close()
+            pw.stop()
 
     print(f"  Price map built for {len(offer_price_map)} offers.")
     return all_facets, offer_price_map

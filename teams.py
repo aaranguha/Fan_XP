@@ -61,8 +61,13 @@ def game_dir(team_slug: str, game_date: str, event_name: str) -> str:
     event_name format: "Orlando Magic vs. Cleveland Cavaliers"
     """
     import re
-    # TM uses "vs." or "vs" depending on the event
-    sep = " vs. " if " vs. " in event_name else " vs "
+    # TM uses "vs.", "vs", or "v." depending on the event
+    if " vs. " in event_name:
+        sep = " vs. "
+    elif " v. " in event_name:
+        sep = " v. "
+    else:
+        sep = " vs "
     parts = event_name.split(sep, 1)
     if len(parts) == 2:
         opponent      = parts[1].strip()
