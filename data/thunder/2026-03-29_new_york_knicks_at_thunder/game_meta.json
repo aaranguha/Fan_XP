@@ -1,0 +1,15 @@
+{
+  "home_team": "thunder",
+  "opponent": "New York Knicks",
+  "game_date": "2026-03-29",
+  "day_of_week": "Sunday",
+  "tipoff_local": "",
+  "arena": "Paycom Center",
+  "city": "Oklahoma City",
+  "home_draw_score": 7.3,
+  "opponent_draw_score": 8.28,
+  "game_appeal_score": 7.79,
+  "opponent_wins": 48,
+  "opponent_losses": 27,
+  "opponent_win_pct": 0.64
+}

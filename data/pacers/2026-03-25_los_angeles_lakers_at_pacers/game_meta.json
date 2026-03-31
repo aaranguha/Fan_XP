@@ -1,0 +1,15 @@
+{
+  "home_team": "pacers",
+  "opponent": "Los Angeles Lakers",
+  "game_date": "2026-03-25",
+  "day_of_week": "Wednesday",
+  "tipoff_local": "",
+  "arena": "Gainbridge Fieldhouse",
+  "city": "Indianapolis",
+  "home_draw_score": 6.3,
+  "opponent_draw_score": 9.31,
+  "game_appeal_score": 7.8,
+  "opponent_wins": 49,
+  "opponent_losses": 26,
+  "opponent_win_pct": 0.653
+}

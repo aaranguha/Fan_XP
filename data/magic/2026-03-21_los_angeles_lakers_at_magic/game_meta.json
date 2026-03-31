@@ -1,0 +1,15 @@
+{
+  "home_team": "magic",
+  "opponent": "Los Angeles Lakers",
+  "game_date": "2026-03-21",
+  "day_of_week": "Saturday",
+  "tipoff_local": "",
+  "arena": "Kia Center",
+  "city": "Orlando",
+  "home_draw_score": 5.8,
+  "opponent_draw_score": 9.31,
+  "game_appeal_score": 7.55,
+  "opponent_wins": 49,
+  "opponent_losses": 26,
+  "opponent_win_pct": 0.653
+}

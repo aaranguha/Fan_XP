@@ -1,0 +1,15 @@
+{
+  "home_team": "heat",
+  "opponent": "Los Angeles Lakers",
+  "game_date": "2026-03-19",
+  "day_of_week": "Thursday",
+  "tipoff_local": "",
+  "arena": "Kaseya Center",
+  "city": "Miami",
+  "home_draw_score": 7.2,
+  "opponent_draw_score": 9.31,
+  "game_appeal_score": 8.26,
+  "opponent_wins": 49,
+  "opponent_losses": 26,
+  "opponent_win_pct": 0.653
+}

@@ -1,0 +1,15 @@
+{
+  "home_team": "hornets",
+  "opponent": "Memphis Grizzlies",
+  "game_date": "2026-03-21",
+  "day_of_week": "Saturday",
+  "tipoff_local": "",
+  "arena": "Spectrum Center",
+  "city": "Charlotte",
+  "home_draw_score": 5.0,
+  "opponent_draw_score": 5.97,
+  "game_appeal_score": 5.48,
+  "opponent_wins": 25,
+  "opponent_losses": 50,
+  "opponent_win_pct": 0.333
+}

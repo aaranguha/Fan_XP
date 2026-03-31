@@ -1,0 +1,15 @@
+{
+  "home_team": "hawks",
+  "opponent": "Boston Celtics",
+  "game_date": "2026-03-30",
+  "day_of_week": "Monday",
+  "tipoff_local": "",
+  "arena": "State Farm Arena",
+  "city": "Atlanta",
+  "home_draw_score": 6.6,
+  "opponent_draw_score": 7.73,
+  "game_appeal_score": 7.17,
+  "opponent_wins": 50,
+  "opponent_losses": 25,
+  "opponent_win_pct": 0.667
+}

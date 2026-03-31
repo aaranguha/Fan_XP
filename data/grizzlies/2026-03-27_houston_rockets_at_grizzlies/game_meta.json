@@ -1,0 +1,15 @@
+{
+  "home_team": "grizzlies",
+  "opponent": "Houston Rockets",
+  "game_date": "2026-03-27",
+  "day_of_week": "Friday",
+  "tipoff_local": "",
+  "arena": "FedExForum",
+  "city": "Memphis",
+  "home_draw_score": 6.3,
+  "opponent_draw_score": 7.12,
+  "game_appeal_score": 6.71,
+  "opponent_wins": 45,
+  "opponent_losses": 29,
+  "opponent_win_pct": 0.608
+}

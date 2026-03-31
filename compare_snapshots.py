@@ -28,16 +28,34 @@ def load_csv(path: str) -> list[dict]:
 
 
 def compare(pre_game: list[dict], halftime: list[dict]) -> list[dict]:
-    """Return rows whose offer_id appears in both snapshots = confirmed no-shows."""
-    pre_ids      = {r["offer_id"]: r for r in pre_game if r["offer_id"]}
-    halftime_ids = {r["offer_id"] for r in halftime if r["offer_id"]}
+    """
+    Return rows confirmed as no-shows (present in both snapshots = never sold).
 
-    no_shows = [
-        row for offer_id, row in pre_ids.items()
-        if offer_id in halftime_ids
-    ]
-    # Sort by section then row for readability
-    no_shows.sort(key=lambda r: (r.get("section", ""), r.get("row", "")))
+    Supports two schemas:
+      - Seat-level (new):  keyed by (section, row, seat)
+      - Offer-level (old): keyed by offer_id
+    """
+    if not pre_game:
+        return []
+
+    seat_level = "seat" in pre_game[0]
+
+    if seat_level:
+        ht_keys = {(r["section"], r["row"], r["seat"]) for r in halftime}
+        no_shows = [
+            r for r in pre_game
+            if (r["section"], r["row"], r["seat"]) in ht_keys
+        ]
+    else:
+        pre_ids      = {r["offer_id"]: r for r in pre_game if r.get("offer_id")}
+        halftime_ids = {r["offer_id"] for r in halftime if r.get("offer_id")}
+        no_shows = [row for oid, row in pre_ids.items() if oid in halftime_ids]
+
+    no_shows.sort(key=lambda r: (
+        r.get("section", ""),
+        r.get("row", "").zfill(4) if r.get("row", "").isdigit() else r.get("row", ""),
+        r.get("seat", "").zfill(4) if r.get("seat", "").isdigit() else r.get("seat", ""),
+    ))
     return no_shows
 
 
@@ -51,14 +69,21 @@ def save_no_shows(rows: list[dict], path: str) -> None:
 
 
 def print_report(pre_game: list[dict], halftime: list[dict], no_shows: list[dict], out_csv: str) -> None:
-    sold = len({r["offer_id"] for r in pre_game if r["offer_id"]}) - len(no_shows)
+    seat_level = pre_game and "seat" in pre_game[0]
+
+    if seat_level:
+        sold = len(pre_game) - len(no_shows)
+        unit = "seats"
+    else:
+        sold = len({r["offer_id"] for r in pre_game if r.get("offer_id")}) - len(no_shows)
+        unit = "listings"
 
     print()
     print("=" * 54)
     print("  NO-SHOW SEAT REPORT")
     print("=" * 54)
-    print(f"  Pre-game listings:   {len(pre_game)}")
-    print(f"  Halftime listings:   {len(halftime)}")
+    print(f"  Pre-game {unit}:   {len(pre_game)}")
+    print(f"  Halftime {unit}:   {len(halftime)}")
     print(f"  Sold between scans:  {sold}")
     print(f"  Confirmed no-shows:  {len(no_shows)}")
 
@@ -70,10 +95,13 @@ def print_report(pre_game: list[dict], halftime: list[dict], no_shows: list[dict
             print(f"  Avg no-show price:  ${total_face / len(prices):,.0f}")
 
         print()
-        print("  Sample no-show listings (first 10):")
+        print("  Sample no-show seats (first 10):")
         for r in no_shows[:10]:
             price = f"${float(r['price_usd']):.0f}" if r.get("price_usd") else "N/A"
-            print(f"    Section {r['section']:<8} {r.get('selection_type',''):<8} {price}")
+            if seat_level:
+                print(f"    Sec {r['section']:<6} Row {r['row']:<4} Seat {r['seat']:<4} {r.get('selection_type',''):<8} {price}")
+            else:
+                print(f"    Section {r['section']:<8} {r.get('selection_type',''):<8} {price}")
 
     print()
     print(f"  Full list saved to: {out_csv}")

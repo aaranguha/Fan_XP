@@ -1,0 +1,15 @@
+{
+  "home_team": "pacers",
+  "opponent": "Miami Heat",
+  "game_date": "2026-03-29",
+  "day_of_week": "Sunday",
+  "tipoff_local": "",
+  "arena": "Gainbridge Fieldhouse",
+  "city": "Indianapolis",
+  "home_draw_score": 6.3,
+  "opponent_draw_score": 7.25,
+  "game_appeal_score": 6.78,
+  "opponent_wins": 40,
+  "opponent_losses": 36,
+  "opponent_win_pct": 0.526
+}

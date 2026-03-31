@@ -1,0 +1,15 @@
+{
+  "home_team": "nuggets",
+  "opponent": "Golden State Warriors",
+  "game_date": "2026-03-29",
+  "day_of_week": "Sunday",
+  "tipoff_local": "",
+  "arena": "Ball Arena",
+  "city": "Denver",
+  "home_draw_score": 7.6,
+  "opponent_draw_score": 8.66,
+  "game_appeal_score": 8.13,
+  "opponent_wins": 36,
+  "opponent_losses": 39,
+  "opponent_win_pct": 0.48
+}

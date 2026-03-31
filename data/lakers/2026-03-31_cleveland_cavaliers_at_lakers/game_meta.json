@@ -1,0 +1,15 @@
+{
+  "home_team": "lakers",
+  "opponent": "Cleveland Cavaliers",
+  "game_date": "2026-03-31",
+  "day_of_week": "Tuesday",
+  "tipoff_local": "",
+  "arena": "Crypto.com Arena",
+  "city": "Los Angeles",
+  "home_draw_score": 9.0,
+  "opponent_draw_score": 6.85,
+  "game_appeal_score": 7.92,
+  "opponent_wins": 47,
+  "opponent_losses": 28,
+  "opponent_win_pct": 0.627
+}
