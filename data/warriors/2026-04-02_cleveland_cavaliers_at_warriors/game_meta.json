@@ -1,0 +1,15 @@
+{
+  "home_team": "warriors",
+  "opponent": "Cleveland Cavaliers",
+  "game_date": "2026-04-02",
+  "day_of_week": "Thursday",
+  "tipoff_local": "19:00",
+  "arena": "Chase Center",
+  "city": "San Francisco",
+  "home_draw_score": 8.7,
+  "opponent_draw_score": 6.84,
+  "game_appeal_score": 7.77,
+  "opponent_wins": 47,
+  "opponent_losses": 29,
+  "opponent_win_pct": 0.618
+}

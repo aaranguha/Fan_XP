@@ -1,0 +1,15 @@
+{
+  "home_team": "jazz",
+  "opponent": "Denver Nuggets",
+  "game_date": "2026-04-01",
+  "day_of_week": "Wednesday",
+  "tipoff_local": "19:00",
+  "arena": "Delta Center",
+  "city": "Salt Lake City",
+  "home_draw_score": 4.8,
+  "opponent_draw_score": 7.86,
+  "game_appeal_score": 6.33,
+  "opponent_wins": 48,
+  "opponent_losses": 28,
+  "opponent_win_pct": 0.632
+}

@@ -1,0 +1,15 @@
+{
+  "home_team": "magic",
+  "opponent": "Atlanta Hawks",
+  "game_date": "2026-04-01",
+  "day_of_week": "Wednesday",
+  "tipoff_local": "19:00",
+  "arena": "Kia Center",
+  "city": "Orlando",
+  "home_draw_score": 5.8,
+  "opponent_draw_score": 6.73,
+  "game_appeal_score": 6.27,
+  "opponent_wins": 43,
+  "opponent_losses": 33,
+  "opponent_win_pct": 0.566
+}

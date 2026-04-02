@@ -1,0 +1,15 @@
+{
+  "home_team": "hornets",
+  "opponent": "Phoenix Suns",
+  "game_date": "2026-04-02",
+  "day_of_week": "Thursday",
+  "tipoff_local": "19:00",
+  "arena": "Spectrum Center",
+  "city": "Charlotte",
+  "home_draw_score": 5.0,
+  "opponent_draw_score": 7.01,
+  "game_appeal_score": 6.0,
+  "opponent_wins": 42,
+  "opponent_losses": 34,
+  "opponent_win_pct": 0.553
+}

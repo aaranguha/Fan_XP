@@ -1,0 +1,15 @@
+{
+  "home_team": "heat",
+  "opponent": "Boston Celtics",
+  "game_date": "2026-04-01",
+  "day_of_week": "Wednesday",
+  "tipoff_local": "19:30",
+  "arena": "Kaseya Center",
+  "city": "Miami",
+  "home_draw_score": 7.2,
+  "opponent_draw_score": 7.73,
+  "game_appeal_score": 7.46,
+  "opponent_wins": 50,
+  "opponent_losses": 25,
+  "opponent_win_pct": 0.667
+}

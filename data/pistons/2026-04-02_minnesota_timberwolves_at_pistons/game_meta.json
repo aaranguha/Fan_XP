@@ -1,0 +1,15 @@
+{
+  "home_team": "pistons",
+  "opponent": "Minnesota Timberwolves",
+  "game_date": "2026-04-02",
+  "day_of_week": "Thursday",
+  "tipoff_local": "19:00",
+  "arena": "Little Caesars Arena",
+  "city": "Detroit",
+  "home_draw_score": 5.1,
+  "opponent_draw_score": 6.83,
+  "game_appeal_score": 5.96,
+  "opponent_wins": 46,
+  "opponent_losses": 29,
+  "opponent_win_pct": 0.613
+}

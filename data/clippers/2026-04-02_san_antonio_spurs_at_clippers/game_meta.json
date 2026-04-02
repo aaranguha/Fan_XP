@@ -1,0 +1,15 @@
+{
+  "home_team": "clippers",
+  "opponent": "San Antonio Spurs",
+  "game_date": "2026-04-02",
+  "day_of_week": "Thursday",
+  "tipoff_local": "19:30",
+  "arena": "Intuit Dome",
+  "city": "Inglewood",
+  "home_draw_score": 7.0,
+  "opponent_draw_score": 7.83,
+  "game_appeal_score": 7.42,
+  "opponent_wins": 58,
+  "opponent_losses": 18,
+  "opponent_win_pct": 0.763
+}

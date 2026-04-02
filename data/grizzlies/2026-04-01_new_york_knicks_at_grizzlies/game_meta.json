@@ -1,0 +1,15 @@
+{
+  "home_team": "grizzlies",
+  "opponent": "New York Knicks",
+  "game_date": "2026-04-01",
+  "day_of_week": "Wednesday",
+  "tipoff_local": "19:00",
+  "arena": "FedExForum",
+  "city": "Memphis",
+  "home_draw_score": 6.3,
+  "opponent_draw_score": 8.26,
+  "game_appeal_score": 7.28,
+  "opponent_wins": 48,
+  "opponent_losses": 28,
+  "opponent_win_pct": 0.632
+}

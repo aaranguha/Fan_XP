@@ -1,0 +1,15 @@
+{
+  "home_team": "bulls",
+  "opponent": "Indiana Pacers",
+  "game_date": "2026-04-01",
+  "day_of_week": "Wednesday",
+  "tipoff_local": "19:00",
+  "arena": "United Center",
+  "city": "Chicago",
+  "home_draw_score": 6.2,
+  "opponent_draw_score": 5.75,
+  "game_appeal_score": 5.97,
+  "opponent_wins": 17,
+  "opponent_losses": 58,
+  "opponent_win_pct": 0.227
+}
