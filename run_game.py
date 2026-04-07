@@ -20,6 +20,7 @@ Keep the terminal open. Your machine just needs to stay awake.
 
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -33,6 +34,7 @@ from teams import get_team, game_dir, pre_game_csv, halftime_csv, no_shows_csv, 
 from fetch_listings import (
     find_next_home_game,
     scrape_listings,
+    scrape_from_endpoints,
     launch_browser_session,
     close_browser_session,
     parse_facet,
@@ -95,17 +97,17 @@ def find_team_game(games: list[dict], nba_city: str) -> dict | None:
     return None
 
 
-def warm_browser(page, event_url: str) -> None:
-    """Refresh the TM event page to keep the browser session alive."""
-    print(f"  [keep-alive] Refreshing TM page to warm session...")
+def warm_browser(page) -> None:
+    """Navigate to the TM homepage to keep the browser session alive without hammering the event URL."""
+    print(f"  [keep-alive] Warming session via TM homepage...")
     try:
-        page.goto(event_url, wait_until="load", timeout=45000)
-        page.wait_for_timeout(12000)
+        page.goto("https://www.ticketmaster.com", wait_until="load", timeout=45000)
+        page.wait_for_timeout(5000)
     except Exception as e:
         print(f"  [keep-alive] Warning: warm refresh failed: {e}")
 
 
-def wait_for_halftime(tipoff: datetime, nba_city: str, warm_page=None, warm_url: str = "") -> None:
+def wait_for_halftime(tipoff: datetime, nba_city: str, warm_page=None, fallback_min: int = HALFTIME_FALLBACK_MIN) -> None:
     """
     Poll NBA live scoreboard every 30s and return when Q2 has ≤2 min left.
     Falls back to a fixed offset if nba_api is unavailable or game not found.
@@ -116,10 +118,10 @@ def wait_for_halftime(tipoff: datetime, nba_city: str, warm_page=None, warm_url:
     except ImportError:
         live_available = False
 
-    fallback_time = tipoff + timedelta(minutes=HALFTIME_FALLBACK_MIN)
+    fallback_time = tipoff + timedelta(minutes=fallback_min)
 
     if not live_available:
-        print(f"  nba_api not installed — using fixed {HALFTIME_FALLBACK_MIN}min fallback.")
+        print(f"  nba_api not installed — using fixed {fallback_min}min fallback.")
         sleep_until(fallback_time, "halftime")
         return
 
@@ -139,10 +141,10 @@ def wait_for_halftime(tipoff: datetime, nba_city: str, warm_page=None, warm_url:
             return
 
         # Periodically refresh TM page to keep browser session warm
-        if warm_page and warm_url:
+        if warm_page:
             since_warm = (datetime.now(timezone.utc) - last_warm).total_seconds() / 60
             if since_warm >= WARM_INTERVAL_MIN:
-                warm_browser(warm_page, warm_url)
+                warm_browser(warm_page)
                 last_warm = datetime.now(timezone.utc)
 
         try:
@@ -254,13 +256,13 @@ def save_game_meta(event: dict, team: dict, gdir: str) -> None:
     print(f"  Game meta saved → {path}")
 
 
-def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str, max_retries: int = 1, team_slug: str = "default", session=None) -> list[dict]:
+def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str, max_retries: int = 1, team_slug: str = "default", session=None, save_endpoints_path: str | None = None) -> list[dict]:
     if os.path.isfile(out_csv):
         print(f"\n  [{snapshot}] Already exists — skipping scrape. Loading {out_csv}")
         return load_csv(out_csv)
     scraped_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"\n[{scraped_at}] Starting {snapshot} scrape...")
-    facets, offer_price_map, places_facets = scrape_listings(url, max_retries=max_retries, team_slug=team_slug, session=session)
+    facets, offer_price_map, places_facets = scrape_listings(url, max_retries=max_retries, team_slug=team_slug, session=session, save_endpoints_path=save_endpoints_path)
     if places_facets:
         rows = parse_seats(facets, places_facets, offer_price_map, scraped_at)
     else:
@@ -316,27 +318,65 @@ def main():
     print(f"\n  Game:             {name}  ({game_dt})")
     print(f"  Tip-off:          {tipoff.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Pre-game scrape:  {pre_game_time.strftime('%H:%M UTC')}  ({PRE_GAME_OFFSET_MIN} min before tip-off)")
-    print(f"  Halftime scrape:  Live clock (Q2 ≤{Q2_TRIGGER_MIN} min)  |  fallback: {HALFTIME_FALLBACK_MIN} min after tip-off")
+    ht_fallback_min = team.get("halftime_fallback_min", HALFTIME_FALLBACK_MIN)
+    print(f"  Halftime scrape:  Live clock (Q2 ≤{Q2_TRIGGER_MIN} min)  |  fallback: {ht_fallback_min} min after tip-off")
     if keep_alive:
         print(f"  Keep-alive:       Browser stays open, refreshes TM every {WARM_INTERVAL_MIN} min")
     print(f"  Data folder:      {gdir}/")
     print()
 
+    endpoints_path = os.path.join(gdir, "endpoints.json")
     browser_session = None
     try:
+        # ── Snapshot 1: pre-game ───────────────────────────────────────────────
+        sleep_until(pre_game_time, "pre_game")
+        # Jitter 0–4 min so simultaneous runners don't all hit TM at once
+        jitter = random.randint(0, 240)
+        if jitter:
+            print(f"  [jitter] Waiting {jitter}s before scrape to avoid simultaneous requests...")
+            time.sleep(jitter)
         if keep_alive:
             print("  [keep-alive] Launching persistent browser session...")
             browser_session = launch_browser_session(team["slug"])
-
-        # ── Snapshot 1: pre-game ───────────────────────────────────────────────
-        sleep_until(pre_game_time, "pre_game")
-        pre_rows = run_snapshot(event, url, "pre_game", pg_csv, max_retries=max_retries, team_slug=team["slug"], session=browser_session)
+        # For keep-alive teams, save XHR endpoints during pre-game for reuse at halftime
+        pre_rows = run_snapshot(
+            event, url, "pre_game", pg_csv,
+            max_retries=max_retries, team_slug=team["slug"], session=browser_session,
+            save_endpoints_path=endpoints_path if keep_alive else None,
+        )
 
         # ── Snapshot 2: halftime (live clock) ─────────────────────────────────
         print("\nWaiting for halftime...")
         warm_page = browser_session[2] if browser_session else None  # page object
-        wait_for_halftime(tipoff, team["nba_city"], warm_page=warm_page, warm_url=url)
-        ht_rows = run_snapshot(event, url, "halftime", ht_csv, max_retries=max_retries, team_slug=team["slug"], session=browser_session)
+        wait_for_halftime(tipoff, team["nba_city"], warm_page=warm_page, fallback_min=team.get("halftime_fallback_min", HALFTIME_FALLBACK_MIN))
+
+        # For keep-alive teams, use saved endpoints to avoid re-loading the event URL
+        if keep_alive and browser_session and os.path.isfile(endpoints_path):
+            print(f"\n  [keep-alive] Attempting halftime scrape via saved endpoints (no page navigation)...")
+            if os.path.isfile(ht_csv):
+                print(f"  [halftime] Already exists — skipping scrape. Loading {ht_csv}")
+                ht_rows = load_csv(ht_csv)
+            else:
+                try:
+                    scraped_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                    print(f"\n[{scraped_at}] Starting halftime scrape...")
+                    page = browser_session[2]
+                    facets, offer_price_map, places_facets = scrape_from_endpoints(page, endpoints_path, scraped_at)
+                    if places_facets:
+                        ht_rows = parse_seats(facets, places_facets, offer_price_map, scraped_at)
+                    else:
+                        ht_rows = []
+                        for f in facets:
+                            ht_rows.extend(parse_facet(f, offer_price_map, scraped_at))
+                    if not ht_rows:
+                        raise RuntimeError("Direct endpoint returned 0 seats — endpoints likely expired.")
+                    save_csv(ht_rows, ht_csv)
+                    print_summary(event, ht_rows, ht_csv)
+                except Exception as e:
+                    print(f"  [keep-alive] Direct endpoint scrape failed ({e}) — falling back to full page load.")
+                    ht_rows = run_snapshot(event, url, "halftime", ht_csv, max_retries=max_retries, team_slug=team["slug"], session=browser_session)
+        else:
+            ht_rows = run_snapshot(event, url, "halftime", ht_csv, max_retries=max_retries, team_slug=team["slug"], session=browser_session)
 
         # ── Compare ────────────────────────────────────────────────────────────
         print("\nComparing snapshots...")

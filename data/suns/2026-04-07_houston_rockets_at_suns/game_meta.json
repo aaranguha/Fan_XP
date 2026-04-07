@@ -1,0 +1,15 @@
+{
+  "home_team": "suns",
+  "opponent": "Houston Rockets",
+  "game_date": "2026-04-07",
+  "day_of_week": "Tuesday",
+  "tipoff_local": "20:00",
+  "arena": "Mortgage Matchup Center",
+  "city": "Phoenix",
+  "home_draw_score": 6.9,
+  "opponent_draw_score": 7.16,
+  "game_appeal_score": 7.03,
+  "opponent_wins": 49,
+  "opponent_losses": 29,
+  "opponent_win_pct": 0.628
+}

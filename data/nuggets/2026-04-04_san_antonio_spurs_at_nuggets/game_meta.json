@@ -1,0 +1,15 @@
+{
+  "home_team": "nuggets",
+  "opponent": "San Antonio Spurs",
+  "game_date": "2026-04-04",
+  "day_of_week": "Saturday",
+  "tipoff_local": "13:00",
+  "arena": "Ball Arena",
+  "city": "Denver",
+  "home_draw_score": 7.6,
+  "opponent_draw_score": 7.83,
+  "game_appeal_score": 7.71,
+  "opponent_wins": 59,
+  "opponent_losses": 18,
+  "opponent_win_pct": 0.766
+}

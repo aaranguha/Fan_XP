@@ -1,0 +1,15 @@
+{
+  "home_team": "heat",
+  "opponent": "Washington Wizards",
+  "game_date": "2026-04-04",
+  "day_of_week": "Saturday",
+  "tipoff_local": "15:00",
+  "arena": "Kaseya Center",
+  "city": "Miami",
+  "home_draw_score": 7.2,
+  "opponent_draw_score": 4.05,
+  "game_appeal_score": 5.62,
+  "opponent_wins": 17,
+  "opponent_losses": 59,
+  "opponent_win_pct": 0.224
+}

@@ -1,0 +1,15 @@
+{
+  "home_team": "grizzlies",
+  "opponent": "Toronto Raptors",
+  "game_date": "2026-04-03",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:00",
+  "arena": "FedExForum",
+  "city": "Memphis",
+  "home_draw_score": 6.3,
+  "opponent_draw_score": 6.01,
+  "game_appeal_score": 6.15,
+  "opponent_wins": 42,
+  "opponent_losses": 34,
+  "opponent_win_pct": 0.553
+}

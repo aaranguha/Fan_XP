@@ -1,0 +1,15 @@
+{
+  "home_team": "kings",
+  "opponent": "LA Clippers",
+  "game_date": "2026-04-05",
+  "day_of_week": "Sunday",
+  "tipoff_local": "18:00",
+  "arena": "Golden 1 Center",
+  "city": "Sacramento",
+  "home_draw_score": 5.5,
+  "opponent_draw_score": 7.01,
+  "game_appeal_score": 6.25,
+  "opponent_wins": 39,
+  "opponent_losses": 38,
+  "opponent_win_pct": 0.506
+}

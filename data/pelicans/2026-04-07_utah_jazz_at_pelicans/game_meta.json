@@ -1,0 +1,15 @@
+{
+  "home_team": "pelicans",
+  "opponent": "Utah Jazz",
+  "game_date": "2026-04-07",
+  "day_of_week": "Tuesday",
+  "tipoff_local": "19:00",
+  "arena": "Smoothie King Center",
+  "city": "New Orleans",
+  "home_draw_score": 5.5,
+  "opponent_draw_score": 4.33,
+  "game_appeal_score": 4.92,
+  "opponent_wins": 21,
+  "opponent_losses": 58,
+  "opponent_win_pct": 0.266
+}

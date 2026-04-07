@@ -35,21 +35,26 @@ def compare(pre_game: list[dict], halftime: list[dict]) -> list[dict]:
       - Seat-level (new):  keyed by (section, row, seat)
       - Offer-level (old): keyed by offer_id
     """
-    if not pre_game:
+    if not pre_game or not halftime:
         return []
 
-    seat_level = "seat" in pre_game[0]
+    pre_seat_level = "seat" in pre_game[0]
+    ht_seat_level  = "seat" in halftime[0]
 
-    if seat_level:
+    if pre_seat_level and ht_seat_level:
         ht_keys = {(r["section"], r["row"], r["seat"]) for r in halftime}
         no_shows = [
             r for r in pre_game
             if (r["section"], r["row"], r["seat"]) in ht_keys
         ]
-    else:
+    elif not pre_seat_level and not ht_seat_level:
         pre_ids      = {r["offer_id"]: r for r in pre_game if r.get("offer_id")}
         halftime_ids = {r["offer_id"] for r in halftime if r.get("offer_id")}
         no_shows = [row for oid, row in pre_ids.items() if oid in halftime_ids]
+    else:
+        # Mixed schemas (one seat-level, one offer-level) — cannot compare
+        print("  Warning: pre_game and halftime have incompatible schemas — skipping compare.")
+        return []
 
     no_shows.sort(key=lambda r: (
         r.get("section", ""),

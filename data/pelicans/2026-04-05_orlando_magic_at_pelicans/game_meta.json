@@ -1,0 +1,15 @@
+{
+  "home_team": "pelicans",
+  "opponent": "Orlando Magic",
+  "game_date": "2026-04-05",
+  "day_of_week": "Sunday",
+  "tipoff_local": "18:00",
+  "arena": "Smoothie King Center",
+  "city": "New Orleans",
+  "home_draw_score": 5.5,
+  "opponent_draw_score": 5.86,
+  "game_appeal_score": 5.68,
+  "opponent_wins": 41,
+  "opponent_losses": 36,
+  "opponent_win_pct": 0.532
+}

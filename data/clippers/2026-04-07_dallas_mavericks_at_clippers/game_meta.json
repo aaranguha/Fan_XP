@@ -1,0 +1,15 @@
+{
+  "home_team": "clippers",
+  "opponent": "Dallas Mavericks",
+  "game_date": "2026-04-07",
+  "day_of_week": "Tuesday",
+  "tipoff_local": "19:30",
+  "arena": "Intuit Dome",
+  "city": "Inglewood",
+  "home_draw_score": 7.0,
+  "opponent_draw_score": 6.54,
+  "game_appeal_score": 6.77,
+  "opponent_wins": 25,
+  "opponent_losses": 53,
+  "opponent_win_pct": 0.321
+}

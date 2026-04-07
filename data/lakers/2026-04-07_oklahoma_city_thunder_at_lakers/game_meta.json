@@ -1,0 +1,15 @@
+{
+  "home_team": "lakers",
+  "opponent": "Oklahoma City Thunder",
+  "game_date": "2026-04-07",
+  "day_of_week": "Tuesday",
+  "tipoff_local": "19:30",
+  "arena": "Crypto.com Arena",
+  "city": "Los Angeles",
+  "home_draw_score": 9.0,
+  "opponent_draw_score": 7.89,
+  "game_appeal_score": 8.45,
+  "opponent_wins": 62,
+  "opponent_losses": 16,
+  "opponent_win_pct": 0.795
+}

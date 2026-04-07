@@ -1,0 +1,15 @@
+{
+  "home_team": "bucks",
+  "opponent": "Boston Celtics",
+  "game_date": "2026-04-03",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:00",
+  "arena": "Fiserv Forum",
+  "city": "Milwaukee",
+  "home_draw_score": 7.3,
+  "opponent_draw_score": 7.74,
+  "game_appeal_score": 7.52,
+  "opponent_wins": 51,
+  "opponent_losses": 25,
+  "opponent_win_pct": 0.671
+}

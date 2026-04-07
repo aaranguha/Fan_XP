@@ -1,0 +1,15 @@
+{
+  "home_team": "warriors",
+  "opponent": "Sacramento Kings",
+  "game_date": "2026-04-07",
+  "day_of_week": "Tuesday",
+  "tipoff_local": "19:00",
+  "arena": "Chase Center",
+  "city": "San Francisco",
+  "home_draw_score": 8.7,
+  "opponent_draw_score": 5.03,
+  "game_appeal_score": 6.87,
+  "opponent_wins": 21,
+  "opponent_losses": 58,
+  "opponent_win_pct": 0.266
+}

@@ -25,6 +25,7 @@ Setup:
 """
 
 import base64
+import json
 import os
 import csv
 import sys
@@ -213,7 +214,7 @@ def close_browser_session(pw, ctx) -> None:
     pw.stop()
 
 
-def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "default", session=None) -> tuple[list[dict], dict, list[dict]]:
+def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "default", session=None, save_endpoints_path: str | None = None) -> tuple[list[dict], dict, list[dict]]:
     """
     Load the TM event page, intercept three XHR calls:
       - services.ticketmaster.com full-inventory facets → ALL available seats (primary + resale)
@@ -283,6 +284,18 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
                     "No inventory request captured after retry — TM may have changed their page."
                 )
 
+            # Optionally persist the captured XHR endpoint URLs + headers for later reuse
+            if save_endpoints_path and captured["inventory"]:
+                endpoints_data = {
+                    "inventory": captured["inventory"],
+                    "pricing":   captured["pricing"],
+                    "places":    captured["places"],
+                }
+                os.makedirs(os.path.dirname(save_endpoints_path), exist_ok=True)
+                with open(save_endpoints_path, "w", encoding="utf-8") as _f:
+                    json.dump(endpoints_data, _f, indent=2)
+                print(f"  Endpoints saved → {save_endpoints_path}")
+
             def browser_fetch(url: str, headers: dict) -> dict:
                 resp = page.request.get(url, headers=headers)
                 return resp.json()
@@ -333,6 +346,71 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
             pw.stop()
 
     print(f"  Price map built for {len(offer_price_map)} offers.")
+    return all_facets, offer_price_map, all_places_facets
+
+
+def scrape_from_endpoints(page, endpoints_path: str, scraped_at: str) -> tuple[list[dict], dict, list[dict]]:
+    """
+    Re-fetch TM inventory data using previously saved XHR endpoint URLs + headers.
+    No page navigation — uses page.request.get() to call the APIs directly.
+    This avoids re-loading the event URL and triggering TM bot detection.
+
+    Args:
+        page            — Playwright page object (must be in an active session)
+        endpoints_path  — Path to endpoints.json saved by scrape_listings()
+        scraped_at      — ISO timestamp string for logging
+
+    Returns:
+        (all_facets, offer_price_map, places_facets) — same shape as scrape_listings()
+    """
+    print(f"  [direct] Loading saved endpoints from {endpoints_path}")
+    with open(endpoints_path, "r", encoding="utf-8") as f:
+        endpoints = json.load(f)
+
+    def direct_fetch(url: str, headers: dict) -> dict:
+        resp = page.request.get(url, headers=headers)
+        return resp.json()
+
+    # Inventory facets
+    inv = endpoints.get("inventory")
+    if not inv:
+        raise RuntimeError("endpoints.json missing 'inventory' key — cannot scrape.")
+    inventory_data = direct_fetch(inv["url"], inv["headers"])
+    all_facets = inventory_data.get("facets", [])
+    total_seats = sum(f.get("count", 0) for f in all_facets)
+    print(f"  [direct] Found {len(all_facets)} listing groups covering {total_seats} seats.")
+
+    # Offer → price map
+    offer_price_map: dict[str, float] = {}
+    pr = endpoints.get("pricing")
+    if pr:
+        try:
+            pricing_data = direct_fetch(pr["url"], pr["headers"])
+            for facet in pricing_data.get("facets", []):
+                price_ranges = facet.get("totalPriceRange", [])
+                price = price_ranges[0].get("min") if price_ranges else None
+                for offer_id in facet.get("offers", []):
+                    offer_price_map[offer_id] = price
+        except Exception as e:
+            print(f"  [direct] Warning: could not fetch price data: {e}")
+    else:
+        print("  [direct] Warning: no pricing endpoint saved — prices will be empty.")
+
+    # Places facets (seat-level row/seat data)
+    all_places_facets = []
+    pl = endpoints.get("places")
+    if pl:
+        try:
+            places_data = direct_fetch(pl["url"], pl["headers"])
+            all_places_facets = places_data.get("facets", [])
+            total_place_seats = sum(f.get("count", 0) for f in all_places_facets)
+            print(f"  [direct] Places endpoint: {len(all_places_facets)} groups, {total_place_seats} seats with row/seat data.")
+        except Exception as e:
+            print(f"  [direct] Warning: could not fetch places data: {e}")
+    else:
+        print("  [direct] Warning: no places endpoint saved — seat numbers will not be available.")
+
+    print(f"  [direct] Price map built for {len(offer_price_map)} offers.")
     return all_facets, offer_price_map, all_places_facets
 
 

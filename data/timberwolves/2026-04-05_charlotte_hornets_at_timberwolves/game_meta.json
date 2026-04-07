@@ -1,0 +1,15 @@
+{
+  "home_team": "timberwolves",
+  "opponent": "Charlotte Hornets",
+  "game_date": "2026-04-05",
+  "day_of_week": "Sunday",
+  "tipoff_local": "18:00",
+  "arena": "Target Center",
+  "city": "Minneapolis",
+  "home_draw_score": 6.6,
+  "opponent_draw_score": 5.08,
+  "game_appeal_score": 5.84,
+  "opponent_wins": 42,
+  "opponent_losses": 36,
+  "opponent_win_pct": 0.538
+}

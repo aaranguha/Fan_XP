@@ -1,0 +1,15 @@
+{
+  "home_team": "hornets",
+  "opponent": "Indiana Pacers",
+  "game_date": "2026-04-03",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:00",
+  "arena": "Spectrum Center",
+  "city": "Charlotte",
+  "home_draw_score": 5.0,
+  "opponent_draw_score": 5.77,
+  "game_appeal_score": 5.38,
+  "opponent_wins": 18,
+  "opponent_losses": 58,
+  "opponent_win_pct": 0.237
+}
