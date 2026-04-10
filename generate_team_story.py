@@ -190,9 +190,9 @@ def load_geo(geo_path, ns_keys, pre_keys, pre_price):
 
 def load_bg_parts(bg_svg, fallback_svg=None):
     """
-    Load arena SVG. Returns (bg_inner, court_img_tag):
-      bg_inner      — full SVG content for the darkened background layer
-      court_img_tag — just the <image> element from the field group (court PNG), rendered separately
+    Load arena SVG. Returns (bg_inner, court_group):
+      bg_inner    — full SVG content with field group REMOVED (darkened bg layer)
+      court_group — the full <g id="field"> content with corrected image y, rendered unfiltered
     """
     path = bg_svg if os.path.isfile(bg_svg) else fallback_svg
     if not path or not os.path.isfile(path):
@@ -205,15 +205,30 @@ def load_bg_parts(bg_svg, fallback_svg=None):
     if inner.endswith("</svg>"):
         inner = inner[:-6]
 
-    # Extract just the court <image> tag from the field group
-    court_img = ""
+    # Extract the full field group (court image + line paths)
     field_m = re.search(r'<g\s+id="field">(.*?)</g>', inner, re.DOTALL)
+    court_group = ""
     if field_m:
-        img_m = re.search(r'<image[^>]*/>', field_m.group(1))
-        if img_m:
-            court_img = img_m.group(0)
+        field_content = field_m.group(1)
 
-    return inner, court_img
+        # The court <image> is missing its y attribute — fix it by computing from path coords
+        path_ys = [float(m.group(1)) for m in re.finditer(r'M[\d.]+[, ]([\d.]+)', field_content)]
+        court_y = min(path_ys) if path_ys else 3346.0
+
+        # Inject the y attribute into the image tag
+        fixed = re.sub(
+            r'(<image\b[^>]*?)\s*(xlink:href=)',
+            lambda m: m.group(1) + f' y="{court_y:.2f}" ' + m.group(2),
+            field_content
+        )
+        court_group = fixed
+
+    # Remove field group from bg_inner — it renders separately without dark filter
+    bg_inner = inner
+    if field_m:
+        bg_inner = inner[:field_m.start()] + inner[field_m.end():]
+
+    return bg_inner, court_group
 
 
 # ── HTML generator ─────────────────────────────────────────────────────────────
