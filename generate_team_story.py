@@ -190,10 +190,9 @@ def load_geo(geo_path, ns_keys, pre_keys, pre_price):
 
 def load_bg_parts(bg_svg, fallback_svg=None):
     """
-    Load arena SVG and return (court_inner, arena_inner) as two separate strings.
-    court_inner — the 'field' group content (basketball court), rendered without dark filter
-    arena_inner — everything else (seating structure), rendered with dark filter
-    Also strips any TM watermark groups positioned outside the arena ring.
+    Load arena SVG. Returns (bg_inner, court_img_tag):
+      bg_inner      — full SVG content for the darkened background layer
+      court_img_tag — just the <image> element from the field group (court PNG), rendered separately
     """
     path = bg_svg if os.path.isfile(bg_svg) else fallback_svg
     if not path or not os.path.isfile(path):
@@ -202,32 +201,24 @@ def load_bg_parts(bg_svg, fallback_svg=None):
     with open(path, encoding="utf-8") as f:
         raw = f.read()
 
-    # Strip outer <svg> tags
     inner = re.sub(r'^<svg[^>]*>', '', raw, count=1).rstrip()
     if inner.endswith("</svg>"):
         inner = inner[:-6]
-    # Also strip any nested inner <svg> wrappers that might appear
-    inner = re.sub(r'<svg\s[^>]*viewBox="0 0 10240 7680"[^>]*>', '', inner)
-    inner = re.sub(r'</svg>', '', inner)
 
-    # Extract the field (court) group separately
-    court_match = re.search(r'<g\s+id="field">(.*?)</g>', inner, re.DOTALL)
-    court_inner = court_match.group(0) if court_match else ""
+    # Extract just the court <image> tag from the field group
+    court_img = ""
+    field_m = re.search(r'<g\s+id="field">(.*?)</g>', inner, re.DOTALL)
+    if field_m:
+        img_m = re.search(r'<image[^>]*/>', field_m.group(1))
+        if img_m:
+            court_img = img_m.group(0)
 
-    # Remove field group from main inner (it will be rendered separately)
-    arena_inner = inner
-    if court_match:
-        arena_inner = inner[:court_match.start()] + inner[court_match.end():]
-
-    # Remove section labels (noisy when darkened)
-    arena_inner = re.sub(r'<g\s+id="labels-container"[^>]*>.*?</g>', '', arena_inner, flags=re.DOTALL)
-
-    return court_inner, arena_inner
+    return inner, court_img
 
 
 # ── HTML generator ─────────────────────────────────────────────────────────────
 
-def gen_html(team_slug, game_label, sec_paths, geo_sections, court_inner, arena_inner):
+def gen_html(team_slug, game_label, sec_paths, geo_sections, bg_inner, court_img):
     meta  = TEAM_META.get(team_slug, {"name": team_slug.title(), "arena": "", "color": "#ce1141"})
     color = meta["color"]
     name  = meta["name"]
@@ -399,14 +390,14 @@ circle.red:hover{{ filter:drop-shadow(0 0 3px {color}); }}
         </filter>
       </defs>
 
-      <!-- Arena seating structure (darkened) -->
+      <!-- Arena background (darkened) -->
       <g id="bg" filter="url(#dk)" transform="scale({SX:.7f},{SY:.7f})">
-        {arena_inner}
+        {bg_inner}
       </g>
 
-      <!-- Basketball court (full color, lightly dimmed) -->
-      <g id="court" transform="scale({SX:.7f},{SY:.7f})" opacity="0.68">
-        {court_inner}
+      <!-- Basketball court overlay (full color) -->
+      <g id="court" transform="scale({SX:.7f},{SY:.7f})" opacity="0.82">
+        {court_img}
       </g>
 
       <g id="dots-bg"></g>
@@ -749,14 +740,14 @@ def generate(team_slug, game_folder=None):
     sec_paths   = load_section_paths(dom_svg)
     ns_keys, pre_keys, pre_price = load_game(game_dir)
     geo_sections = load_geo(geo_path, ns_keys, pre_keys, pre_price)
-    court_inner, arena_inner = load_bg_parts(bg_svg, fallback_svg=dom_svg)
+    bg_inner, court_img = load_bg_parts(bg_svg, fallback_svg=dom_svg)
 
     total_dots  = sum(len(v) for v in geo_sections.values())
     total_ns    = sum(1 for d in [d for dots in geo_sections.values() for d in dots] if d["s"] == 2)
     print(f"    {len(geo_sections)} sections · {total_dots:,} dots · {total_ns:,} no-shows")
     print(f"    Game: {game_label}")
 
-    html = gen_html(team_slug, game_label, sec_paths, geo_sections, court_inner, arena_inner)
+    html = gen_html(team_slug, game_label, sec_paths, geo_sections, bg_inner, court_img)
 
     os.makedirs("docs", exist_ok=True)
     out_path = f"docs/{team_slug}_seat_story.html"
