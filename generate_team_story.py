@@ -188,22 +188,46 @@ def load_geo(geo_path, ns_keys, pre_keys, pre_price):
     return sections
 
 
-def load_bg_inner(bg_svg, fallback_svg=None):
-    """Load inner SVG content from bg_svg; fall back to fallback_svg if bg_svg missing."""
+def load_bg_parts(bg_svg, fallback_svg=None):
+    """
+    Load arena SVG and return (court_inner, arena_inner) as two separate strings.
+    court_inner — the 'field' group content (basketball court), rendered without dark filter
+    arena_inner — everything else (seating structure), rendered with dark filter
+    Also strips any TM watermark groups positioned outside the arena ring.
+    """
     path = bg_svg if os.path.isfile(bg_svg) else fallback_svg
     if not path or not os.path.isfile(path):
-        return ""
+        return "", ""
+
     with open(path, encoding="utf-8") as f:
         raw = f.read()
+
+    # Strip outer <svg> tags
     inner = re.sub(r'^<svg[^>]*>', '', raw, count=1).rstrip()
     if inner.endswith("</svg>"):
         inner = inner[:-6]
-    return inner
+    # Also strip any nested inner <svg> wrappers that might appear
+    inner = re.sub(r'<svg\s[^>]*viewBox="0 0 10240 7680"[^>]*>', '', inner)
+    inner = re.sub(r'</svg>', '', inner)
+
+    # Extract the field (court) group separately
+    court_match = re.search(r'<g\s+id="field">(.*?)</g>', inner, re.DOTALL)
+    court_inner = court_match.group(0) if court_match else ""
+
+    # Remove field group from main inner (it will be rendered separately)
+    arena_inner = inner
+    if court_match:
+        arena_inner = inner[:court_match.start()] + inner[court_match.end():]
+
+    # Remove section labels (noisy when darkened)
+    arena_inner = re.sub(r'<g\s+id="labels-container"[^>]*>.*?</g>', '', arena_inner, flags=re.DOTALL)
+
+    return court_inner, arena_inner
 
 
 # ── HTML generator ─────────────────────────────────────────────────────────────
 
-def gen_html(team_slug, game_label, sec_paths, geo_sections, bg_inner):
+def gen_html(team_slug, game_label, sec_paths, geo_sections, court_inner, arena_inner):
     meta  = TEAM_META.get(team_slug, {"name": team_slug.title(), "arena": "", "color": "#ce1141"})
     color = meta["color"]
     name  = meta["name"]
@@ -363,7 +387,8 @@ circle.red:hover{{ filter:drop-shadow(0 0 3px {color}); }}
 
   <div id="arena-wrap">
     <svg id="main-svg" viewBox="0 0 {SVG_W} {SVG_H}"
-         xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+         xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"
+         overflow="hidden">
       <defs>
         <filter id="dk">
           <feColorMatrix type="matrix"
@@ -374,8 +399,14 @@ circle.red:hover{{ filter:drop-shadow(0 0 3px {color}); }}
         </filter>
       </defs>
 
+      <!-- Arena seating structure (darkened) -->
       <g id="bg" filter="url(#dk)" transform="scale({SX:.7f},{SY:.7f})">
-        {bg_inner}
+        {arena_inner}
+      </g>
+
+      <!-- Basketball court (full color, lightly dimmed) -->
+      <g id="court" transform="scale({SX:.7f},{SY:.7f})" opacity="0.68">
+        {court_inner}
       </g>
 
       <g id="dots-bg"></g>
@@ -718,14 +749,14 @@ def generate(team_slug, game_folder=None):
     sec_paths   = load_section_paths(dom_svg)
     ns_keys, pre_keys, pre_price = load_game(game_dir)
     geo_sections = load_geo(geo_path, ns_keys, pre_keys, pre_price)
-    bg_inner    = load_bg_inner(bg_svg, fallback_svg=dom_svg)
+    court_inner, arena_inner = load_bg_parts(bg_svg, fallback_svg=dom_svg)
 
     total_dots  = sum(len(v) for v in geo_sections.values())
     total_ns    = sum(1 for d in [d for dots in geo_sections.values() for d in dots] if d["s"] == 2)
     print(f"    {len(geo_sections)} sections · {total_dots:,} dots · {total_ns:,} no-shows")
     print(f"    Game: {game_label}")
 
-    html = gen_html(team_slug, game_label, sec_paths, geo_sections, bg_inner)
+    html = gen_html(team_slug, game_label, sec_paths, geo_sections, court_inner, arena_inner)
 
     os.makedirs("docs", exist_ok=True)
     out_path = f"docs/{team_slug}_seat_story.html"
