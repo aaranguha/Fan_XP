@@ -58,31 +58,31 @@ def fetch(url: str, team_slug: str):
         ct = resp.headers.get("content-type", "")
         print(f"  [net] {resp.status} {ct[:35]:35s} {url_r[:120]}")
 
-        # Arena background SVG
-        if captured["svg_body"] is None and (
-            "svg" in ct or url_r.endswith(".svg") or "/image/" in url_r
+        # Capture the SVG URL so we can fetch the body directly later
+        if captured["svg_url"] is None and (
+            "svg" in ct or url_r.endswith(".svg") or "/image/" in url_r or "staticImage" in url_r
         ):
+            captured["svg_url"] = url_r
+            # Try body immediately
             try:
                 body = resp.body()
-                if body and (body[:5] == b"<?xml" or body[:4] == b"<svg" or b"<svg" in body[:300]):
+                if body and len(body) > 1000:
                     captured["svg_body"] = body
-                    captured["svg_url"]  = url_r
                     print(f"  ✓ Arena SVG captured ({len(body):,} bytes)")
-            except Exception as e:
-                print(f"  SVG body error: {e}")
+            except Exception:
+                pass  # Will re-fetch via page.request below
 
         # Seat geometry JSON (placeDetailNoKeys)
-        if captured["geo_body"] is None and "placeDetailNoKeys" in url_r:
+        if captured["geo_url"] is None and "placeDetailNoKeys" in url_r:
+            captured["geo_url"] = url_r
             try:
                 body = resp.body()
                 if body:
-                    # Validate it's JSON
                     json.loads(body)
                     captured["geo_body"] = body
-                    captured["geo_url"]  = url_r
                     print(f"  ✓ Seat geometry JSON captured ({len(body):,} bytes)")
-            except Exception as e:
-                print(f"  Geo body error: {e}")
+            except Exception:
+                pass
 
     page.on("response", on_response)
 
@@ -90,8 +90,8 @@ def fetch(url: str, team_slug: str):
         print(f"Loading: {url}")
         page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
-        print("Waiting for geometry to load (up to 30s)...")
-        for i in range(30):
+        print("Waiting for geometry to load (up to 60s)...")
+        for i in range(60):
             time.sleep(1)
             done_svg = captured["svg_body"] is not None
             done_geo = captured["geo_body"] is not None
@@ -99,6 +99,66 @@ def fetch(url: str, team_slug: str):
                 break
             status = ("SVG✓" if done_svg else "SVG…") + " " + ("GEO✓" if done_geo else "GEO…")
             print(f"  {i+1}s — {status}")
+
+        # If SVG still not found, try scrolling/clicking to trigger map load
+        if not captured["svg_body"] or not captured["geo_body"]:
+            print("  Trying to trigger map load (click/scroll)...")
+            try:
+                page.mouse.move(700, 400)
+                page.mouse.scroll(0, 200)
+                time.sleep(3)
+                page.mouse.move(700, 400)
+                page.mouse.click(700, 400)
+            except Exception:
+                pass
+            for i in range(20):
+                time.sleep(1)
+                if captured["svg_body"] and captured["geo_body"]:
+                    break
+                status = ("SVG✓" if captured["svg_body"] else "SVG…") + " " + ("GEO✓" if captured["geo_body"] else "GEO…")
+                print(f"  +{i+1}s — {status}")
+
+        # If SVG URL was seen but body not captured, fetch it directly
+        if captured["svg_url"] and not captured["svg_body"]:
+            print(f"\n  Re-fetching SVG via page.request: {captured['svg_url'][:80]}...")
+            try:
+                r = page.request.get(captured["svg_url"])
+                body = r.body()
+                if body and len(body) > 1000:
+                    captured["svg_body"] = body
+                    print(f"  ✓ SVG fetched ({len(body):,} bytes)")
+            except Exception as e:
+                print(f"  SVG re-fetch failed: {e}")
+
+        # If geometry URL was seen but body not captured, fetch directly
+        if captured["geo_url"] and not captured["geo_body"]:
+            print(f"  Re-fetching geo JSON: {captured['geo_url'][:80]}...")
+            try:
+                r = page.request.get(captured["geo_url"])
+                body = r.body()
+                json.loads(body)
+                captured["geo_body"] = body
+                print(f"  ✓ Geo JSON fetched ({len(body):,} bytes)")
+            except Exception as e:
+                print(f"  Geo re-fetch failed: {e}")
+
+        # If geo URL never appeared, try fetching it directly using event ID from URL
+        if not captured["geo_body"]:
+            import re as _re
+            m = _re.search(r'/event/([A-Z0-9]+)', url)
+            if m:
+                eid = m.group(1)
+                geo_url = f"https://mapsapi.tmol.io/maps/geometry/3/event/{eid}/placeDetailNoKeys?useHostGrids=true&systemId=HOST"
+                print(f"\n  Trying direct geometry fetch: {geo_url[:80]}...")
+                try:
+                    r = page.request.get(geo_url)
+                    body = r.body()
+                    json.loads(body)
+                    captured["geo_body"] = body
+                    captured["geo_url"]  = geo_url
+                    print(f"  ✓ Geo JSON fetched directly ({len(body):,} bytes)")
+                except Exception as e:
+                    print(f"  Direct geo fetch failed: {e}")
 
         # Save arena_full.svg
         if captured["svg_body"]:
