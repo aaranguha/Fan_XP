@@ -59,6 +59,9 @@ def fetch(url: str, team_slug: str):
         print(f"  [net] {resp.status} {ct[:35]:35s} {url_r[:120]}")
 
         # Capture the SVG URL so we can fetch the body directly later
+        # Skip sectionLevel-only version — it strips the court
+        if "staticImage" in url_r and "sectionLevel=true" in url_r:
+            return
         if captured["svg_url"] is None and (
             "svg" in ct or url_r.endswith(".svg") or "/image/" in url_r or "staticImage" in url_r
         ):
@@ -120,15 +123,34 @@ def fetch(url: str, team_slug: str):
 
         # If SVG URL was seen but body not captured, fetch it directly
         if captured["svg_url"] and not captured["svg_body"]:
-            print(f"\n  Re-fetching SVG via page.request: {captured['svg_url'][:80]}...")
+            # Strip sectionLevel parameter to get full arena with court
+            svg_fetch_url = re.sub(r'[&?]sectionLevel=[^&]*', '', captured["svg_url"])
+            print(f"\n  Re-fetching SVG via page.request...")
             try:
-                r = page.request.get(captured["svg_url"])
+                r = page.request.get(svg_fetch_url)
                 body = r.body()
                 if body and len(body) > 1000:
                     captured["svg_body"] = body
                     print(f"  ✓ SVG fetched ({len(body):,} bytes)")
             except Exception as e:
                 print(f"  SVG re-fetch failed: {e}")
+
+        # If no SVG URL seen at all, try constructing the full staticImage URL from event ID
+        if not captured["svg_body"]:
+            import re as _re2
+            m2 = _re2.search(r'/event/([A-Z0-9]+)', url)
+            if m2:
+                eid = m2.group(1)
+                svg_url = f"https://mapsapi.tmol.io/maps/geometry/3/event/{eid}/staticImage?systemId=HOST&app=PRD2663_EDP_NA&avertaFonts=true"
+                print(f"\n  Trying direct SVG fetch...")
+                try:
+                    r = page.request.get(svg_url)
+                    body = r.body()
+                    if body and len(body) > 10000:
+                        captured["svg_body"] = body
+                        print(f"  ✓ SVG fetched directly ({len(body):,} bytes)")
+                except Exception as e:
+                    print(f"  Direct SVG fetch failed: {e}")
 
         # If geometry URL was seen but body not captured, fetch directly
         if captured["geo_url"] and not captured["geo_body"]:
