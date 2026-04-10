@@ -190,9 +190,9 @@ def load_geo(geo_path, ns_keys, pre_keys, pre_price):
 
 def load_bg_parts(bg_svg, fallback_svg=None):
     """
-    Returns (bg_inner, court_img_tag):
-      bg_inner     — full SVG inner content for the darkened background layer
-      court_img_tag — just the <image> tag with corrected y, overlaid without dark filter
+    Returns (bg_inner, court_group):
+      bg_inner    — SVG inner content with field group REMOVED (darkened bg layer)
+      court_group — full field group HTML with y fixed, rendered without dark filter
     """
     path = bg_svg if os.path.isfile(bg_svg) else fallback_svg
     if not path or not os.path.isfile(path):
@@ -205,22 +205,21 @@ def load_bg_parts(bg_svg, fallback_svg=None):
     if inner.endswith("</svg>"):
         inner = inner[:-6]
 
-    # Find the court image and inject correct y if missing
-    court_img_tag = ""
-    field_m = re.search(r'<g\s+id="field">(.*?)</g>', inner, re.DOTALL)
+    # Extract full field group
+    field_m = re.search(r'<g\s+id="field">.*?</g>', inner, re.DOTALL)
+    court_group = ""
     if field_m:
-        field_content = field_m.group(1)
-        img_m = re.search(r'<image\b[^/]*/>', field_content, re.DOTALL)
-        if img_m:
-            img_tag = img_m.group(0)
-            # If y attribute is missing, compute it from court line path positions
-            if ' y=' not in img_tag:
-                path_ys = [float(m.group(1)) for m in re.finditer(r'M[\d.]+[, ]([\d.]+)', field_content)]
-                court_y = min(path_ys) if path_ys else 3346.0
-                img_tag = img_tag.replace('<image ', f'<image y="{court_y:.2f}" ')
-            court_img_tag = img_tag
+        field_html = field_m.group(0)
+        # Fix missing y on the court image — compute from path positions inside field
+        if '<image' in field_html and ' y=' not in field_html:
+            path_ys = [float(m.group(1)) for m in re.finditer(r'M[\d.]+[, ]([\d.]+)', field_html)]
+            court_y = min(path_ys) if path_ys else 3346.0
+            field_html = field_html.replace('<image ', f'<image y="{court_y:.2f}" ')
+        court_group = field_html
+        # Remove from bg so the dark filter doesn't kill it
+        inner = inner[:field_m.start()] + inner[field_m.end():]
 
-    return inner, court_img_tag
+    return inner, court_group
 
 
 # ── HTML generator ─────────────────────────────────────────────────────────────
@@ -402,8 +401,8 @@ circle.red:hover{{ filter:drop-shadow(0 0 3px {color}); }}
         {bg_inner}
       </g>
 
-      <!-- Court image overlay (full color, no dark filter) -->
-      <g id="court" transform="scale({SX:.7f},{SY:.7f})">
+      <!-- Court overlay (full color, no dark filter) -->
+      <g id="court" xmlns:xlink="http://www.w3.org/1999/xlink" transform="scale({SX:.7f},{SY:.7f})">
         {court_img}
       </g>
 
