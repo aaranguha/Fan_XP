@@ -144,39 +144,29 @@ def load_geo(geo_path, ns_keys, pre_keys, pre_price):
 
     sections = {}
 
+    def collect_places(node, sec_name, row_name, dots):
+        """Recursively collect placesNoKeys from any depth."""
+        for p in node.get("placesNoKeys", []):
+            if len(p) >= 4:
+                key = (sec_name, row_name, str(p[1]))
+                status = 2 if key in ns_keys else (1 if key in pre_keys else 0)
+                price  = pre_price.get(key, 0)
+                dots.append({
+                    "x": round(p[2] * SX, 2),
+                    "y": round(p[3] * SY, 2),
+                    "s": status,
+                    "p": price,
+                    "r": row_name,
+                    "n": str(p[1]),
+                })
+        for child in node.get("segments", []):
+            collect_places(child, sec_name, child.get("name", row_name), dots)
+
     def extract_composite(seg):
         name = seg.get("name", "")
         dots = []
         for child in seg.get("segments", []):
-            row_name = child.get("name", "")
-            for p in child.get("placesNoKeys", []):
-                if len(p) >= 4:
-                    key = (name, row_name, str(p[1]))
-                    status = 2 if key in ns_keys else (1 if key in pre_keys else 0)
-                    price  = pre_price.get(key, 0)
-                    dots.append({
-                        "x": round(p[2] * SX, 2),
-                        "y": round(p[3] * SY, 2),
-                        "s": status,
-                        "p": price,
-                        "r": row_name,
-                        "n": str(p[1]),
-                    })
-            for grandchild in child.get("segments", []):
-                gname = grandchild.get("name", "")
-                for p in grandchild.get("placesNoKeys", []):
-                    if len(p) >= 4:
-                        key = (name, gname, str(p[1]))
-                        status = 2 if key in ns_keys else (1 if key in pre_keys else 0)
-                        price  = pre_price.get(key, 0)
-                        dots.append({
-                            "x": round(p[2] * SX, 2),
-                            "y": round(p[3] * SY, 2),
-                            "s": status,
-                            "p": price,
-                            "r": gname,
-                            "n": str(p[1]),
-                        })
+            collect_places(child, name, child.get("name", ""), dots)
         if dots:
             sections[name] = dots
 
