@@ -411,19 +411,52 @@ if (HIDE_LABELS) {
   bgGroup.classList.add('labels-hidden');
 }
 
-document.querySelectorAll('.sec-hit').forEach(path => {
-  const sec = path.dataset.sec;
-  path.addEventListener('mouseenter', e => {
+// Build section hit areas from dot bounding boxes (works even without arena.svg)
+const secHitsGroup = document.getElementById('sec-hits');
+const PAD = 6; // px padding around dot cluster
+
+for (const [sec, data] of Object.entries(SECS)) {
+  if (!data.dots.length) continue;
+
+  // Check if a path already exists from arena.svg
+  const existing = secHitsGroup.querySelector(`[data-sec="${sec}"]`);
+
+  let hitEl;
+  if (existing) {
+    hitEl = existing;
+  } else {
+    // Compute bounding box from dots
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const d of data.dots) {
+      if (d[0] < minX) minX = d[0]; if (d[0] > maxX) maxX = d[0];
+      if (d[1] < minY) minY = d[1]; if (d[1] > maxY) maxY = d[1];
+    }
+    const r = NS('rect');
+    r.setAttribute('x',      minX - PAD);
+    r.setAttribute('y',      minY - PAD);
+    r.setAttribute('width',  (maxX - minX) + PAD * 2);
+    r.setAttribute('height', (maxY - minY) + PAD * 2);
+    r.setAttribute('rx', '3');
+    r.setAttribute('class', 'sec-hit');
+    r.dataset.sec = sec;
+    r.setAttribute('fill', 'transparent');
+    r.setAttribute('stroke', 'none');
+    r.style.cursor = 'pointer';
+    secHitsGroup.appendChild(r);
+    hitEl = r;
+  }
+
+  hitEl.addEventListener('mouseenter', e => {
     if (!HIDE_LABELS) bgGroup.classList.remove('labels-hidden');
     showTooltip(sec, e);
   });
-  path.addEventListener('mousemove',  e => moveTooltip(e));
-  path.addEventListener('mouseleave', () => {
+  hitEl.addEventListener('mousemove',  e => moveTooltip(e));
+  hitEl.addEventListener('mouseleave', () => {
     if (!HIDE_LABELS) bgGroup.classList.add('labels-hidden');
     tooltip.classList.remove('show');
   });
-  path.addEventListener('click',      () => zoomToSection(sec));
-});
+  hitEl.addEventListener('click', () => zoomToSection(sec));
+}
 
 function zoomToSection(sec) {
   const data = SECS[sec];
