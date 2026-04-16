@@ -385,7 +385,6 @@ html,body{{font-family:var(--f);background:var(--bg);color:#f0e8e8;
 #bg.labels-hidden text {{ visibility:hidden; }}
 
 circle.gray{{ fill:rgba(160,160,180,.18); }}
-circle.blue{{ fill:rgba(74,144,217,.6); }}
 circle.red{{ fill:{color}; }}
 circle.red:hover{{ fill:#fff; }}
 
@@ -488,7 +487,6 @@ circle.red:hover{{ fill:#fff; }}
 
 <div id="legend">
   <div class="lrow"><div class="ld" style="background:rgba(160,160,180,.3)"></div><span class="ll">All seats</span></div>
-  <div class="lrow"><div class="ld" style="background:rgba(74,144,217,.7)"></div><span class="ll">Tracked sold</span></div>
   <div class="lrow"><div class="ld" style="background:{color};box-shadow:0 0 5px {color}99"></div><span class="ll">Empty at halftime</span></div>
 </div>
 
@@ -536,7 +534,7 @@ for (const [sec, data] of Object.entries(SECS)) {{
     c.setAttribute('cy', d[1]);
     const isNs = d[2] === 2, isSold = d[2] === 1;
     c.setAttribute('r', isNs ? '2.2' : '1.2');
-    c.setAttribute('class', isNs ? 'red' : (isSold ? 'blue' : 'gray'));
+    c.setAttribute('class', isNs ? 'red' : 'gray');
     c.style.opacity = '0';
 
     if (isNs) {{
