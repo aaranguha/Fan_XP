@@ -96,7 +96,7 @@ TEAMS = {
     "mavericks":    {"tm_keyword": "Dallas Mavericks",      "nba_city": "Dallas"},
     "nuggets":      {"tm_keyword": "Denver Nuggets",        "nba_city": "Denver"},
     "pistons":      {"tm_keyword": "Detroit Pistons",       "nba_city": "Detroit"},
-    "warriors":     {"tm_keyword": "Golden State Warriors", "nba_city": "Golden State", "halftime_fallback_min": 40},
+    "warriors":     {"tm_keyword": "Golden State Warriors", "nba_city": "Golden State", "halftime_fallback_min": 80},
     "rockets":      {"tm_keyword": "Houston Rockets",       "nba_city": "Houston"},
     "pacers":       {"tm_keyword": "Indiana Pacers",        "nba_city": "Indiana"},
     "clippers":     {"tm_keyword": "LA Clippers",           "nba_city": "LA"},

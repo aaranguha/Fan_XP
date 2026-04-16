@@ -35,6 +35,7 @@ from fetch_listings import (
     find_next_home_game,
     scrape_listings,
     scrape_from_endpoints,
+    refresh_endpoints,
     launch_browser_session,
     close_browser_session,
     parse_facet,
@@ -55,6 +56,7 @@ PRE_GAME_OFFSET_MIN   = 60   # scrape this many minutes BEFORE tip-off
 HALFTIME_FALLBACK_MIN = 52   # fallback offset AFTER tip-off if live clock unavailable
 POLL_INTERVAL_SEC     = 30   # how often to check the live game clock
 Q2_TRIGGER_MIN        = 2    # trigger halftime scrape when Q2 clock ≤ this many minutes
+Q2_REFRESH_MIN        = 6    # re-navigate event URL to refresh endpoints when Q2 clock ≤ this many minutes
 WARM_INTERVAL_MIN     = 25   # how often to refresh TM page during keep-alive wait
 
 # Teams that keep the browser open between pre-game and halftime to avoid bot detection
@@ -107,10 +109,14 @@ def warm_browser(page) -> None:
         print(f"  [keep-alive] Warning: warm refresh failed: {e}")
 
 
-def wait_for_halftime(tipoff: datetime, nba_city: str, warm_page=None, fallback_min: int = HALFTIME_FALLBACK_MIN) -> None:
+def wait_for_halftime(tipoff: datetime, nba_city: str, warm_page=None, fallback_min: int = HALFTIME_FALLBACK_MIN,
+                      event_url: str | None = None, endpoints_path: str | None = None) -> None:
     """
     Poll NBA live scoreboard every 30s and return when Q2 has ≤2 min left.
     Falls back to a fixed offset if nba_api is unavailable or game not found.
+
+    If event_url and endpoints_path are provided (keep-alive teams), re-navigates
+    the event URL at Q2 ≤Q2_REFRESH_MIN to capture fresh endpoints before halftime.
     """
     try:
         from nba_api.live.nba.endpoints import scoreboard as nba_scoreboard
@@ -129,6 +135,7 @@ def wait_for_halftime(tipoff: datetime, nba_city: str, warm_page=None, fallback_
           f"(fallback at {fallback_time.strftime('%H:%M UTC')})...")
 
     last_warm = datetime.now(timezone.utc)
+    endpoints_refreshed = False
 
     while True:
         elapsed = (datetime.now(timezone.utc) - tipoff).total_seconds() / 60
@@ -140,7 +147,7 @@ def wait_for_halftime(tipoff: datetime, nba_city: str, warm_page=None, fallback_
             print("  Fallback deadline reached — triggering halftime scrape.")
             return
 
-        # Periodically refresh TM page to keep browser session warm
+        # Periodically refresh TM homepage to keep browser session warm
         if warm_page:
             since_warm = (datetime.now(timezone.utc) - last_warm).total_seconds() / 60
             if since_warm >= WARM_INTERVAL_MIN:
@@ -157,6 +164,17 @@ def wait_for_halftime(tipoff: datetime, nba_city: str, warm_page=None, fallback_
                 status = game.get("gameStatusText", "")
                 mins   = parse_clock_minutes(clock)
                 print(f"  Live: Q{period} | {clock} | {status}")
+
+                # Re-navigate event URL to capture fresh endpoints a few min before halftime
+                if period == 2 and mins <= Q2_REFRESH_MIN and not endpoints_refreshed \
+                        and warm_page and event_url and endpoints_path:
+                    print(f"  Q2 ≤{Q2_REFRESH_MIN} min — refreshing TM endpoints for halftime scrape...")
+                    ok = refresh_endpoints(warm_page, event_url, endpoints_path)
+                    if ok:
+                        print("  Endpoints refreshed successfully.")
+                    else:
+                        print("  Warning: endpoint refresh failed — will fall back to full page load at halftime.")
+                    endpoints_refreshed = True
 
                 if period == 2 and mins <= Q2_TRIGGER_MIN:
                     print(f"  Q2 has ≤{Q2_TRIGGER_MIN} min left — triggering halftime scrape!")
@@ -348,7 +366,13 @@ def main():
         # ── Snapshot 2: halftime (live clock) ─────────────────────────────────
         print("\nWaiting for halftime...")
         warm_page = browser_session[2] if browser_session else None  # page object
-        wait_for_halftime(tipoff, team["nba_city"], warm_page=warm_page, fallback_min=team.get("halftime_fallback_min", HALFTIME_FALLBACK_MIN))
+        wait_for_halftime(
+            tipoff, team["nba_city"],
+            warm_page=warm_page,
+            fallback_min=team.get("halftime_fallback_min", HALFTIME_FALLBACK_MIN),
+            event_url=url if keep_alive else None,
+            endpoints_path=endpoints_path if keep_alive else None,
+        )
 
         # For keep-alive teams, use saved endpoints to avoid re-loading the event URL
         if keep_alive and browser_session and os.path.isfile(endpoints_path):

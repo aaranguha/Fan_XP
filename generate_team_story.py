@@ -21,7 +21,7 @@ TEAM_META = {
     "magic":        {"name": "Magic",        "arena": "Kia Center",              "color": "#0077c0"},
     "celtics":      {"name": "Celtics",      "arena": "TD Garden",               "color": "#007a33"},
     "lakers":       {"name": "Lakers",       "arena": "Crypto.com Arena",        "color": "#552583"},
-    "warriors":     {"name": "Warriors",     "arena": "Chase Center",            "color": "#1d428a"},
+    "warriors":     {"name": "Warriors",     "arena": "Chase Center",            "color": "#1d428a", "bold_arena": True},
     "knicks":       {"name": "Knicks",       "arena": "Madison Square Garden",   "color": "#006bb6"},
     "heat":         {"name": "Heat",         "arena": "Kaseya Center",           "color": "#98002e"},
     "bucks":        {"name": "Bucks",        "arena": "Fiserv Forum",            "color": "#00471b"},
@@ -104,6 +104,8 @@ def game_label_from_meta(game_dir):
 
 
 def load_section_paths(dom_svg):
+    if not dom_svg or not os.path.isfile(dom_svg):
+        return {}
     with open(dom_svg) as f:
         content = f.read()
     paths = re.findall(r'<path([^>]*data-section-name[^>]*)/?>', content, re.DOTALL)
@@ -188,11 +190,31 @@ def load_geo(geo_path, ns_keys, pre_keys, pre_price):
     return sections
 
 
+def _find_group_end(content, start):
+    """Return the end index (exclusive) of the <g> group starting at `start`."""
+    pos = start + content.index('>', start) + 1
+    depth = 1
+    while pos < len(content) and depth > 0:
+        o = content.find('<g', pos)
+        c = content.find('</g>', pos)
+        if c == -1:
+            break
+        if o != -1 and o < c:
+            depth += 1
+            pos = o + 2
+        else:
+            depth -= 1
+            if depth == 0:
+                return c + 4
+            pos = c + 4
+    return len(content)
+
+
 def load_bg_parts(bg_svg, fallback_svg=None):
     """
     Returns (bg_inner, court_group):
-      bg_inner    — SVG inner content with field group REMOVED (darkened bg layer)
-      court_group — full field group HTML with y fixed, rendered without dark filter
+      bg_inner     — SVG inner content with field group removed (dark arena only)
+      court_group  — full field group HTML (paths + image = complete court), y-fixed
     """
     path = bg_svg if os.path.isfile(bg_svg) else fallback_svg
     if not path or not os.path.isfile(path):
@@ -201,23 +223,35 @@ def load_bg_parts(bg_svg, fallback_svg=None):
     with open(path, encoding="utf-8") as f:
         raw = f.read()
 
-    inner = re.sub(r'^<svg[^>]*>', '', raw, count=1).rstrip()
+    # Strip outer <svg> wrapper(s) to get inner content
+    inner = re.sub(r'^<\?xml[^>]*\?>\s*', '', raw)
+    inner = re.sub(r'^<svg[^>]*>', '', inner, count=1).rstrip()
     if inner.endswith("</svg>"):
         inner = inner[:-6]
 
-    # Extract full field group
-    field_m = re.search(r'<g\s+id="field">.*?</g>', inner, re.DOTALL)
     court_group = ""
-    if field_m:
-        field_html = field_m.group(0)
-        # Fix missing y on the court image — compute from path positions inside field
-        if '<image' in field_html and ' y=' not in field_html:
-            path_ys = [float(m.group(1)) for m in re.finditer(r'M[\d.]+[, ]([\d.]+)', field_html)]
-            court_y = min(path_ys) if path_ys else 3346.0
-            field_html = field_html.replace('<image ', f'<image y="{court_y:.2f}" ')
+
+    field_open_tag = '<g id="field">'
+    field_start = inner.find(field_open_tag)
+    if field_start != -1:
+        field_end = _find_group_end(inner, field_start)
+        field_html = inner[field_start:field_end]
+
+        # Fix missing y on <image> tag — find it from path M-command y coords
+        if '<image' in field_html:
+            img_m = re.search(r'(<image\b)([^/]*)(/>)', field_html, re.DOTALL)
+            if img_m:
+                img_tag = img_m.group(0)
+                if ' y=' not in img_tag:
+                    path_ys = [float(m.group(1)) for m in re.finditer(r'M[\d.]+[, ]([\d.]+)', field_html)]
+                    court_y = min(path_ys) if path_ys else 3346.0
+                    field_html = field_html[:img_m.start()] + \
+                                 img_m.group(1) + f' y="{court_y:.2f}"' + img_m.group(2) + img_m.group(3) + \
+                                 field_html[img_m.end():]
+
         court_group = field_html
-        # Remove from bg so the dark filter doesn't kill it
-        inner = inner[:field_m.start()] + inner[field_m.end():]
+        # Remove field group from bg so dark filter doesn't kill it
+        inner = inner[:field_start] + inner[field_end:]
 
     return inner, court_group
 
@@ -229,6 +263,24 @@ def gen_html(team_slug, game_label, sec_paths, geo_sections, bg_inner, court_img
     color = meta["color"]
     name  = meta["name"]
     arena = meta["arena"]
+
+    if meta.get("bold_arena"):
+        dk_filter = '''<filter id="dk">
+          <feColorMatrix type="saturate" values="0.22"/>
+          <feColorMatrix type="matrix"
+            values="0.52 0 0 0 0.03
+                    0    0.44 0 0 0.03
+                    0    0 0.48 0 0.06
+                    0    0 0    1 0"/>
+        </filter>'''
+    else:
+        dk_filter = '''<filter id="dk">
+          <feColorMatrix type="matrix"
+            values="0.32 0 0 0 0.02
+                    0    0.23 0 0 0.02
+                    0    0 0.27 0 0.05
+                    0    0 0    1 0"/>
+        </filter>'''
 
     sec_paths_js = json.dumps(sec_paths, separators=(',', ':'))
 
@@ -329,10 +381,13 @@ html,body{{font-family:var(--f);background:var(--bg);color:#f0e8e8;
   overflow:hidden;background:#05070d;}}
 #main-svg{{display:block;cursor:default;}}
 
-circle.gray{{ fill:rgba(160,160,180,.22); }}
-circle.blue{{ fill:rgba(74,144,217,.75); }}
-circle.red{{  fill:{color}; filter:drop-shadow(0 0 1.5px {color}cc); }}
-circle.red:hover{{ filter:drop-shadow(0 0 3px {color}); }}
+/* Section label text hidden via JS class toggle on #bg */
+#bg.labels-hidden text {{ visibility:hidden; }}
+
+circle.gray{{ fill:rgba(160,160,180,.18); }}
+circle.blue{{ fill:rgba(74,144,217,.6); }}
+circle.red{{ fill:{color}; }}
+circle.red:hover{{ fill:#fff; }}
 
 .sec-active{{
   fill:none;stroke:rgba(255,255,255,.55);stroke-width:6;pointer-events:none;
@@ -387,12 +442,10 @@ circle.red:hover{{ filter:drop-shadow(0 0 3px {color}); }}
          xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"
          overflow="hidden">
       <defs>
-        <filter id="dk">
-          <feColorMatrix type="matrix"
-            values="0.32 0 0 0 0.02
-                    0    0.23 0 0 0.02
-                    0    0 0.27 0 0.05
-                    0    0 0    1 0"/>
+        {dk_filter}
+        <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
 
@@ -412,7 +465,9 @@ circle.red:hover{{ filter:drop-shadow(0 0 3px {color}); }}
         {overlay_svg}
       </g>
 
-      <g id="dots-ns"></g>
+      <g id="dots-ns" filter="url(#glow)">
+        <animate attributeName="opacity" values="0.6;1;0.6" dur="1.8s" repeatCount="indefinite"/>
+      </g>
       <g id="hover-ring"></g>
     </svg>
   </div>
@@ -473,8 +528,8 @@ for (const [sec, data] of Object.entries(SECS)) {{
     const c = NS('circle');
     c.setAttribute('cx', d[0]);
     c.setAttribute('cy', d[1]);
-    c.setAttribute('r', '1.2');
     const isNs = d[2] === 2, isSold = d[2] === 1;
+    c.setAttribute('r', isNs ? '2.2' : '1.2');
     c.setAttribute('class', isNs ? 'red' : (isSold ? 'blue' : 'gray'));
     c.style.opacity = '0';
 
@@ -574,11 +629,34 @@ function moveTooltip(e) {{
   tooltip.style.top  = Math.min(e.clientY - 10, window.innerHeight - 110) + 'px';
 }}
 
+const bgGroup = document.getElementById('bg');
+const HIDE_LABELS = {'true' if meta.get('bold_arena') else 'false'};
+
+// For bold arenas (nested SVGs), permanently hide all text labels via JS
+// since CSS class selectors don't cross nested <svg> boundaries
+if (HIDE_LABELS) {{
+  // Hide only section number labels (white fill), keep area labels like SUITES/COURTSIDE LOUNGES (#727272)
+  bgGroup.querySelectorAll('text').forEach(t => {{
+    const fill = t.getAttribute('fill') || '';
+    if (fill === 'rgb(255,255,255)' || fill === '#ffffff' || fill === 'white') {{
+      t.style.display = 'none';
+    }}
+  }});
+}} else {{
+  bgGroup.classList.add('labels-hidden');
+}}
+
 document.querySelectorAll('.sec-hit').forEach(path => {{
   const sec = path.dataset.sec;
-  path.addEventListener('mouseenter', e => showTooltip(sec, e));
+  path.addEventListener('mouseenter', e => {{
+    if (!HIDE_LABELS) bgGroup.classList.remove('labels-hidden');
+    showTooltip(sec, e);
+  }});
   path.addEventListener('mousemove',  e => moveTooltip(e));
-  path.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+  path.addEventListener('mouseleave', () => {{
+    if (!HIDE_LABELS) bgGroup.classList.add('labels-hidden');
+    tooltip.classList.remove('show');
+  }});
   path.addEventListener('click',      () => zoomToSection(sec));
 }});
 
@@ -668,7 +746,7 @@ svg.addEventListener('wheel', e => {{
   const origin = clientToSVG(e.clientX, e.clientY);
   if (e.ctrlKey) {{
     const factor = 1 + e.deltaY * 0.008;
-    const newW   = Math.min(Math.max(vb.w * factor, 30), SVG_W * 4);
+    const newW   = Math.min(Math.max(vb.w * factor, 30), SVG_W); // cap zoom-out at full arena view
     const newH   = newW * (SVG_H / SVG_W);
     vb.x = origin.x - (origin.x - vb.x) * (newW / vb.w);
     vb.y = origin.y - (origin.y - vb.y) * (newH / vb.h);
@@ -678,9 +756,9 @@ svg.addEventListener('wheel', e => {{
     const dy = e.deltaY / svg.getBoundingClientRect().height * vb.h;
     vb.x += dx; vb.y += dy;
   }}
-  const maxX = SVG_W*2, maxY = SVG_H*2;
-  vb.x = Math.max(-SVG_W/2, Math.min(vb.x, maxX));
-  vb.y = Math.max(-SVG_H/2, Math.min(vb.y, maxY));
+  // Clamp pan so the view never goes outside the arena bounds
+  vb.x = Math.max(0, Math.min(vb.x, SVG_W - vb.w));
+  vb.y = Math.max(0, Math.min(vb.y, SVG_H - vb.h));
   applyVB();
 }}, {{passive: false}});
 
@@ -721,7 +799,7 @@ def generate(team_slug, game_folder=None):
     bg_svg    = f"{team_dir}/arena_full.svg"
     geo_path  = f"{team_dir}/seatmap_geo.json"
 
-    missing = [p for p in [dom_svg, geo_path] if not os.path.isfile(p)]
+    missing = [p for p in [geo_path] if not os.path.isfile(p)]
     if missing:
         print(f"  ✗ {team_slug}: missing geometry files: {missing}")
         return None

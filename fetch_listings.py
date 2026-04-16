@@ -349,6 +349,54 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
     return all_facets, offer_price_map, all_places_facets
 
 
+def refresh_endpoints(page, event_url: str, endpoints_path: str) -> bool:
+    """
+    Navigate to the TM event URL with the existing browser session to capture
+    fresh XHR endpoint URLs + auth headers, then save them to endpoints_path.
+
+    Call this a few minutes before the halftime scrape so the saved endpoints
+    are fresh when scrape_from_endpoints() runs.
+
+    Returns True on success (inventory captured), False otherwise.
+    """
+    captured = {"inventory": None, "pricing": None, "places": None}
+
+    def on_request(req):
+        url = req.url
+        if "services.ticketmaster.com" in url and "facets" in url \
+                and "section" in url and "seating" in url \
+                and not captured["inventory"]:
+            captured["inventory"] = {"url": url, "headers": dict(req.headers)}
+        elif "offeradapter" in url and "facets" in url \
+                and "by=offers" in url and "totalpricerange" in url \
+                and not captured["pricing"]:
+            captured["pricing"] = {"url": url, "headers": dict(req.headers)}
+        elif "services.ticketmaster.com" in url and "facets" in url \
+                and "compress=places" in url \
+                and not captured["places"]:
+            captured["places"] = {"url": url, "headers": dict(req.headers)}
+
+    page.on("request", on_request)
+    try:
+        page.goto(event_url, wait_until="load", timeout=45000)
+        page.wait_for_timeout(WAIT_MS)
+    finally:
+        page.remove_listener("request", on_request)
+
+    if not captured["inventory"]:
+        return False
+
+    endpoints_data = {
+        "inventory": captured["inventory"],
+        "pricing":   captured["pricing"],
+        "places":    captured["places"],
+    }
+    os.makedirs(os.path.dirname(endpoints_path), exist_ok=True)
+    with open(endpoints_path, "w", encoding="utf-8") as f:
+        json.dump(endpoints_data, f, indent=2)
+    return True
+
+
 def scrape_from_endpoints(page, endpoints_path: str, scraped_at: str) -> tuple[list[dict], dict, list[dict]]:
     """
     Re-fetch TM inventory data using previously saved XHR endpoint URLs + headers.
