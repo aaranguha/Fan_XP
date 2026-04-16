@@ -395,21 +395,19 @@ function moveTooltip(e) {
 }
 
 const bgGroup = document.getElementById('bg');
-const HIDE_LABELS = false;
 
-// For bold arenas (nested SVGs), permanently hide all text labels via JS
-// since CSS class selectors don't cross nested <svg> boundaries
-if (HIDE_LABELS) {
-  // Hide only section number labels (white fill), keep area labels like SUITES/COURTSIDE LOUNGES (#727272)
-  bgGroup.querySelectorAll('text').forEach(t => {
-    const fill = t.getAttribute('fill') || '';
-    if (fill === 'rgb(255,255,255)' || fill === '#ffffff' || fill === 'white') {
-      t.style.display = 'none';
-    }
-  });
-} else {
-  bgGroup.classList.add('labels-hidden');
-}
+// Always hide section number text (white fill) via JS — CSS selectors don't
+// cross nested <svg> boundaries present in many team SVGs.
+// Area labels (SUITES, COURTSIDE LOUNGES etc) use grey fills and are kept.
+bgGroup.querySelectorAll('text').forEach(t => {
+  const fill = (t.getAttribute('fill') || '').toLowerCase().trim();
+  if (fill === 'rgb(255,255,255)' || fill === '#ffffff' || fill === 'white' ||
+      fill === '#fff' || fill === 'rgb(255, 255, 255)') {
+    t.style.display = 'none';
+  }
+});
+// Also hide via CSS for arenas without nested SVGs
+bgGroup.classList.add('labels-hidden');
 
 // Build section hit areas from dot bounding boxes (works even without arena.svg)
 const secHitsGroup = document.getElementById('sec-hits');
@@ -446,15 +444,9 @@ for (const [sec, data] of Object.entries(SECS)) {
     hitEl = r;
   }
 
-  hitEl.addEventListener('mouseenter', e => {
-    if (!HIDE_LABELS) bgGroup.classList.remove('labels-hidden');
-    showTooltip(sec, e);
-  });
+  hitEl.addEventListener('mouseenter', e => showTooltip(sec, e));
   hitEl.addEventListener('mousemove',  e => moveTooltip(e));
-  hitEl.addEventListener('mouseleave', () => {
-    if (!HIDE_LABELS) bgGroup.classList.add('labels-hidden');
-    tooltip.classList.remove('show');
-  });
+  hitEl.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
   hitEl.addEventListener('click', () => zoomToSection(sec));
 }
 

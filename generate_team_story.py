@@ -447,12 +447,18 @@ circle.red:hover{{ fill:#fff; }}
           <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
           <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
+        <clipPath id="arena-clip">
+          <rect x="0" y="0" width="{SVG_W}" height="{SVG_H}"/>
+        </clipPath>
       </defs>
 
       <!-- Arena background (darkened) -->
+      <g clip-path="url(#arena-clip)">
       <g id="bg" filter="url(#dk)" transform="scale({SX:.7f},{SY:.7f})">
         {bg_inner}
       </g>
+
+      </g><!-- end arena-clip -->
 
       <!-- Court overlay (full color, no dark filter) -->
       <g id="court" xmlns:xlink="http://www.w3.org/1999/xlink" transform="scale({SX:.7f},{SY:.7f})">
@@ -630,35 +636,60 @@ function moveTooltip(e) {{
 }}
 
 const bgGroup = document.getElementById('bg');
-const HIDE_LABELS = {'true' if meta.get('bold_arena') else 'false'};
 
-// For bold arenas (nested SVGs), permanently hide all text labels via JS
-// since CSS class selectors don't cross nested <svg> boundaries
-if (HIDE_LABELS) {{
-  // Hide only section number labels (white fill), keep area labels like SUITES/COURTSIDE LOUNGES (#727272)
-  bgGroup.querySelectorAll('text').forEach(t => {{
-    const fill = t.getAttribute('fill') || '';
-    if (fill === 'rgb(255,255,255)' || fill === '#ffffff' || fill === 'white') {{
-      t.style.display = 'none';
-    }}
-  }});
-}} else {{
-  bgGroup.classList.add('labels-hidden');
-}}
-
-document.querySelectorAll('.sec-hit').forEach(path => {{
-  const sec = path.dataset.sec;
-  path.addEventListener('mouseenter', e => {{
-    if (!HIDE_LABELS) bgGroup.classList.remove('labels-hidden');
-    showTooltip(sec, e);
-  }});
-  path.addEventListener('mousemove',  e => moveTooltip(e));
-  path.addEventListener('mouseleave', () => {{
-    if (!HIDE_LABELS) bgGroup.classList.add('labels-hidden');
-    tooltip.classList.remove('show');
-  }});
-  path.addEventListener('click',      () => zoomToSection(sec));
+// Always hide section number text (white fill) via JS — CSS selectors don't
+// cross nested <svg> boundaries present in many team SVGs.
+// Area labels (SUITES, COURTSIDE LOUNGES etc) use grey fills and are kept.
+bgGroup.querySelectorAll('text').forEach(t => {{
+  const fill = (t.getAttribute('fill') || '').toLowerCase().trim();
+  if (fill === 'rgb(255,255,255)' || fill === '#ffffff' || fill === 'white' ||
+      fill === '#fff' || fill === 'rgb(255, 255, 255)') {{
+    t.style.display = 'none';
+  }}
 }});
+// Also hide via CSS for arenas without nested SVGs
+bgGroup.classList.add('labels-hidden');
+
+// Build section hit areas from dot bounding boxes (works even without arena.svg)
+const secHitsGroup = document.getElementById('sec-hits');
+const PAD = 6; // px padding around dot cluster
+
+for (const [sec, data] of Object.entries(SECS)) {{
+  if (!data.dots.length) continue;
+
+  // Check if a path already exists from arena.svg
+  const existing = secHitsGroup.querySelector(`[data-sec="${{sec}}"]`);
+
+  let hitEl;
+  if (existing) {{
+    hitEl = existing;
+  }} else {{
+    // Compute bounding box from dots
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const d of data.dots) {{
+      if (d[0] < minX) minX = d[0]; if (d[0] > maxX) maxX = d[0];
+      if (d[1] < minY) minY = d[1]; if (d[1] > maxY) maxY = d[1];
+    }}
+    const r = NS('rect');
+    r.setAttribute('x',      minX - PAD);
+    r.setAttribute('y',      minY - PAD);
+    r.setAttribute('width',  (maxX - minX) + PAD * 2);
+    r.setAttribute('height', (maxY - minY) + PAD * 2);
+    r.setAttribute('rx', '3');
+    r.setAttribute('class', 'sec-hit');
+    r.dataset.sec = sec;
+    r.setAttribute('fill', 'transparent');
+    r.setAttribute('stroke', 'none');
+    r.style.cursor = 'pointer';
+    secHitsGroup.appendChild(r);
+    hitEl = r;
+  }}
+
+  hitEl.addEventListener('mouseenter', e => showTooltip(sec, e));
+  hitEl.addEventListener('mousemove',  e => moveTooltip(e));
+  hitEl.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+  hitEl.addEventListener('click', () => zoomToSection(sec));
+}}
 
 function zoomToSection(sec) {{
   const data = SECS[sec];
