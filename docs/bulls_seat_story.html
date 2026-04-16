@@ -16,9 +16,19 @@ html,body{font-family:var(--f);background:var(--bg);color:#f0e8e8;
   height:100%;overflow:hidden;-webkit-font-smoothing:antialiased;}
 #shell{display:flex;flex-direction:column;height:100vh;}
 
-#top{flex:none;height:48px;display:flex;align-items:center;gap:14px;
-  padding:0 20px;border-bottom:1px solid var(--border);
-  background:rgba(5,7,13,.98);z-index:10;}
+#top{flex:none;height:48px;display:flex;align-items:center;gap:10px;
+  padding:0 12px;border-bottom:1px solid var(--border);
+  background:rgba(5,7,13,.98);z-index:10;overflow:hidden;}
+@media(max-width:500px){
+  #top{gap:6px;padding:0 8px;}
+  #brand{display:none;}
+  #game-tag{font-size:.6rem;}
+  .sv{font-size:.75rem;}
+  .sl{font-size:.42rem;}
+  .stat{padding:0 10px;}
+  #legend{bottom:62px;left:8px;}
+  .ll{font-size:.5rem;}
+}
 #back-link{font-size:.6rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
   color:rgba(200,185,185,.35);text-decoration:none;flex:none;
   transition:color .18s;}
@@ -563,6 +573,79 @@ window.addEventListener('mousemove', e => {
   applyVB();
 });
 window.addEventListener('mouseup', () => drag = null);
+
+// ── Touch support ─────────────────────────────────────────────────────────────
+let touch = null, pinchDist0 = null, pinchVB0 = null, pinchMid0 = null;
+let lastTap = 0, tapSec = null;
+
+function touchDist(t) {
+  const dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+function touchMid(t) {
+  return { x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2 };
+}
+
+svg.addEventListener('touchstart', e => {
+  e.preventDefault();
+  tooltip.classList.remove('show');
+  if (e.touches.length === 1) {
+    touch = { sx: e.touches[0].clientX, sy: e.touches[0].clientY, vb: {...vb}, moved: false };
+    pinchDist0 = null;
+  } else if (e.touches.length === 2) {
+    touch = null;
+    pinchDist0 = touchDist(e.touches);
+    pinchVB0   = {...vb};
+    pinchMid0  = touchMid(e.touches);
+  }
+}, {passive: false});
+
+svg.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 1 && touch) {
+    const dx = e.touches[0].clientX - touch.sx;
+    const dy = e.touches[0].clientY - touch.sy;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) touch.moved = true;
+    const rect = svg.getBoundingClientRect();
+    vb.x = Math.max(0, Math.min(touch.vb.x - dx/rect.width*vb.w,  SVG_W - vb.w));
+    vb.y = Math.max(0, Math.min(touch.vb.y - dy/rect.height*vb.h, SVG_H - vb.h));
+    applyVB();
+  } else if (e.touches.length === 2 && pinchDist0) {
+    const dist  = touchDist(e.touches);
+    const scale = pinchDist0 / dist;
+    const newW  = Math.min(Math.max(pinchVB0.w * scale, 60), SVG_W);
+    const newH  = newW * (SVG_H / SVG_W);
+    const mid   = clientToSVG(pinchMid0.x, pinchMid0.y);
+    vb.x = Math.max(0, Math.min(mid.x - (mid.x - pinchVB0.x) * (newW/pinchVB0.w), SVG_W - newW));
+    vb.y = Math.max(0, Math.min(mid.y - (mid.y - pinchVB0.y) * (newH/pinchVB0.h), SVG_H - newH));
+    vb.w = newW; vb.h = newH;
+    applyVB();
+  }
+}, {passive: false});
+
+svg.addEventListener('touchend', e => {
+  if (e.touches.length === 0 && touch && !touch.moved) {
+    // Single tap — check if it hit a section hit element
+    const el = document.elementFromPoint(touch.sx, touch.sy);
+    const hit = el && el.closest('[data-sec]');
+    const now = Date.now();
+    if (hit) {
+      const sec = hit.dataset.sec;
+      if (now - lastTap < 350 && tapSec === sec) {
+        // Double-tap: zoom in
+        zoomToSection(sec);
+      } else {
+        // Single tap: show tooltip
+        showTooltip(sec, { clientX: touch.sx, clientY: touch.sy });
+        setTimeout(() => tooltip.classList.remove('show'), 2500);
+      }
+      lastTap = now; tapSec = sec;
+    } else if (zoomedSec) {
+      resetView();
+    }
+  }
+  touch = null; pinchDist0 = null;
+}, {passive: false});
 
 function fitSvg() {
   const wrap = document.getElementById('arena-wrap');
