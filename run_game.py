@@ -30,7 +30,7 @@ from datetime import datetime, timezone, timedelta
 
 from dotenv import load_dotenv
 
-from teams import get_team, game_dir, pre_game_csv, halftime_csv, no_shows_csv, data_dir, team_draw_score, slug_from_fullname
+from teams import get_team, game_dir, pre_game_csv, halftime_csv, no_shows_csv, data_dir, team_draw_score, slug_from_fullname, TEAMS
 from fetch_listings import (
     find_next_home_game,
     scrape_listings,
@@ -199,7 +199,7 @@ def get_opponent_record(opponent_name: str) -> dict:
         # Match on TeamCity + TeamName (e.g. "Phoenix" + "Suns" → "Phoenix Suns")
         df["FullName"] = df["TeamCity"] + " " + df["TeamName"]
         match = df[df["FullName"].str.lower() == opponent_name.lower()]
-        if match.empty:
+        if match.empty and opponent_name.strip():
             # Try partial match on last word (team nickname)
             nickname = opponent_name.split()[-1].lower()
             match = df[df["TeamName"].str.lower() == nickname]
@@ -237,6 +237,17 @@ def save_game_meta(event: dict, team: dict, gdir: str) -> None:
             break
     else:
         opponent = ""
+
+    # Fallback: parse opponent slug from folder name (e.g. "2026-04-07_dallas_mavericks_at_clippers")
+    if not opponent:
+        folder_base = os.path.basename(gdir)
+        if "_at_" in folder_base:
+            opp_slug_guess = folder_base.split("_at_")[0].split("_", 1)[1]  # e.g. "dallas_mavericks"
+            # Convert slug to full name via TEAMS
+            for slug, cfg in TEAMS.items():
+                if slug == opp_slug_guess.split("_")[-1] or cfg["tm_keyword"].lower().replace(" ", "_") == opp_slug_guess:
+                    opponent = cfg["tm_keyword"]
+                    break
 
     # Day of week from game date
     day_of_week = ""

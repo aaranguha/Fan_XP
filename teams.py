@@ -75,6 +75,8 @@ def team_draw_score(slug: str, win_pct: float = 0.5) -> float:
 
 def slug_from_fullname(fullname: str) -> str | None:
     """Best-effort reverse lookup: 'Los Angeles Lakers' → 'lakers'."""
+    if not fullname or not fullname.strip():
+        return None
     fullname_lower = fullname.lower()
     for slug, cfg in TEAMS.items():
         if cfg["tm_keyword"].lower() == fullname_lower:
