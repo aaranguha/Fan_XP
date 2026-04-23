@@ -216,6 +216,11 @@
       font-size: .68rem; color: var(--muted); text-align: center;
       position: relative; z-index: 1; margin-top: -8px;
     }
+    .dev-badge {
+      font-size: .58rem; color: rgba(255,100,100,.6); text-align: center;
+      letter-spacing: .06em; text-transform: uppercase;
+      position: relative; z-index: 1; margin-top: 4px;
+    }
     .team-badge {
       font-size: .62rem; font-weight: 700; letter-spacing: .06em;
       background: var(--cyan-dim); color: var(--cyan);
@@ -468,6 +473,37 @@
     const navbar = document.getElementById('navbar');
     window.addEventListener('scroll', () => {
       navbar.classList.toggle('scrolled', window.scrollY > 20);
+    });
+
+    // Inject city names and dev badges
+    const TEAM_CITIES = {
+      'Boston Celtics':'Boston','Brooklyn Nets':'Brooklyn','New York Knicks':'New York',
+      'Philadelphia 76ers':'Philadelphia','Toronto Raptors':'Toronto','Chicago Bulls':'Chicago',
+      'Cleveland Cavaliers':'Cleveland','Detroit Pistons':'Detroit','Indiana Pacers':'Indiana',
+      'Milwaukee Bucks':'Milwaukee','Atlanta Hawks':'Atlanta','Charlotte Hornets':'Charlotte',
+      'Miami Heat':'Miami','Orlando Magic':'Orlando','Washington Wizards':'Washington',
+      'Denver Nuggets':'Denver','Minnesota Timberwolves':'Minnesota',
+      'Oklahoma City Thunder':'Oklahoma City','Portland Trail Blazers':'Portland',
+      'Utah Jazz':'Utah','Golden State Warriors':'San Francisco','LA Clippers':'Los Angeles',
+      'Los Angeles Lakers':'Los Angeles','Phoenix Suns':'Phoenix','Sacramento Kings':'Sacramento',
+      'Dallas Mavericks':'Dallas','Houston Rockets':'Houston','Memphis Grizzlies':'Memphis',
+      'New Orleans Pelicans':'New Orleans','San Antonio Spurs':'San Antonio'
+    };
+    document.querySelectorAll('.team-card').forEach(card => {
+      const nameDiv = card.querySelector('.team-name');
+      const city = TEAM_CITIES[card.dataset.team];
+      if (city && nameDiv) {
+        const d = document.createElement('div');
+        d.className = 'team-city';
+        d.textContent = city;
+        nameDiv.after(d);
+      }
+      if (card.classList.contains('no-data')) {
+        const b = document.createElement('div');
+        b.className = 'dev-badge';
+        b.textContent = 'In development';
+        card.appendChild(b);
+      }
     });
 
     // Search / filter
