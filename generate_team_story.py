@@ -180,30 +180,27 @@ def build_games_data(team_slug, game_folders):
         top_secs   = sorted(sec_counts.items(), key=lambda x: x[1], reverse=True)[:7]
 
         # Story text fields
+        total_listed_value = sum(pre_price.get(k, 0) for k in pre_keys)
+        half_value = round(total_listed_value / 2)
+        half_str = f" Even at <strong>half their listed price</strong>, that's <strong>${half_value:,}</strong> in potential revenue from a single game." if half_value > 0 else ""
         if total_ns > 0:
             avg_price = round(dead / total_ns) if total_ns else 0
             story_headline = f"{total_ns:,} seats went empty at halftime."
             story_headline_span = str(total_ns)
             story_sub = (f"Every glowing dot is a seat listed on the secondary market before tip-off "
                          f"— and gone by halftime. At an average of "
-                         f"${avg_price:,}/seat, that's ${dead:,.0f} in dead inventory in a single game.")
+                         f"${avg_price:,}/seat, that's ${dead:,.0f} in dead inventory in a single game."
+                         f"{half_str}")
             chart_note = "Every listed seat in these sections was empty by halftime."
             chart_title_prefix = "Top sections by no-shows"
         else:
-            total_listed_value = sum(pre_price.get(k, 0) for k in pre_keys)
-            half_value = round(total_listed_value / 2)
             story_headline = f"{total_pre:,} seats listed on the secondary market."
             story_headline_span = str(total_pre)
-            if half_value > 0:
-                story_sub = (
-                    f"These are all seats listed on Ticketmaster's secondary market before tip-off "
-                    f"for this game — real inventory that fans paid for but may not show up to use. "
-                    f"Even at <strong>half their listed price</strong>, that's "
-                    f"<strong>${half_value:,}</strong> in potential revenue from a single game."
-                )
-            else:
-                story_sub = ("These are all seats listed on Ticketmaster's secondary market before tip-off "
-                             "for this game — real inventory that fans paid for but may not show up to use.")
+            story_sub = (f"These are all seats listed on Ticketmaster's secondary market before tip-off "
+                         f"for this game — real inventory that fans paid for but may not show up to use."
+                         f"{half_str}")
+            chart_note = "Top sections by secondary market listings pre-game."
+            chart_title_prefix = "Top sections pre-game"
             chart_note = "Top sections by secondary market listings pre-game."
             chart_title_prefix = "Top sections pre-game"
 
