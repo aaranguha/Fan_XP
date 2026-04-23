@@ -190,10 +190,20 @@ def build_games_data(team_slug, game_folders):
             chart_note = "Every listed seat in these sections was empty by halftime."
             chart_title_prefix = "Top sections by no-shows"
         else:
+            total_listed_value = sum(pre_price.get(k, 0) for k in pre_keys)
+            half_value = round(total_listed_value / 2)
             story_headline = f"{total_pre:,} seats listed on the secondary market."
             story_headline_span = str(total_pre)
-            story_sub = ("These are all seats listed on Ticketmaster's secondary market before tip-off "
-                         "for this game — real inventory that fans paid for but may not show up to use.")
+            if half_value > 0:
+                story_sub = (
+                    f"These are all seats listed on Ticketmaster's secondary market before tip-off "
+                    f"for this game — real inventory that fans paid for but may not show up to use. "
+                    f"Even at <strong>half their listed price</strong>, that's "
+                    f"<strong>${half_value:,}</strong> in potential revenue from a single game."
+                )
+            else:
+                story_sub = ("These are all seats listed on Ticketmaster's secondary market before tip-off "
+                             "for this game — real inventory that fans paid for but may not show up to use.")
             chart_note = "Top sections by secondary market listings pre-game."
             chart_title_prefix = "Top sections pre-game"
 
