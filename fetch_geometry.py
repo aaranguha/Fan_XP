@@ -15,7 +15,7 @@ After running, use:
     python generate_team_story.py <team_slug>
 """
 
-import json, os, sys, time
+import json, os, re, sys, time
 from playwright.sync_api import sync_playwright
 from playwright_stealth import Stealth
 
@@ -87,7 +87,12 @@ def fetch(url: str, team_slug: str):
             except Exception:
                 pass
 
+    def on_request(req):
+        if "mapsapi.tmol.io" in req.url:
+            print(f"  [req] {req.url[:120]}")
+
     page.on("response", on_response)
+    page.on("request", on_request)
 
     try:
         print(f"Loading: {url}")
@@ -137,8 +142,7 @@ def fetch(url: str, team_slug: str):
 
         # If no SVG URL seen at all, try constructing the full staticImage URL from event ID
         if not captured["svg_body"]:
-            import re as _re2
-            m2 = _re2.search(r'/event/([A-Z0-9]+)', url)
+            m2 = re.search(r'/event/([A-Za-z0-9_-]+)', url)
             if m2:
                 eid = m2.group(1)
                 svg_url = f"https://mapsapi.tmol.io/maps/geometry/3/event/{eid}/staticImage?systemId=HOST&app=PRD2663_EDP_NA&avertaFonts=true"
@@ -166,8 +170,7 @@ def fetch(url: str, team_slug: str):
 
         # If geo URL never appeared, try fetching it directly using event ID from URL
         if not captured["geo_body"]:
-            import re as _re
-            m = _re.search(r'/event/([A-Z0-9]+)', url)
+            m = re.search(r'/event/([A-Za-z0-9_-]+)', url)
             if m:
                 eid = m.group(1)
                 geo_url = f"https://mapsapi.tmol.io/maps/geometry/3/event/{eid}/placeDetailNoKeys?useHostGrids=true&systemId=HOST"
