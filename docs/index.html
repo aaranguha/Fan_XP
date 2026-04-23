@@ -31,15 +31,29 @@
       --ease:      cubic-bezier(0.4,0,0.2,1);
     }
 
-    html { scroll-behavior: smooth; }
+    html, body { height: 100%; }
 
     body {
       font-family: var(--font);
       background: var(--bg);
       color: var(--white);
       line-height: 1.6;
-      overflow-x: hidden;
+      overflow: hidden;
       -webkit-font-smoothing: antialiased;
+    }
+
+    #page-scroll {
+      height: 100vh;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+    }
+
+    .snap-section {
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      min-height: 100vh;
+      overflow-y: auto;
     }
 
     a { text-decoration: none; color: inherit; }
@@ -734,8 +748,10 @@
     <a href="#waitlist"     onclick="closeMobileMenu()" style="color:var(--cyan)">Sign Up →</a>
   </div>
 
+  <div id="page-scroll">
+
   <!-- HERO -->
-  <section class="hero" id="hero">
+  <section class="hero snap-section" id="hero">
     <canvas id="particle-canvas"></canvas>
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
@@ -814,36 +830,8 @@
     </div>
   </section>
 
-  <!-- STATS BAR -->
-  <section class="stats-bar">
-    <div class="container">
-      <div class="stats-grid">
-        <div class="stat-item fade-up">
-          <div class="stat-icon si-cyan">🏀</div>
-          <div class="stat-number c" data-target="37">0</div>
-          <div class="stat-label">NBA games analyzed this season</div>
-        </div>
-        <div class="stat-item fade-up delay-1">
-          <div class="stat-icon si-gold">🏟️</div>
-          <div class="stat-number g" data-target="19">0</div>
-          <div class="stat-label">teams tracked across the league</div>
-        </div>
-        <div class="stat-item fade-up delay-2">
-          <div class="stat-icon si-cyan">🪑</div>
-          <div class="stat-number c" data-target="5300" data-suffix="+">0</div>
-          <div class="stat-label">no-show seats detected &amp; confirmed</div>
-        </div>
-        <div class="stat-item fade-up delay-3">
-          <div class="stat-icon si-gold">⚡</div>
-          <div class="stat-number g">2×</div>
-          <div class="stat-label">snapshots per game — pre-game &amp; halftime</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- HOW IT WORKS -->
-  <section class="how-it-works" id="how-it-works">
+  <section class="how-it-works snap-section" id="how-it-works">
     <div class="container">
       <div class="text-center">
         <div class="section-tag fade-up">The Process</div>
@@ -880,7 +868,7 @@
   </section>
 
   <!-- FEATURES -->
-  <section class="features" id="features">
+  <section class="features snap-section" id="features">
     <div class="container">
       <div class="text-center">
         <div class="section-tag fade-up">Why FanXP</div>
@@ -914,7 +902,7 @@
   </section>
 
   <!-- FOR TEAMS -->
-  <section class="for-teams" id="for-teams">
+  <section class="for-teams snap-section" id="for-teams">
     <div class="container">
       <div class="teams-inner">
         <div>
@@ -1015,7 +1003,7 @@
   </section>
 
   <!-- DATA PROOF -->
-  <section class="data-proof">
+  <section class="data-proof snap-section">
     <div class="container">
       <div class="text-center">
         <div class="section-tag fade-up">Real Data</div>
@@ -1088,7 +1076,7 @@
   </section>
 
   <!-- WAITLIST -->
-  <section class="waitlist" id="waitlist">
+  <section class="waitlist snap-section" id="waitlist">
     <div class="container">
       <div class="waitlist-inner">
         <div class="section-tag fade-up">Early Access</div>
@@ -1124,7 +1112,7 @@
   </section>
 
   <!-- FOOTER -->
-  <footer>
+  <footer class="snap-section">
     <div class="container">
       <div class="footer-grid">
         <div>
@@ -1181,6 +1169,8 @@
     </div>
   </footer>
 
+  </div><!-- #page-scroll -->
+
   <script>
     /* ── Particles ── */
     (function() {
@@ -1229,9 +1219,22 @@
       init(); draw();
     })();
 
+    /* ── Page scroll container ── */
+    const pageScroll = document.getElementById('page-scroll');
+
     /* ── Navbar ── */
     const navbar = document.getElementById('navbar');
-    window.addEventListener('scroll', () => navbar.classList.toggle('scrolled', scrollY > 50), {passive:true});
+    pageScroll.addEventListener('scroll', () => navbar.classList.toggle('scrolled', pageScroll.scrollTop > 50), {passive:true});
+
+    /* ── Anchor nav: scroll within #page-scroll ── */
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', e => {
+        const id = a.getAttribute('href').slice(1);
+        if (!id) return;
+        const target = document.getElementById(id);
+        if (target) { e.preventDefault(); target.scrollIntoView({behavior:'smooth'}); }
+      });
+    });
 
     /* ── Sports dropdown ── */
     const sportsDropdown = document.querySelector('.nav-dropdown');
@@ -1251,10 +1254,10 @@
     mobileClose.addEventListener('click', () => mobileMenu.classList.remove('open'));
     function closeMobileMenu() { mobileMenu.classList.remove('open'); }
 
-    /* ── Scroll fade-in ── */
+    /* ── Scroll fade-in (observe within page-scroll) ── */
     const io = new IntersectionObserver(entries => {
       entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } });
-    }, { threshold: 0.1, rootMargin: '0px 0px -36px 0px' });
+    }, { threshold: 0.1, rootMargin: '0px 0px -36px 0px', root: pageScroll });
     document.querySelectorAll('.fade-up').forEach(el => io.observe(el));
 
     /* ── Count-up ── */
@@ -1270,7 +1273,7 @@
         }
         requestAnimationFrame(tick); cio.unobserve(el);
       });
-    }, {threshold:.5});
+    }, {threshold:.5, root: pageScroll});
     document.querySelectorAll('[data-target]').forEach(el => cio.observe(el));
 
     /* ── Proof bar animation ── */
@@ -1282,7 +1285,7 @@
         });
         bario.unobserve(e.target);
       });
-    }, {threshold:.4});
+    }, {threshold:.4, root: pageScroll});
     document.querySelectorAll('.proof-card').forEach(c => bario.observe(c));
 
     /* ── Waitlist form ── */
