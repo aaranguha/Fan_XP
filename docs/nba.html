@@ -195,6 +195,11 @@
     }
     .team-card:hover { border-color: rgba(0,245,255,.4); transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,.4); }
     .team-card:hover::before { opacity: 1; }
+    .team-card.no-data::after {
+      content: ''; position: absolute; inset: 0; border-radius: 16px;
+      background: linear-gradient(135deg, rgba(180,30,30,.13) 0%, rgba(120,10,10,.07) 100%);
+      pointer-events: none;
+    }
     .team-logo {
       width: 72px; height: 72px; object-fit: contain;
       filter: drop-shadow(0 2px 8px rgba(0,0,0,.5));
@@ -331,7 +336,7 @@
             <div class="game-label">vs Bucks · Apr 12</div>
             <div class="team-badge live">LIVE</div>
           </div>
-          <div class="team-card" data-team="Toronto Raptors">
+          <div class="team-card no-data" data-team="Toronto Raptors">
             <img class="team-logo" src="https://cdn.nba.com/logos/nba/1610612761/global/L/logo.svg" alt="Toronto Raptors" onerror="this.src='https://a.espncdn.com/i/teamlogos/nba/500/tor.png'"/>
             <div class="team-name">Raptors</div><div class="team-city">Toronto</div>
           </div>
@@ -345,7 +350,7 @@
             <div class="game-label">vs Pacers · Apr 1</div>
             <div class="team-badge live">LIVE</div>
           </div>
-          <div class="team-card" data-team="Cleveland Cavaliers">
+          <div class="team-card no-data" data-team="Cleveland Cavaliers">
             <img class="team-logo" src="https://cdn.nba.com/logos/nba/1610612739/global/L/logo.svg" alt="Cleveland Cavaliers" onerror="this.src='https://a.espncdn.com/i/teamlogos/nba/500/cle.png'"/>
             <div class="team-name">Cavaliers</div><div class="team-city">Cleveland</div>
           </div>
@@ -395,7 +400,7 @@
             <div class="game-label">vs TWolves · Apr 8</div>
             <div class="team-badge live">LIVE</div>
           </div>
-          <div class="team-card" data-team="Washington Wizards">
+          <div class="team-card no-data" data-team="Washington Wizards">
             <img class="team-logo" src="https://cdn.nba.com/logos/nba/1610612764/global/L/logo.svg" alt="Washington Wizards" onerror="this.src='https://a.espncdn.com/i/teamlogos/nba/500/was.png'"/>
             <div class="team-name">Wizards</div><div class="team-city">Washington</div>
           </div>
@@ -414,7 +419,7 @@
             <div class="game-label">vs Thunder · Apr 10</div>
             <div class="team-badge live">LIVE</div>
           </div>
-          <div class="team-card" data-team="Minnesota Timberwolves">
+          <div class="team-card no-data" data-team="Minnesota Timberwolves">
             <img class="team-logo" src="https://cdn.nba.com/logos/nba/1610612750/global/L/logo.svg" alt="Minnesota Timberwolves" onerror="this.src='https://a.espncdn.com/i/teamlogos/nba/500/min.png'"/>
             <div class="team-name">Timberwolves</div><div class="team-city">Minnesota</div>
           </div>
@@ -430,7 +435,7 @@
             <div class="game-label">vs Kings · Apr 12</div>
             <div class="team-badge live">LIVE</div>
           </div>
-          <div class="team-card" data-team="Utah Jazz">
+          <div class="team-card no-data" data-team="Utah Jazz">
             <img class="team-logo" src="https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg" alt="Utah Jazz" onerror="this.src='https://a.espncdn.com/i/teamlogos/nba/500/uta.png'"/>
             <div class="team-name">Jazz</div><div class="team-city">Utah</div>
           </div>
@@ -450,7 +455,7 @@
             <div class="game-label">vs Warriors · Apr 12</div>
             <div class="team-badge live">LIVE</div>
           </div>
-          <div class="team-card" data-team="Los Angeles Lakers">
+          <div class="team-card" data-team="Los Angeles Lakers" onclick="window.location.href='lakers_seat_story.html'" style="cursor:pointer;border-color:rgba(85,37,131,.35);box-shadow:0 0 18px rgba(85,37,131,.15);">
             <img class="team-logo" src="https://cdn.nba.com/logos/nba/1610612747/global/L/logo.svg" alt="Los Angeles Lakers" onerror="this.src='https://a.espncdn.com/i/teamlogos/nba/500/lal.png'"/>
             <div class="team-name">Lakers</div><div class="team-city">Los Angeles</div>
           </div>
@@ -476,7 +481,7 @@
             <div class="game-label">vs Lakers · Apr 5</div>
             <div class="team-badge live">LIVE</div>
           </div>
-          <div class="team-card" data-team="Houston Rockets">
+          <div class="team-card no-data" data-team="Houston Rockets">
             <img class="team-logo" src="https://cdn.nba.com/logos/nba/1610612745/global/L/logo.svg" alt="Houston Rockets" onerror="this.src='https://a.espncdn.com/i/teamlogos/nba/500/hou.png'"/>
             <div class="team-name">Rockets</div><div class="team-city">Houston</div>
           </div>
@@ -486,7 +491,7 @@
             <div class="game-label">vs Knicks · Apr 1</div>
             <div class="team-badge live">LIVE</div>
           </div>
-          <div class="team-card" data-team="New Orleans Pelicans">
+          <div class="team-card no-data" data-team="New Orleans Pelicans">
             <img class="team-logo" src="https://cdn.nba.com/logos/nba/1610612740/global/L/logo.svg" alt="New Orleans Pelicans" onerror="this.src='https://a.espncdn.com/i/teamlogos/nba/500/nop.png'"/>
             <div class="team-name">Pelicans</div><div class="team-city">New Orleans</div>
           </div>
