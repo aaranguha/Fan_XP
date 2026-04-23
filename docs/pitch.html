@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FanXP — Warriors Pitch</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:    #08080f;
+      --card:  #0e0e1a;
+      --cyan:  #00f5ff;
+      --cyan2: rgba(0,245,255,.12);
+      --white: #f0eef8;
+      --muted: #7a7490;
+      --dim:   #3a3650;
+    }
+
+    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: 'Inter', sans-serif; color: var(--white); }
+
+    /* ── Slide container ── */
+    #deck {
+      width: 100%; height: 100%;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      padding: 60px 80px;
+      opacity: 0; pointer-events: none;
+      transition: opacity .4s ease;
+    }
+    .slide.active { opacity: 1; pointer-events: all; }
+
+    /* ── Nav ── */
+    #nav {
+      position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 20px;
+      z-index: 100;
+    }
+    .nav-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 1px solid var(--dim);
+      background: rgba(14,14,26,.8); backdrop-filter: blur(8px);
+      color: var(--muted); font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color .2s, color .2s;
+    }
+    .nav-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+    #slide-counter { font-size: .75rem; color: var(--muted); letter-spacing: .08em; min-width: 48px; text-align: center; }
+
+    /* ── Slide dots ── */
+    #dots {
+      position: fixed; right: 32px; top: 50%; transform: translateY(-50%);
+      display: flex; flex-direction: column; gap: 10px; z-index: 100;
+    }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--dim); cursor: pointer;
+      transition: background .2s, transform .2s;
+    }
+    .dot.active { background: var(--cyan); transform: scale(1.4); }
+
+    /* ── Logo mark ── */
+    .logo { font-size: 1.1rem; font-weight: 800; letter-spacing: -.01em; }
+    .logo span { color: var(--cyan); }
+
+    /* ── Slide 1: Title ── */
+    #s1 { text-align: center; }
+    #s1 .eyebrow {
+      font-size: .7rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+      color: var(--cyan); margin-bottom: 28px;
+    }
+    #s1 h1 {
+      font-size: clamp(2.8rem, 5vw, 4.4rem); font-weight: 900; line-height: 1.08;
+      letter-spacing: -.03em; max-width: 800px;
+    }
+    #s1 h1 em { color: var(--cyan); font-style: normal; }
+    #s1 .sub {
+      margin-top: 28px; font-size: 1.15rem; color: var(--muted); max-width: 560px; line-height: 1.6;
+    }
+    #s1 .logo-big {
+      position: absolute; top: 36px; left: 52px;
+      font-size: 1.3rem; font-weight: 800;
+    }
+    #s1 .logo-big span { color: var(--cyan); }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: .65rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+      color: var(--cyan); margin-bottom: 18px; align-self: flex-start;
+    }
+
+    /* ── Two-col layout ── */
+    .two-col {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 80px;
+      width: 100%; max-width: 1100px; align-items: center;
+    }
+    .two-col.wide { grid-template-columns: 1.1fr .9fr; }
+
+    /* ── Headings ── */
+    .slide h2 {
+      font-size: clamp(2rem, 3.5vw, 3rem); font-weight: 800;
+      line-height: 1.12; letter-spacing: -.025em; margin-bottom: 20px;
+    }
+    .slide h2 em { color: var(--cyan); font-style: normal; }
+    .slide p { font-size: 1rem; color: var(--muted); line-height: 1.7; }
+
+    /* ── Cards / boxes ── */
+    .box {
+      background: var(--card); border: 1px solid var(--dim);
+      border-radius: 16px; padding: 28px 32px;
+    }
+    .box-cyan { border-color: rgba(0,245,255,.3); background: rgba(0,245,255,.05); }
+
+    /* ── Steps ── */
+    .steps { display: flex; flex-direction: column; gap: 20px; }
+    .step { display: flex; align-items: flex-start; gap: 18px; }
+    .step-num {
+      width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+      background: var(--cyan2); border: 1px solid rgba(0,245,255,.3);
+      color: var(--cyan); font-size: .8rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-body h4 { font-size: .95rem; font-weight: 700; margin-bottom: 4px; }
+    .step-body p  { font-size: .85rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── Stat blocks ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .stat-block {
+      background: var(--card); border: 1px solid var(--dim); border-radius: 14px;
+      padding: 24px 20px; text-align: center;
+    }
+    .stat-block .val {
+      font-size: 2.4rem; font-weight: 900; color: var(--cyan); letter-spacing: -.02em;
+    }
+    .stat-block .lbl { font-size: .72rem; color: var(--muted); margin-top: 4px; letter-spacing: .03em; }
+
+    /* ── Bar chart ── */
+    .bar-list { display: flex; flex-direction: column; gap: 10px; }
+    .bar-row { display: flex; align-items: center; gap: 12px; font-size: .8rem; }
+    .bar-label { width: 72px; color: var(--muted); flex-shrink: 0; text-align: right; }
+    .bar-track { flex: 1; height: 8px; background: rgba(255,255,255,.06); border-radius: 4px; overflow: hidden; }
+    .bar-fill  { height: 100%; background: var(--cyan); border-radius: 4px; transition: width 1s cubic-bezier(.4,0,.2,1); width: 0; }
+    .bar-val   { width: 36px; color: var(--white); font-weight: 600; }
+
+    /* ── Highlight number ── */
+    .big-num {
+      font-size: clamp(4rem, 8vw, 7rem); font-weight: 900;
+      color: var(--cyan); letter-spacing: -.04em; line-height: 1;
+    }
+    .big-label { font-size: 1rem; color: var(--muted); margin-top: 8px; }
+
+    /* ── Quote ── */
+    .quote-block {
+      border-left: 3px solid var(--cyan); padding-left: 24px;
+      font-size: 1.15rem; line-height: 1.7; color: rgba(240,238,248,.7);
+      font-style: italic;
+    }
+
+    /* ── List ── */
+    .bullet-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+    .bullet-list li { display: flex; gap: 12px; font-size: .95rem; color: var(--muted); line-height: 1.5; }
+    .bullet-list li::before { content: '→'; color: var(--cyan); flex-shrink: 0; font-style: normal; }
+    .bullet-list li strong { color: var(--white); }
+
+    /* ── Final CTA ── */
+    #s7 { text-align: center; }
+    #s7 h2 { font-size: clamp(2.4rem, 4vw, 3.6rem); }
+    #s7 .url {
+      margin-top: 32px; font-size: 1rem; color: var(--cyan);
+      letter-spacing: .06em; text-transform: uppercase;
+      border: 1px solid rgba(0,245,255,.3); border-radius: 8px;
+      padding: 10px 28px; display: inline-block;
+    }
+    #s7 .questions { margin-top: 48px; display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; }
+    #s7 .q {
+      background: var(--card); border: 1px solid var(--dim); border-radius: 12px;
+      padding: 20px 28px; font-size: .9rem; color: var(--muted); max-width: 260px; line-height: 1.5;
+    }
+    #s7 .q strong { display: block; color: var(--white); margin-bottom: 6px; font-size: 1rem; }
+
+    /* ── Background glow ── */
+    .glow {
+      position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; z-index: 0;
+    }
+    .slide > * { position: relative; z-index: 1; }
+  </style>
+</head>
+<body>
+
+<div id="deck">
+
+  <!-- ── Slide 1: Title ── -->
+  <div class="slide active" id="s1">
+    <div class="glow" style="width:600px;height:400px;background:rgba(0,245,255,.06);top:-100px;left:-100px;"></div>
+    <div class="logo-big">Fan<span>XP</span></div>
+    <div class="eyebrow">Confidential · April 2026</div>
+    <h1>We know which seats go<br/><em>empty</em> before you can fill them.</h1>
+    <p class="sub">Real-time secondary market intelligence for NBA teams — so you can act on no-shows before halftime.</p>
+  </div>
+
+  <!-- ── Slide 2: The Problem ── -->
+  <div class="slide" id="s2">
+    <div class="glow" style="width:500px;height:500px;background:rgba(180,30,30,.06);top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+    <div class="two-col" style="max-width:1000px;">
+      <div>
+        <div class="section-label">The Problem</div>
+        <h2>Empty seats are <em>invisible</em> until it's too late.</h2>
+        <p style="margin-bottom:20px;">Fans buy on the secondary market, then don't show up. By the time your team notices an empty section — it's the third quarter. The moment is gone.</p>
+        <p>There's no system that tells you <em>before halftime</em> which listed seats are actually going to be empty.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="box">
+          <div style="font-size:.7rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">What teams know today</div>
+          <div style="font-size:.95rem;line-height:1.6;">Attendance numbers — <strong style="color:var(--white);">hours after</strong> the game ends.</div>
+        </div>
+        <div class="box box-cyan">
+          <div style="font-size:.7rem;color:var(--cyan);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">What FanXP provides</div>
+          <div style="font-size:.95rem;line-height:1.6;">Seat-level no-show data — <strong style="color:var(--white);">before halftime.</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Slide 3: How It Works ── -->
+  <div class="slide" id="s3">
+    <div class="two-col wide" style="max-width:1060px;">
+      <div>
+        <div class="section-label">How It Works</div>
+        <h2>Three scans.<br/><em>One clear picture.</em></h2>
+        <p>We monitor the secondary market in real time — matching listed seats against live arena data to tell you exactly which ones are empty right now.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Pre-game scan</h4>
+            <p>We capture every seat listed on Ticketmaster's secondary market before tip-off — section, row, price.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Halftime scan</h4>
+            <p>We re-scan at halftime. Seats still listed = the fan never showed up. We confirm empties with seat-level precision.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Intelligence delivered</h4>
+            <p>Your ops team gets a real-time list of empty seats by section — ready to act on before the third quarter.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Slide 4: Warriors Data ── -->
+  <div class="slide" id="s4">
+    <div class="glow" style="width:700px;height:400px;background:rgba(0,245,255,.05);top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+    <div style="width:100%;max-width:1060px;">
+      <div class="section-label">Your Data · Warriors vs Lakers · April 9, 2026</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;">
+        <div>
+          <h2>We ran this on<br/><em>your arena.</em></h2>
+          <p style="margin-bottom:28px;">No partnership needed — we built this using publicly available secondary market data. This is what we saw at Chase Center on April 9th.</p>
+          <div class="stat-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="stat-block"><div class="val">738</div><div class="lbl">seats listed pre-game</div></div>
+            <div class="stat-block"><div class="val">738</div><div class="lbl">confirmed no-shows</div></div>
+            <div class="stat-block"><div class="val">100%</div><div class="lbl">no-show rate</div></div>
+            <div class="stat-block"><div class="val">$68k</div><div class="lbl">at half listed price</div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:14px;letter-spacing:.05em;text-transform:uppercase;">Top sections by no-shows</div>
+          <div class="bar-list" id="bar-chart">
+            <div class="bar-row"><div class="bar-label">Sec 110</div><div class="bar-track"><div class="bar-fill" data-w="100"></div></div><div class="bar-val">48</div></div>
+            <div class="bar-row"><div class="bar-label">Sec 111</div><div class="bar-track"><div class="bar-fill" data-w="88"></div></div><div class="bar-val">42</div></div>
+            <div class="bar-row"><div class="bar-label">Sec 109</div><div class="bar-track"><div class="bar-fill" data-w="79"></div></div><div class="bar-val">38</div></div>
+            <div class="bar-row"><div class="bar-label">Sec 112</div><div class="bar-track"><div class="bar-fill" data-w="71"></div></div><div class="bar-val">34</div></div>
+            <div class="bar-row"><div class="bar-label">Sec 108</div><div class="bar-track"><div class="bar-fill" data-w="65"></div></div><div class="bar-val">31</div></div>
+            <div class="bar-row"><div class="bar-label">Club 15</div><div class="bar-track"><div class="bar-fill" data-w="54"></div></div><div class="bar-val">26</div></div>
+          </div>
+          <p style="font-size:.7rem;color:var(--dim);margin-top:16px;">Based on Ticketmaster secondary market data. Live seat map available at fan-xp.vercel.app</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Slide 5: The Opportunity ── -->
+  <div class="slide" id="s5">
+    <div class="two-col" style="max-width:1060px;">
+      <div>
+        <div class="section-label">The Opportunity</div>
+        <h2>Turn empty seats into<br/><em>fan moments.</em></h2>
+        <p>Knowing which seats are empty before halftime opens up a playbook you don't have access to today.</p>
+      </div>
+      <ul class="bullet-list">
+        <li><strong>Upgrade waitlists</strong> — reward season ticket holders or loyalty members with real seat upgrades mid-game.</li>
+        <li><strong>Halftime flash sales</strong> — offer discounted premium seats to fans already in the building.</li>
+        <li><strong>Sponsor activations</strong> — fill premium sections for sponsor guests or partner experiences.</li>
+        <li><strong>No-show intelligence</strong> — understand which games, sections, and price points drive the most drop-off.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── Slide 6: The Numbers ── -->
+  <div class="slide" id="s6">
+    <div class="glow" style="width:600px;height:600px;background:rgba(0,245,255,.05);top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+    <div style="width:100%;max-width:1060px;text-align:center;">
+      <div class="section-label" style="align-self:center;margin:0 auto 20px;">The Numbers</div>
+      <h2 style="margin-bottom:48px;">Conservative estimate.<br/><em>Real upside.</em></h2>
+      <div class="stat-grid" style="max-width:800px;margin:0 auto 40px;">
+        <div class="stat-block">
+          <div class="val">738</div>
+          <div class="lbl">no-show seats<br/>in one game</div>
+        </div>
+        <div class="stat-block">
+          <div class="val">$68k</div>
+          <div class="lbl">at half listed price<br/>per game</div>
+        </div>
+        <div class="stat-block">
+          <div class="val">$2.8M</div>
+          <div class="lbl">over a full season<br/>(41 home games)</div>
+        </div>
+      </div>
+      <p style="color:var(--muted);max-width:560px;margin:0 auto;font-size:.9rem;line-height:1.7;">These figures assume <strong style="color:var(--white);">half of the listed seat price</strong> — a deliberately conservative floor. Actual recoverable value is likely higher with real-time action.</p>
+    </div>
+  </div>
+
+  <!-- ── Slide 7: The Ask ── -->
+  <div class="slide" id="s7">
+    <div class="glow" style="width:700px;height:500px;background:rgba(0,245,255,.06);top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+    <div class="eyebrow" style="margin-bottom:20px;">The Ask</div>
+    <h2 style="max-width:700px;text-align:center;">Is this a problem<br/>the Warriors <em>actually</em> want solved?</h2>
+    <p style="color:var(--muted);max-width:500px;text-align:center;margin-top:20px;line-height:1.7;">We're not here to sell — we're here to learn. We built this with your data and want to know if it matches a real pain point.</p>
+    <div class="questions">
+      <div class="q"><strong>Does this match reality?</strong>Is secondary market no-show drop-off something your ops team actually experiences?</div>
+      <div class="q"><strong>Who else should we talk to?</strong>Ticket ops, fan experience, partnerships — who would this matter most to?</div>
+      <div class="q"><strong>What would you need?</strong>What would a real integration or pilot look like from your side?</div>
+    </div>
+    <div class="url">fan-xp.vercel.app</div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div id="nav">
+  <button class="nav-btn" id="prev">←</button>
+  <span id="slide-counter">1 / 7</span>
+  <button class="nav-btn" id="next">→</button>
+</div>
+
+<div id="dots"></div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('slide-counter');
+  const dotsEl  = document.getElementById('dots');
+  let current = 0;
+
+  // Build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => goTo(i));
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(idx) {
+    slides[current].classList.remove('active');
+    dotsEl.children[current].classList.remove('active');
+    current = (idx + slides.length) % slides.length;
+    slides[current].classList.add('active');
+    dotsEl.children[current].classList.add('active');
+    counter.textContent = `${current + 1} / ${slides.length}`;
+
+    // Animate bars when landing on slide 4
+    if (current === 3) {
+      setTimeout(() => {
+        document.querySelectorAll('.bar-fill').forEach(b => {
+          b.style.width = b.dataset.w + '%';
+        });
+      }, 200);
+    }
+  }
+
+  document.getElementById('next').addEventListener('click', () => goTo(current + 1));
+  document.getElementById('prev').addEventListener('click', () => goTo(current - 1));
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goTo(current + 1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   goTo(current - 1);
+  });
+</script>
+</body>
+</html>
