@@ -1,0 +1,35 @@
+{
+  "inventory": {
+    "url": "https://services.ticketmaster.com/api/ismds/event/1C00630BB06D65D8/facets?by=section+seating+attributes+available+accessibility+offer+placeGroups+inventoryType+offerType+area+description&show=places&embed=area&embed=description&q=available&compress=places&resaleChannelId=internal.ecommerce.consumer.desktop.web.browser.ticketmaster.us&apikey=b462oi7fic6pehcdkzony5bxhe&apisecret=pquzpfrfz7zd2ylvtz3w5dtyse",
+    "headers": {
+      "c-tmpt": "1:CAESGGz7fMTZl8e0mh1c_oIPReSvF4HY8unbwhiV_KGn1zMiMFX4TAE67vCZngMR7t5dA9kLYsaNg_r0UhCo-nsb_UBRO2p1bM-8UqQIaDVzEy5s8w",
+      "referer": "https://www.ticketmaster.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      "tmps-correlation-id": "d5f90ae5-a36f-4723-aead-e56257fd0322"
+    }
+  },
+  "pricing": {
+    "url": "https://offeradapter.ticketmaster.com/api/ismds/event/1C00630BB06D65D8/facets?show=totalpricerange&by=offers&q=available&apikey=b462oi7fic6pehcdkzony5bxhe&apisecret=pquzpfrfz7zd2ylvtz3w5dtyse&resaleChannelId=internal.ecommerce.consumer.desktop.web.browser.ticketmaster.us",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://www.ticketmaster.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      "tmps-correlation-id": "d5f90ae5-a36f-4723-aead-e56257fd0322",
+      "sec-ch-ua": "\"Chromium\";v=\"145\", \"Not:A-Brand\";v=\"99\"",
+      "accept-language": "en-US",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  "places": {
+    "url": "https://services.ticketmaster.com/api/ismds/event/1C00630BB06D65D8/facets?by=inventorytypes%20%2B%20shape&q=and(available%2Cinventorytypes%3A%22resale%22)&show=places&qty=2&compress=places&apikey=b462oi7fic6pehcdkzony5bxhe&apisecret=pquzpfrfz7zd2ylvtz3w5dtyse&resaleChannelId=internal.ecommerce.consumer.desktop.web.browser.ticketmaster.us",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://www.ticketmaster.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      "tmps-correlation-id": "d5f90ae5-a36f-4723-aead-e56257fd0322",
+      "sec-ch-ua": "\"Chromium\";v=\"145\", \"Not:A-Brand\";v=\"99\"",
+      "accept-language": "en-US",
+      "sec-ch-ua-mobile": "?0"
+    }
+  }
+}

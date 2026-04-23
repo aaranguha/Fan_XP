@@ -1,0 +1,15 @@
+{
+  "home_team": "pacers",
+  "opponent": "Detroit Pistons",
+  "game_date": "2026-04-12",
+  "day_of_week": "Sunday",
+  "tipoff_local": "18:00",
+  "arena": "Gainbridge Fieldhouse",
+  "city": "Indianapolis",
+  "home_draw_score": 6.3,
+  "opponent_draw_score": 5.56,
+  "game_appeal_score": 5.93,
+  "opponent_wins": 59,
+  "opponent_losses": 22,
+  "opponent_win_pct": 0.728
+}

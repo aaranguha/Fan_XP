@@ -1,0 +1,15 @@
+{
+  "home_team": "bulls",
+  "opponent": "Orlando Magic",
+  "game_date": "2026-04-10",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:00",
+  "arena": "United Center",
+  "city": "Chicago",
+  "home_draw_score": 6.2,
+  "opponent_draw_score": 5.9,
+  "game_appeal_score": 6.05,
+  "opponent_wins": 44,
+  "opponent_losses": 36,
+  "opponent_win_pct": 0.55
+}

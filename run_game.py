@@ -230,13 +230,28 @@ def save_game_meta(event: dict, team: dict, gdir: str) -> None:
     arena   = event.get("_embedded", {}).get("venues", [{}])[0].get("name", "")
     city    = event.get("_embedded", {}).get("venues", [{}])[0].get("city", {}).get("name", "")
 
-    # Extract opponent from event name ("Home Team vs. Opponent")
-    for sep in (" vs. ", " v. ", " vs "):
-        if sep in name:
-            opponent = name.split(sep, 1)[1].strip()
+    # Extract opponent from event name
+    # Strip playoff prefix up to first colon (e.g. "East Conf Qtrs: ...")
+    clean_name = re.sub(r'^[^:]+:\s*', '', name).strip() if ':' in name else name
+
+    opponent = ""
+    for sep in (" vs. ", " v. ", " vs ", " v "):
+        for src in (name, clean_name):
+            if sep in src:
+                part = src.split(sep, 1)[1].strip()
+                # Strip trailing playoff junk ("Rd 1 Hm Gm 2", "HM GM2", etc.)
+                part = re.split(r'\s+(?:Rd\s*\d|Hm\s+Gm|HM\s+GM)\b', part, flags=re.IGNORECASE)[0].strip()
+                opponent = part
+                break
+        if opponent:
             break
-    else:
-        opponent = ""
+
+    # Playoff "Away at Home" format — opponent is the away team (before " at ")
+    if not opponent and " at " in clean_name:
+        away = clean_name.split(" at ")[0].strip()
+        away = re.split(r'\s+(?:Rd\s*\d|Hm\s+Gm|HM\s+GM)\b', away, flags=re.IGNORECASE)[0].strip()
+        if away:
+            opponent = away
 
     # Fallback: parse opponent slug from folder name (e.g. "2026-04-07_dallas_mavericks_at_clippers")
     if not opponent:

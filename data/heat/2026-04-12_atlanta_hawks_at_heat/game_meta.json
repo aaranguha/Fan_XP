@@ -1,0 +1,15 @@
+{
+  "home_team": "heat",
+  "opponent": "Atlanta Hawks",
+  "game_date": "2026-04-12",
+  "day_of_week": "Sunday",
+  "tipoff_local": "18:00",
+  "arena": "Kaseya Center",
+  "city": "Miami",
+  "home_draw_score": 7.2,
+  "opponent_draw_score": 6.74,
+  "game_appeal_score": 6.97,
+  "opponent_wins": 46,
+  "opponent_losses": 35,
+  "opponent_win_pct": 0.568
+}

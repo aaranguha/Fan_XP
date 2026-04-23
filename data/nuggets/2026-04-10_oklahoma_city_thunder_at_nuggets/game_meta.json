@@ -1,0 +1,15 @@
+{
+  "home_team": "nuggets",
+  "opponent": "Oklahoma City Thunder",
+  "game_date": "2026-04-10",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:00",
+  "arena": "Ball Arena",
+  "city": "Denver",
+  "home_draw_score": 7.6,
+  "opponent_draw_score": 7.9,
+  "game_appeal_score": 7.75,
+  "opponent_wins": 64,
+  "opponent_losses": 16,
+  "opponent_win_pct": 0.8
+}

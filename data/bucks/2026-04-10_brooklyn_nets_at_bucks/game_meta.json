@@ -1,0 +1,15 @@
+{
+  "home_team": "bucks",
+  "opponent": "Brooklyn Nets",
+  "game_date": "2026-04-10",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:00",
+  "arena": "Fiserv Forum",
+  "city": "Milwaukee",
+  "home_draw_score": 7.3,
+  "opponent_draw_score": 5.0,
+  "game_appeal_score": 6.15,
+  "opponent_wins": 20,
+  "opponent_losses": 60,
+  "opponent_win_pct": 0.25
+}

@@ -1,0 +1,15 @@
+{
+  "home_team": "mavericks",
+  "opponent": "Chicago Bulls",
+  "game_date": "2026-04-12",
+  "day_of_week": "Sunday",
+  "tipoff_local": "19:30",
+  "arena": "American Airlines Center",
+  "city": "Dallas",
+  "home_draw_score": 6.9,
+  "opponent_draw_score": 5.97,
+  "game_appeal_score": 6.44,
+  "opponent_wins": 31,
+  "opponent_losses": 50,
+  "opponent_win_pct": 0.383
+}

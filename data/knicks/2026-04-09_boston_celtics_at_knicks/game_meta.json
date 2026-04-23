@@ -1,0 +1,15 @@
+{
+  "home_team": "knicks",
+  "opponent": "Boston Celtics",
+  "game_date": "2026-04-09",
+  "day_of_week": "Thursday",
+  "tipoff_local": "19:30",
+  "arena": "Madison Square Garden",
+  "city": "New York",
+  "home_draw_score": 8.0,
+  "opponent_draw_score": 7.77,
+  "game_appeal_score": 7.88,
+  "opponent_wins": 54,
+  "opponent_losses": 25,
+  "opponent_win_pct": 0.684
+}

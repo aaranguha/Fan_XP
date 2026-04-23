@@ -1,0 +1,15 @@
+{
+  "home_team": "lakers",
+  "opponent": "Utah Jazz",
+  "game_date": "2026-04-12",
+  "day_of_week": "Sunday",
+  "tipoff_local": "17:30",
+  "arena": "Crypto.com Arena",
+  "city": "Los Angeles",
+  "home_draw_score": 9.0,
+  "opponent_draw_score": 4.34,
+  "game_appeal_score": 6.67,
+  "opponent_wins": 22,
+  "opponent_losses": 59,
+  "opponent_win_pct": 0.272
+}

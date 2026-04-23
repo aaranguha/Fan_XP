@@ -1,0 +1,15 @@
+{
+  "home_team": "clippers",
+  "opponent": "Golden State Warriors",
+  "game_date": "2026-04-12",
+  "day_of_week": "Sunday",
+  "tipoff_local": "17:30",
+  "arena": "Intuit Dome",
+  "city": "Inglewood",
+  "home_draw_score": 7.0,
+  "opponent_draw_score": 8.61,
+  "game_appeal_score": 7.8,
+  "opponent_wins": 37,
+  "opponent_losses": 44,
+  "opponent_win_pct": 0.457
+}

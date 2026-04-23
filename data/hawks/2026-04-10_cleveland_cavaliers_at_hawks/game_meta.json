@@ -1,0 +1,15 @@
+{
+  "home_team": "hawks",
+  "opponent": "Cleveland Cavaliers",
+  "game_date": "2026-04-10",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:00",
+  "arena": "State Farm Arena",
+  "city": "Atlanta",
+  "home_draw_score": 6.6,
+  "opponent_draw_score": 6.87,
+  "game_appeal_score": 6.73,
+  "opponent_wins": 51,
+  "opponent_losses": 29,
+  "opponent_win_pct": 0.637
+}

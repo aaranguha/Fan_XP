@@ -1,0 +1,15 @@
+{
+  "home_team": "76ers",
+  "opponent": "Milwaukee Bucks",
+  "game_date": "2026-04-12",
+  "day_of_week": "Sunday",
+  "tipoff_local": "18:00",
+  "arena": "Xfinity Mobile Arena",
+  "city": "Philadelphia",
+  "home_draw_score": 6.9,
+  "opponent_draw_score": 7.09,
+  "game_appeal_score": 7.0,
+  "opponent_wins": 32,
+  "opponent_losses": 49,
+  "opponent_win_pct": 0.395
+}

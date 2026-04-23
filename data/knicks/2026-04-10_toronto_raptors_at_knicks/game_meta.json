@@ -1,0 +1,15 @@
+{
+  "home_team": "knicks",
+  "opponent": "Toronto Raptors",
+  "game_date": "2026-04-10",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:30",
+  "arena": "Madison Square Garden",
+  "city": "New York",
+  "home_draw_score": 8.0,
+  "opponent_draw_score": 6.02,
+  "game_appeal_score": 7.01,
+  "opponent_wins": 45,
+  "opponent_losses": 35,
+  "opponent_win_pct": 0.562
+}

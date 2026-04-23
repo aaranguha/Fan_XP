@@ -1,0 +1,15 @@
+{
+  "home_team": "cavaliers",
+  "opponent": "Washington Wizards",
+  "game_date": "2026-04-12",
+  "day_of_week": "Sunday",
+  "tipoff_local": "18:00",
+  "arena": "Rocket Arena",
+  "city": "Cleveland",
+  "home_draw_score": 6.6,
+  "opponent_draw_score": 4.02,
+  "game_appeal_score": 5.31,
+  "opponent_wins": 17,
+  "opponent_losses": 64,
+  "opponent_win_pct": 0.21
+}

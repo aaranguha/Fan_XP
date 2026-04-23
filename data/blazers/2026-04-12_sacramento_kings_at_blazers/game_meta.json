@@ -1,0 +1,15 @@
+{
+  "home_team": "blazers",
+  "opponent": "Sacramento Kings",
+  "game_date": "2026-04-12",
+  "day_of_week": "Sunday",
+  "tipoff_local": "17:30",
+  "arena": "Moda Center",
+  "city": "Portland",
+  "home_draw_score": 5.1,
+  "opponent_draw_score": 5.04,
+  "game_appeal_score": 5.07,
+  "opponent_wins": 22,
+  "opponent_losses": 59,
+  "opponent_win_pct": 0.272
+}

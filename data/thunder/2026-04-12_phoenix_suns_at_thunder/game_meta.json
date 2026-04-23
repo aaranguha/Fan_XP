@@ -1,0 +1,15 @@
+{
+  "home_team": "thunder",
+  "opponent": "Phoenix Suns",
+  "game_date": "2026-04-12",
+  "day_of_week": "Sunday",
+  "tipoff_local": "19:30",
+  "arena": "Paycom Center",
+  "city": "Oklahoma City",
+  "home_draw_score": 7.3,
+  "opponent_draw_score": 6.99,
+  "game_appeal_score": 7.14,
+  "opponent_wins": 44,
+  "opponent_losses": 37,
+  "opponent_win_pct": 0.543
+}

@@ -1,0 +1,15 @@
+{
+  "home_team": "rockets",
+  "opponent": "Philadelphia 76ers",
+  "game_date": "2026-04-09",
+  "day_of_week": "Thursday",
+  "tipoff_local": "19:00",
+  "arena": "Toyota Center - TX",
+  "city": "Houston",
+  "home_draw_score": 6.9,
+  "opponent_draw_score": 6.99,
+  "game_appeal_score": 6.95,
+  "opponent_wins": 43,
+  "opponent_losses": 36,
+  "opponent_win_pct": 0.544
+}

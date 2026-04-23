@@ -1,0 +1,15 @@
+{
+  "home_team": "celtics",
+  "opponent": "New Orleans Pelicans",
+  "game_date": "2026-04-10",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:30",
+  "arena": "TD Garden",
+  "city": "Boston",
+  "home_draw_score": 7.4,
+  "opponent_draw_score": 5.15,
+  "game_appeal_score": 6.28,
+  "opponent_wins": 26,
+  "opponent_losses": 54,
+  "opponent_win_pct": 0.325
+}

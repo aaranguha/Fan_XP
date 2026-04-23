@@ -1,0 +1,15 @@
+{
+  "home_team": "pacers",
+  "opponent": "Philadelphia 76ers",
+  "game_date": "2026-04-10",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:30",
+  "arena": "Gainbridge Fieldhouse",
+  "city": "Indianapolis",
+  "home_draw_score": 6.3,
+  "opponent_draw_score": 6.97,
+  "game_appeal_score": 6.63,
+  "opponent_wins": 43,
+  "opponent_losses": 37,
+  "opponent_win_pct": 0.537
+}

@@ -1,0 +1,15 @@
+{
+  "home_team": "rockets",
+  "opponent": "Memphis Grizzlies",
+  "game_date": "2026-04-12",
+  "day_of_week": "Sunday",
+  "tipoff_local": "19:30",
+  "arena": "Toyota Center - TX",
+  "city": "Houston",
+  "home_draw_score": 6.9,
+  "opponent_draw_score": 5.92,
+  "game_appeal_score": 6.41,
+  "opponent_wins": 25,
+  "opponent_losses": 56,
+  "opponent_win_pct": 0.309
+}

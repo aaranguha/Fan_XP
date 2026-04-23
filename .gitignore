@@ -20,6 +20,8 @@ investigate_tm.py
 __pycache__/
 *.pyc
 *.pyo
+.venv/
+output/
 
 # macOS
 .DS_Store

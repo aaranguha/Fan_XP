@@ -1,0 +1,15 @@
+{
+  "home_team": "jazz",
+  "opponent": "Memphis Grizzlies",
+  "game_date": "2026-04-10",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:30",
+  "arena": "Delta Center",
+  "city": "Salt Lake City",
+  "home_draw_score": 4.8,
+  "opponent_draw_score": 5.92,
+  "game_appeal_score": 5.36,
+  "opponent_wins": 25,
+  "opponent_losses": 55,
+  "opponent_win_pct": 0.312
+}

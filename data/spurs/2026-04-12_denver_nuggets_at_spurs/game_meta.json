@@ -1,0 +1,15 @@
+{
+  "home_team": "spurs",
+  "opponent": "Denver Nuggets",
+  "game_date": "2026-04-12",
+  "day_of_week": "Sunday",
+  "tipoff_local": "19:30",
+  "arena": "Frost Bank Center",
+  "city": "San Antonio",
+  "home_draw_score": 7.3,
+  "opponent_draw_score": 7.91,
+  "game_appeal_score": 7.61,
+  "opponent_wins": 53,
+  "opponent_losses": 28,
+  "opponent_win_pct": 0.654
+}

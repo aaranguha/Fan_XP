@@ -1,0 +1,15 @@
+{
+  "home_team": "kings",
+  "opponent": "Golden State Warriors",
+  "game_date": "2026-04-10",
+  "day_of_week": "Friday",
+  "tipoff_local": "19:00",
+  "arena": "Golden 1 Center",
+  "city": "Sacramento",
+  "home_draw_score": 5.5,
+  "opponent_draw_score": 8.63,
+  "game_appeal_score": 7.07,
+  "opponent_wins": 37,
+  "opponent_losses": 43,
+  "opponent_win_pct": 0.463
+}

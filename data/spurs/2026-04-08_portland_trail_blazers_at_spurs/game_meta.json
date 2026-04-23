@@ -1,0 +1,15 @@
+{
+  "home_team": "spurs",
+  "opponent": "Portland Trail Blazers",
+  "game_date": "2026-04-08",
+  "day_of_week": "Wednesday",
+  "tipoff_local": "20:30",
+  "arena": "Frost Bank Center",
+  "city": "San Antonio",
+  "home_draw_score": 7.3,
+  "opponent_draw_score": 5.11,
+  "game_appeal_score": 6.21,
+  "opponent_wins": 40,
+  "opponent_losses": 39,
+  "opponent_win_pct": 0.506
+}
