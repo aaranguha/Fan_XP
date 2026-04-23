@@ -1,4 +1,7 @@
 {
   "outputDirectory": "docs",
+  "buildCommand": "",
+  "installCommand": "",
+  "framework": null,
   "trailingSlash": false
 }
