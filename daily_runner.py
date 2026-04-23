@@ -128,11 +128,13 @@ def main():
     print(f"\nAll {len(procs)} runner(s) started. Waiting for games to complete...")
     print("(Each runner sleeps until its own game time — this may take many hours)\n")
 
+    succeeded = []
     for slug, proc, log_file in procs:
         proc.wait()
         log_file.close()
         if proc.returncode == 0:
             status = "done"
+            succeeded.append(slug)
         elif proc.returncode == 2:
             status = "FAILED (Bot Detection)"
         else:
@@ -157,6 +159,33 @@ def main():
         if not remaining:
             print(f"  Removing empty team folder: {team_path}")
             shutil.rmtree(team_path, ignore_errors=True)
+
+    # Regenerate HTML for teams that completed successfully, then push to Vercel
+    if succeeded:
+        print(f"\nRegenerating HTML for: {', '.join(succeeded)}")
+        for slug in succeeded:
+            result = subprocess.run(
+                [PYTHON, "generate_team_story.py", slug],
+                capture_output=True, text=True
+            )
+            if result.returncode == 0:
+                print(f"  [{slug}] HTML regenerated")
+            else:
+                print(f"  [{slug}] HTML generation failed:\n{result.stderr.strip()}")
+
+        print("\nCommitting and pushing to GitHub (triggers Vercel deploy)...")
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        teams_str = ", ".join(succeeded)
+        subprocess.run(["git", "add", "data/", "docs/"], check=True)
+        subprocess.run([
+            "git", "commit", "-m",
+            f"Auto-update {date_str}: {teams_str}"
+        ], check=True)
+        result = subprocess.run(["git", "push"])
+        if result.returncode == 0:
+            print("  Pushed — Vercel will deploy automatically.")
+        else:
+            print("  git push failed — check SSH keys / remote access.")
 
     print("\nAll done. Check data/<team>/no_shows.csv for results.")
 
