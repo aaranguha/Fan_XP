@@ -86,7 +86,8 @@
       padding:44px 60px; background:rgba(0,245,255,.03);
       display:flex; flex-direction:column; align-items:center; gap:14px;
     }
-    .demo-url { font-size:1.05rem; color:var(--cyan); letter-spacing:.04em; border:1px solid rgba(0,245,255,.25); border-radius:8px; padding:10px 24px; }
+    .demo-url { font-size:1.05rem; color:var(--cyan); letter-spacing:.04em; border:1px solid rgba(0,245,255,.25); border-radius:8px; padding:10px 24px; text-decoration:none; transition:background .2s; }
+    .demo-url:hover { background:rgba(0,245,255,.08); }
 
     /* bullet */
     .bullet { list-style:none; display:flex; flex-direction:column; gap:14px; }
@@ -184,7 +185,7 @@
     <h2 style="text-align:center;">Every dot is a real seat.<br/><em>Every empty one is a missed opportunity.</em></h2>
     <div class="demo-box">
       <div style="font-size:.8rem;color:var(--m);">Opening in browser →</div>
-      <div class="demo-url">fan-xp.vercel.app/warriors_seat_story.html</div>
+      <a class="demo-url" href="https://fan-xp.vercel.app/warriors_seat_story.html" target="_blank">fan-xp.vercel.app/warriors_seat_story.html</a>
       <div style="font-size:.75rem;color:var(--m);">Interactive seat map · Chase Center · real secondary market data</div>
     </div>
   </div>
