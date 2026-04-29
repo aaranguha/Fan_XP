@@ -1,0 +1,15 @@
+{
+  "home_team": "knicks",
+  "opponent": "Atlanta Hawks",
+  "game_date": "2026-04-28",
+  "day_of_week": "Tuesday",
+  "tipoff_local": "20:00",
+  "arena": "Madison Square Garden",
+  "city": "New York",
+  "home_draw_score": 8.0,
+  "opponent_draw_score": 6.72,
+  "game_appeal_score": 7.36,
+  "opponent_wins": 46,
+  "opponent_losses": 36,
+  "opponent_win_pct": 0.561
+}
