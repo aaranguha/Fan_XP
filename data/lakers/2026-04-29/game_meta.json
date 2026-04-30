@@ -1,0 +1,15 @@
+{
+  "home_team": "lakers",
+  "opponent": "Houston Rockets",
+  "game_date": "2026-04-29",
+  "day_of_week": "Wednesday",
+  "tipoff_local": "19:00",
+  "arena": "Crypto.com Arena",
+  "city": "Los Angeles",
+  "home_draw_score": 9.0,
+  "opponent_draw_score": 7.17,
+  "game_appeal_score": 8.09,
+  "opponent_wins": 52,
+  "opponent_losses": 30,
+  "opponent_win_pct": 0.634
+}
