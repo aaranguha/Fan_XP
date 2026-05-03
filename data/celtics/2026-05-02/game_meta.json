@@ -1,0 +1,15 @@
+{
+  "home_team": "celtics",
+  "opponent": "Philadelphia 76ers",
+  "game_date": "2026-05-02",
+  "day_of_week": "Saturday",
+  "tipoff_local": "19:30",
+  "arena": "TD Garden",
+  "city": "Boston",
+  "home_draw_score": 7.4,
+  "opponent_draw_score": 7.0,
+  "game_appeal_score": 7.2,
+  "opponent_wins": 45,
+  "opponent_losses": 37,
+  "opponent_win_pct": 0.549
+}
