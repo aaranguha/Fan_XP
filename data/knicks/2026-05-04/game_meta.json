@@ -1,0 +1,15 @@
+{
+  "home_team": "knicks",
+  "opponent": "76ers",
+  "game_date": "2026-05-04",
+  "day_of_week": "Monday",
+  "tipoff_local": "20:00",
+  "arena": "Madison Square Garden",
+  "city": "New York",
+  "home_draw_score": 8.0,
+  "opponent_draw_score": 7.0,
+  "game_appeal_score": 7.5,
+  "opponent_wins": 45,
+  "opponent_losses": 37,
+  "opponent_win_pct": 0.549
+}
