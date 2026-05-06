@@ -1,0 +1,15 @@
+{
+  "home_team": "thunder",
+  "opponent": "Lakers",
+  "game_date": "2026-05-05",
+  "day_of_week": "Tuesday",
+  "tipoff_local": "19:30",
+  "arena": "Paycom Center",
+  "city": "Oklahoma City",
+  "home_draw_score": 7.3,
+  "opponent_draw_score": 9.29,
+  "game_appeal_score": 8.29,
+  "opponent_wins": 53,
+  "opponent_losses": 29,
+  "opponent_win_pct": 0.646
+}
