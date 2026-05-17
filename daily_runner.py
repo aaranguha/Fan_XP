@@ -43,17 +43,36 @@ NBA_TRICODE_TO_SLUG = {
 }
 
 
-def get_home_teams_today(today: str) -> list[str]:
-    """
-    Return slugs for all teams with a home game today.
-    Uses NBA CDN season schedule — returns the full day's slate at any time of day,
-    unlike ScoreboardV3 which only shows games that are live/near-live.
-    """
-    url  = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json"
+def get_home_teams_espn(today: str) -> list[str]:
+    """Fetch today's home teams from ESPN scoreboard API."""
+    date_str = today.replace("-", "")  # YYYYMMDD
+    url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={date_str}"
     resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
     resp.raise_for_status()
 
-    # CDN dates are formatted "MM/DD/YYYY HH:MM:SS"
+    slugs = []
+    for event in resp.json().get("events", []):
+        comps = event["competitions"][0]
+        home = next((t for t in comps["competitors"] if t["homeAway"] == "home"), None)
+        away = next((t for t in comps["competitors"] if t["homeAway"] == "away"), None)
+        if not home:
+            continue
+        tricode = home["team"]["abbreviation"]
+        slug = NBA_TRICODE_TO_SLUG.get(tricode)
+        if slug:
+            home_name = home["team"]["displayName"]
+            away_name = away["team"]["displayName"] if away else "?"
+            print(f"  Home game found: {away_name} at {home_name}  →  slug: {slug}")
+            slugs.append(slug)
+    return slugs
+
+
+def get_home_teams_nba_cdn(today: str) -> list[str]:
+    """Fetch today's home teams from NBA CDN schedule (fallback)."""
+    url = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json"
+    resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+    resp.raise_for_status()
+
     date_prefix = datetime.strptime(today, "%Y-%m-%d").strftime("%m/%d/%Y")
     game_dates  = resp.json()["leagueSchedule"]["gameDates"]
 
@@ -62,15 +81,28 @@ def get_home_teams_today(today: str) -> list[str]:
         if not gd["gameDate"].startswith(date_prefix):
             continue
         for game in gd["games"]:
-            tricode   = game.get("homeTeam", {}).get("teamTricode", "")
-            slug      = NBA_TRICODE_TO_SLUG.get(tricode)
+            tricode = game.get("homeTeam", {}).get("teamTricode", "")
+            slug    = NBA_TRICODE_TO_SLUG.get(tricode)
             if slug:
                 home_city = game["homeTeam"]["teamCity"]
                 away_city = game["awayTeam"]["teamCity"]
                 print(f"  Home game found: {home_city} vs {away_city}  →  slug: {slug}")
                 slugs.append(slug)
-        break  # found today's date block
+        break
+    return slugs
 
+
+def get_home_teams_today(today: str) -> list[str]:
+    """Return slugs for all teams with a home game today. Tries ESPN first, NBA CDN as fallback."""
+    try:
+        slugs = get_home_teams_espn(today)
+        print(f"  (schedule source: ESPN)")
+        return slugs
+    except Exception as e:
+        print(f"  ESPN schedule failed ({e}), trying NBA CDN...")
+
+    slugs = get_home_teams_nba_cdn(today)
+    print(f"  (schedule source: NBA CDN)")
     return slugs
 
 
