@@ -1,0 +1,15 @@
+{
+  "home_team": "cavaliers",
+  "opponent": "Knicks",
+  "game_date": "2026-05-25",
+  "day_of_week": "Monday",
+  "tipoff_local": "20:00",
+  "arena": "Rocket Arena",
+  "city": "Cleveland",
+  "home_draw_score": 6.6,
+  "opponent_draw_score": 8.29,
+  "game_appeal_score": 7.44,
+  "opponent_wins": 53,
+  "opponent_losses": 29,
+  "opponent_win_pct": 0.646
+}
