@@ -42,7 +42,7 @@ load_dotenv()
 # ── Config ────────────────────────────────────────────────────────────────────
 
 TM_API_KEY          = os.getenv("TICKETMASTER_API_KEY", "")
-WAIT_MS             = 12000   # ms to wait after page load for all XHR calls to fire
+WAIT_MS             = 20000   # ms to wait after page load for all XHR calls to fire
 CHROME_PROFILE_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".tm_chrome_profile")
 
 
@@ -282,6 +282,22 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
                 page.wait_for_timeout(WAIT_MS)
 
             if not captured["inventory"]:
+                # Save screenshot + page title so we can diagnose what TM showed
+                try:
+                    title = page.title()
+                    print(f"  Page title at failure: {title}")
+                    print(f"  Final URL: {page.url}")
+                    shot_path = f"/tmp/tm_failure_{team_slug}.png"
+                    page.screenshot(path=shot_path)
+                    print(f"  Screenshot saved: {shot_path}")
+                    # Also save to data dir if it exists
+                    import pathlib
+                    data_shot = pathlib.Path(f"data/mlb/{team_slug}/tm_failure.png")
+                    if data_shot.parent.exists():
+                        page.screenshot(path=str(data_shot))
+                        print(f"  Screenshot also saved: {data_shot}")
+                except Exception as shot_err:
+                    print(f"  Screenshot failed: {shot_err}")
                 raise RuntimeError(
                     "No inventory request captured after retry — TM may have changed their page."
                 )

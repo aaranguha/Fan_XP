@@ -53,3 +53,11 @@ jobs:
 
       - name: Run MLB daily runner
         run: python mlb_runner.py
+
+      - name: Upload failure screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tm-failure-screenshots
+          path: data/mlb/**/tm_failure.png
+          if-no-files-found: ignore

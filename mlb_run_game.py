@@ -132,7 +132,7 @@ def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str) -> list[dic
         return load_csv(out_csv)
     scraped_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"\n[{scraped_at}] Starting {snapshot} scrape...")
-    facets, offer_price_map, places_facets = scrape_listings(url, max_retries=1)
+    facets, offer_price_map, places_facets = scrape_listings(url, max_retries=3)
     if places_facets:
         rows = parse_seats(facets, places_facets, offer_price_map, scraped_at)
     else:
