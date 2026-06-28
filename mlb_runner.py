@@ -111,10 +111,35 @@ def main():
             print(f"  [{slug}] FAILED (exit {proc.returncode})")
 
     if succeeded:
+        # Regenerate HTML story pages for teams that completed
+        print("\nRegenerating MLB story pages...")
+        for slug in succeeded:
+            try:
+                subprocess.run([PYTHON, "generate_mlb_story.py", slug], check=True)
+                print(f"  [{slug}] HTML regenerated")
+            except Exception as e:
+                print(f"  [{slug}] HTML generation failed: {e}")
+
         print(f"\nCommitting and pushing to GitHub (triggers Vercel deploy)...")
         date_str = datetime.now().strftime("%Y-%m-%d")
         teams_str = ", ".join(succeeded)
-        subprocess.run(["git", "add", "data/mlb/"], check=True)
+
+        github_token = os.getenv("GITHUB_TOKEN", "").strip()
+        if github_token:
+            git_email = os.getenv("GIT_USER_EMAIL", "bot@fanxp.com")
+            git_name  = os.getenv("GIT_USER_NAME", "FanXP Bot")
+            subprocess.run(["git", "config", "user.email", git_email], check=True)
+            subprocess.run(["git", "config", "user.name",  git_name],  check=True)
+            raw_url = subprocess.check_output(["git", "remote", "get-url", "origin"]).decode().strip()
+            if "github.com" in raw_url and f"{github_token}@" not in raw_url:
+                if raw_url.startswith("git@github.com:"):
+                    path = raw_url.replace("git@github.com:", "").rstrip(".git")
+                else:
+                    path = raw_url.split("github.com/", 1)[-1].rstrip(".git")
+                auth_url = f"https://{github_token}@github.com/{path}.git"
+                subprocess.run(["git", "remote", "set-url", "origin", auth_url], check=True)
+
+        subprocess.run(["git", "add", "data/mlb/", "docs/"], check=True)
         subprocess.run([
             "git", "commit", "-m", f"MLB auto-update {date_str}: {teams_str}"
         ], check=True)
