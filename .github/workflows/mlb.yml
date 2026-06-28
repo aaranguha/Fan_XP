@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   run-mlb:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 360
 
     env:
@@ -42,9 +42,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Install Playwright + Chromium
-        run: |
-          playwright install chromium
-          playwright install-deps chromium
+        run: playwright install chromium
 
       - name: Configure git
         run: |
