@@ -223,12 +223,18 @@ def main():
 
     first_pitch     = get_first_pitch_utc(event)
     pre_game_time   = first_pitch - timedelta(minutes=PRE_GAME_OFFSET_MIN)
+    now_utc         = datetime.now(timezone.utc)
 
     print(f"\n  Game:              {name}  ({game_dt})")
     print(f"  First pitch:       {first_pitch.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Pre-game scrape:   {pre_game_time.strftime('%H:%M UTC')}  ({PRE_GAME_OFFSET_MIN} min before pitch)")
     print(f"  Mid-game scrape:   Live clock (inning ≥ {MID_GAME_INNING})  |  fallback: {MID_GAME_FALLBACK_H}h after pitch)")
     print(f"  Data folder:       {gdir}/\n")
+
+    # If the game has already started (past first pitch) and no pre-game data, skip gracefully
+    if now_utc >= first_pitch and not os.path.isfile(pg_csv):
+        print(f"  Game already started — pre-game window missed. Skipping.")
+        sys.exit(0)
 
     # Jitter 0–4 min so simultaneous runners don't all hit TM at once
     sleep_until(pre_game_time, "pre_game")
