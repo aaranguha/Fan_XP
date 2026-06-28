@@ -156,12 +156,9 @@ def fmt_name(slug: str) -> str:
 
 def generate_html(slug: str) -> str:
     folders = find_all_games(slug)
-    if not folders:
-        print(f"  [{slug}] No game data found")
-        return ""
-
     games = [g for f in folders if (g := load_game(slug, f))]
-    stats = analyse_games(games)
+    has_data = len(games) > 0
+    stats = analyse_games(games) if has_data else {"per_game": [], "avg_rate": 0, "avg_value": 0, "total_ns": 0, "top_sections": []}
 
     color   = MLB_COLORS.get(slug, "#1a73e8")
     arena   = MLB_ARENAS.get(slug, "")
@@ -204,8 +201,37 @@ def generate_html(slug: str) -> str:
           <td>${s['value']:,.0f}</td>
         </tr>"""
 
-    total_games    = len(per_game)
-    tracked_games  = sum(1 for g in per_game if g["has_mid"])
+    total_games   = len(per_game)
+    tracked_games = sum(1 for g in per_game if g["has_mid"])
+
+    if not has_data:
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FanXP — {name}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet" />
+  <style>
+    body {{ font-family: 'Inter', sans-serif; background: #04060f; color: #eef2ff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 40px; }}
+    a {{ color: {color}; text-decoration: none; }}
+    .back {{ font-size: 13px; color: rgba(220,228,255,.5); position: absolute; top: 32px; left: 32px; }}
+    .emoji {{ font-size: 64px; margin-bottom: 20px; }}
+    h1 {{ font-size: 28px; font-weight: 900; margin-bottom: 8px; }}
+    p {{ color: rgba(220,228,255,.5); font-size: 15px; max-width: 340px; }}
+    .dot {{ display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: {color}; margin-right: 8px; animation: pulse 1.4s infinite; }}
+    @keyframes pulse {{ 0%,100%{{opacity:1}} 50%{{opacity:.3}} }}
+    .status {{ margin-top: 28px; font-size: 13px; font-weight: 600; color: {color}; }}
+  </style>
+</head>
+<body>
+  <a class="back" href="mlb.html">← All MLB Teams</a>
+  <div class="emoji">⚾</div>
+  <h1>{name}</h1>
+  <p>{arena} · {city}</p>
+  <p style="margin-top:16px">No game data collected yet. The runner checks for home games daily and will populate this page automatically.</p>
+  <div class="status"><span class="dot"></span>Monitoring for next home game</div>
+</body>
+</html>"""
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -325,8 +351,6 @@ def main():
         slugs = [sys.argv[1].lower()]
 
     for slug in slugs:
-        if not find_all_games(slug):
-            continue
         html = generate_html(slug)
         if not html:
             continue
