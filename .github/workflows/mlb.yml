@@ -1,0 +1,54 @@
+name: MLB Game Runner
+
+on:
+  schedule:
+    # 4 PM UTC = 11 AM ET — catches afternoon games (1 PM ET first pitch)
+    - cron: "0 16 * * *"
+    # 10 PM UTC = 5 PM ET — catches evening games (7 PM ET first pitch)
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-mlb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    env:
+      TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
+      SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
+      GIT_USER_NAME:        "github-actions[bot]"
+      GIT_USER_EMAIL:       "github-actions[bot]@users.noreply.github.com"
+      HEADLESS_BROWSER:     "1"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright + Chromium
+        run: |
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run MLB daily runner
+        run: python mlb_runner.py
