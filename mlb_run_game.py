@@ -3,8 +3,9 @@ mlb_run_game.py
 
 Game-day runner for MLB. Mirrors run_game.py for NBA with two differences:
   1. Schedule / event lookup uses 'Baseball' classification on Ticketmaster.
-  2. "Halftime" = mid-game scrape, triggered when the 5th inning starts
-     (polled via MLB Stats API). Falls back to 2 hours after first pitch.
+  2. "Halftime" = mid-game scrape, triggered when the 3rd inning starts
+     (polled via MLB Stats API). Falls back to 75 min after first pitch.
+     TM cuts off resale listings ~3rd inning, so earlier = more actionable.
 
 Usage:
     python mlb_run_game.py <team_slug> [YYYY-MM-DD]
@@ -39,9 +40,9 @@ import supabase_client
 load_dotenv()
 
 # ── Timing ────────────────────────────────────────────────────────────────────
-PRE_GAME_OFFSET_MIN  = 60   # scrape this many minutes before first pitch
-MID_GAME_INNING      = 5    # scrape when this inning starts
-MID_GAME_FALLBACK_H  = 2    # fallback: hours after first pitch
+PRE_GAME_OFFSET_MIN  = 60     # scrape this many minutes before first pitch
+MID_GAME_INNING      = 3     # scrape when this inning starts (TM cuts off ~3rd)
+MID_GAME_FALLBACK_H  = 1.25  # fallback: 75 min after first pitch
 POLL_INTERVAL_SEC    = 60   # how often to poll MLB live feed
 
 
