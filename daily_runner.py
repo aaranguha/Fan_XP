@@ -208,6 +208,24 @@ def main():
         print("\nCommitting and pushing to GitHub (triggers Vercel deploy)...")
         date_str = datetime.now().strftime("%Y-%m-%d")
         teams_str = ", ".join(succeeded)
+
+        # On Railway, configure git credentials from environment variables
+        github_token = os.getenv("GITHUB_TOKEN", "").strip()
+        if github_token:
+            git_email = os.getenv("GIT_USER_EMAIL", "bot@fanxp.com")
+            git_name  = os.getenv("GIT_USER_NAME", "FanXP Bot")
+            subprocess.run(["git", "config", "user.email", git_email], check=True)
+            subprocess.run(["git", "config", "user.name",  git_name],  check=True)
+            raw_url = subprocess.check_output(["git", "remote", "get-url", "origin"]).decode().strip()
+            if "github.com" in raw_url and f"{github_token}@" not in raw_url:
+                # Normalize to https://token@github.com/user/repo.git
+                if raw_url.startswith("git@github.com:"):
+                    path = raw_url.replace("git@github.com:", "").rstrip(".git")
+                else:
+                    path = raw_url.split("github.com/", 1)[-1].rstrip(".git")
+                auth_url = f"https://{github_token}@github.com/{path}.git"
+                subprocess.run(["git", "remote", "set-url", "origin", auth_url], check=True)
+
         subprocess.run(["git", "add", "data/", "docs/"], check=True)
         subprocess.run([
             "git", "commit", "-m",

@@ -31,6 +31,7 @@ from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
 from teams import get_team, game_dir, pre_game_csv, halftime_csv, no_shows_csv, data_dir, team_draw_score, slug_from_fullname, TEAMS
+import supabase_client
 from fetch_listings import (
     find_next_home_game,
     scrape_listings,
@@ -321,9 +322,8 @@ def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str, max_retries
 def main():
     load_dotenv()
 
-    # Prevent Mac from sleeping while this runner is active (display + system).
-    # caffeinate exits automatically when this process exits.
-    _caffeinate = subprocess.Popen(["caffeinate", "-di"])
+    # Prevent Mac from sleeping while this runner is active (no-op on Linux/Railway).
+    _caffeinate = subprocess.Popen(["caffeinate", "-di"]) if sys.platform == "darwin" else None
 
     if len(sys.argv) not in (2, 3):
         print("Usage: python run_game.py <team_slug> [YYYY-MM-DD]")
@@ -355,6 +355,12 @@ def main():
     noshows = no_shows_csv(gdir)
     os.makedirs(gdir, exist_ok=True)
     save_game_meta(event, team, gdir)
+
+    # Upsert game to Supabase and keep the id for linking listings/no-shows
+    import json as _json
+    _meta_path = os.path.join(gdir, "game_meta.json")
+    _meta = _json.load(open(_meta_path)) if os.path.isfile(_meta_path) else {}
+    _game_id = supabase_client.upsert_game(_meta, league="nba")
 
     tipoff        = get_tipoff_utc(event)
     pre_game_time = tipoff - timedelta(minutes=PRE_GAME_OFFSET_MIN)
@@ -388,6 +394,7 @@ def main():
             max_retries=max_retries, team_slug=team["slug"], session=browser_session,
             save_endpoints_path=endpoints_path if keep_alive else None,
         )
+        supabase_client.insert_listings(_game_id, pre_rows, "pre_game", team["slug"], game_dt)
 
         # ── Snapshot 2: halftime (live clock) ─────────────────────────────────
         print("\nWaiting for halftime...")
@@ -428,12 +435,15 @@ def main():
         else:
             ht_rows = run_snapshot(event, url, "halftime", ht_csv, max_retries=max_retries, team_slug=team["slug"], session=browser_session)
 
+        supabase_client.insert_listings(_game_id, ht_rows, "halftime", team["slug"], game_dt)
+
         # ── Compare ────────────────────────────────────────────────────────────
         print("\nComparing snapshots...")
         pre_rows = load_csv(pg_csv)
         ht_rows  = load_csv(ht_csv)
         no_shows = compare(pre_rows, ht_rows)
         save_no_shows(no_shows, noshows)
+        supabase_client.insert_no_shows(_game_id, no_shows, team["slug"], game_dt)
         print_report(pre_rows, ht_rows, no_shows, noshows)
 
     except Exception as e:
@@ -444,13 +454,15 @@ def main():
                 shutil.rmtree(gdir, ignore_errors=True)
         if "No inventory request captured" in str(e):
             print(f"\n  BOT DETECTION — TM blocked the scrape.")
-            _caffeinate.terminate()
+            if _caffeinate:
+                _caffeinate.terminate()
             sys.exit(2)
         raise
     finally:
         if browser_session:
             close_browser_session(browser_session[0], browser_session[1])
-        _caffeinate.terminate()
+        if _caffeinate:
+            _caffeinate.terminate()
 
 
 if __name__ == "__main__":

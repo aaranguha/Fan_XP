@@ -3,3 +3,4 @@ python-dotenv
 playwright
 playwright-stealth
 nba_api
+supabase>=2.0.0

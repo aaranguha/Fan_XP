@@ -142,10 +142,11 @@ def parse_seats(all_facets, places_facets, offer_price_map, scraped_at):
 
 # ── Event discovery ───────────────────────────────────────────────────────────
 
-def find_next_home_game(tm_keyword: str, game_date: str | None = None) -> dict:
+def find_next_home_game(tm_keyword: str, game_date: str | None = None, classification: str = "Basketball") -> dict:
     """
     Return the home game for the given team via TM Discovery API.
     If game_date (YYYY-MM-DD) is provided, restrict results to that day only.
+    classification: 'Basketball' for NBA, 'Baseball' for MLB.
     """
     if not TM_API_KEY:
         raise RuntimeError("TICKETMASTER_API_KEY not set in .env")
@@ -155,7 +156,7 @@ def find_next_home_game(tm_keyword: str, game_date: str | None = None) -> dict:
         params={
             "apikey":             TM_API_KEY,
             "keyword":            tm_keyword,
-            "classificationName": "Basketball",
+            "classificationName": classification,
             "sort":               "date,asc",
             "size":               10,
         },
@@ -192,9 +193,10 @@ def launch_browser_session(team_slug: str):
     """
     pw = sync_playwright().start()
     chrome_profile = os.path.join(CHROME_PROFILE_BASE, team_slug)
+    headless = sys.platform != "darwin" or os.getenv("HEADLESS_BROWSER", "0") == "1"
     ctx = pw.chromium.launch_persistent_context(
         chrome_profile,
-        headless=False,
+        headless=headless,
         args=["--disable-blink-features=AutomationControlled"],
         user_agent=(
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "

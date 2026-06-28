@@ -1,0 +1,26 @@
+[build]
+builder = "dockerfile"
+
+# ── NBA service ───────────────────────────────────────────────────────────────
+# In Railway, create one service named "nba-runner" with:
+#   Start command:  python daily_runner.py
+#   Cron schedule:  0 13 * * *   (6 AM PT = 1 PM UTC)
+#
+# ── MLB service ───────────────────────────────────────────────────────────────
+# Create a second service named "mlb-runner" with:
+#   Start command:  python mlb_runner.py
+#   Cron schedule:  0 16 * * *   (9 AM PT = 4 PM UTC, MLB games start afternoon/evening)
+#
+# Both services share the same Docker image and env vars.
+# Set these environment variables in Railway's Variables tab:
+#
+#   TICKETMASTER_API_KEY   — from developer.ticketmaster.com
+#   SUPABASE_URL           — from Supabase project settings → API
+#   SUPABASE_SERVICE_KEY   — from Supabase project settings → API → service_role key
+#   GIT_USER_NAME          — your GitHub username (for auto-commit push)
+#   GIT_USER_EMAIL         — your GitHub email
+#   GITHUB_TOKEN           — personal access token with repo scope (for git push)
+
+[deploy]
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
