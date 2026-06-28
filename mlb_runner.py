@@ -97,18 +97,32 @@ def main():
         print(f"  [{slug}] PID {proc.pid}  →  data/mlb/{slug}/game.log")
 
     print(f"\nAll {len(procs)} runner(s) started. Waiting for games to complete...\n")
+    sys.stdout.flush()
 
     succeeded = []
     for slug, proc, log_file in procs:
-        proc.wait()
+        # Poll every 60s so GitHub Actions shows we're alive
+        while proc.poll() is None:
+            time.sleep(60)
+            log_path = f"data/mlb/{slug}/game.log"
+            if os.path.isfile(log_path):
+                try:
+                    with open(log_path) as lf:
+                        lines = lf.readlines()
+                    # Print last non-empty line as heartbeat
+                    last = next((l.rstrip() for l in reversed(lines) if l.strip()), "")
+                    if last:
+                        print(f"  [{slug}] {last}", flush=True)
+                except Exception:
+                    pass
         log_file.close()
         if proc.returncode == 0:
             succeeded.append(slug)
-            print(f"  [{slug}] done")
+            print(f"  [{slug}] ✓ done", flush=True)
         elif proc.returncode == 2:
-            print(f"  [{slug}] FAILED (Bot Detection)")
+            print(f"  [{slug}] ✗ FAILED (Bot Detection)", flush=True)
         else:
-            print(f"  [{slug}] FAILED (exit {proc.returncode})")
+            print(f"  [{slug}] ✗ FAILED (exit {proc.returncode})", flush=True)
 
     if succeeded:
         # Regenerate HTML story pages for teams that completed
