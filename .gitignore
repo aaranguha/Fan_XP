@@ -1,8 +1,9 @@
 # Secrets
 .env
 
-# Persistent Chrome profile for TM scraping
+# Persistent Chrome profiles for TM and SeatGeek scraping
 .tm_chrome_profile/
+.sg_chrome_profile/
 
 # Logs only — scraped CSVs are tracked
 data/*.log

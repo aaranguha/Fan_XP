@@ -34,7 +34,6 @@ from fetch_listings import (
     save_csv,
     print_summary,
 )
-from fetch_seatgeek import scrape_seatgeek
 from compare_snapshots import load_csv, compare, save_no_shows, print_report
 import supabase_client
 
@@ -146,17 +145,6 @@ def run_snapshot_tm(event: dict, url: str, snapshot: str, out_csv: str) -> list[
     return rows
 
 
-def run_snapshot_sg(team_slug: str, game_date: str, snapshot: str, out_csv: str) -> list[dict]:
-    """Fetch a SeatGeek event's listings and save to CSV."""
-    if os.path.isfile(out_csv):
-        print(f"\n  [{snapshot}] Already exists — loading {out_csv}")
-        return load_csv(out_csv)
-    print(f"\nStarting {snapshot} scrape (SeatGeek)...")
-    _, rows = scrape_seatgeek(team_slug, game_date)
-    save_csv(rows, out_csv)
-    print(f"  Saved {len(rows)} listings → {out_csv}")
-    return rows
-
 
 def save_game_meta(event: dict, team: dict, gdir: str) -> dict:
     path = os.path.join(gdir, "game_meta.json")
@@ -209,47 +197,21 @@ def main():
     today     = game_date or datetime.now().strftime("%Y-%m-%d")
 
     print(f"Looking up {team['slug'].title()} home game{' on ' + game_date if game_date else ''}...")
-
-    # Try Ticketmaster first, fall back to SeatGeek
-    source   = None
-    event    = None
-    tm_url   = None
-    sg_meta  = None
-
     try:
         event = find_next_home_game(team["tm_keyword"], game_date, classification="Baseball")
-        source = "tm"
-        print(f"  Found on Ticketmaster.")
-    except RuntimeError as tm_err:
-        print(f"  Not on TM ({tm_err}). Trying SeatGeek...")
-        try:
-            sg_meta, _ = scrape_seatgeek(team["slug"], today)
-            source = "sg"
-            print(f"  Found on SeatGeek.")
-        except RuntimeError as sg_err:
-            print(f"  Not on SeatGeek either ({sg_err}). Skipping.")
-            sys.exit(0)
+    except RuntimeError as e:
+        print(f"  No TM listing: {e} — skipping.")
+        sys.exit(0)
 
-    # Extract common fields from whichever source worked
-    if source == "tm":
-        name    = event.get("name", "Game")
-        game_dt = event.get("dates", {}).get("start", {}).get("localDate", today)
-        url_raw = event.get("url")
-        if not url_raw or "ticketmaster.com" not in url_raw:
-            event_id = event.get("id")
-            url_raw  = f"https://www.ticketmaster.com/event/{event_id}"
-        tm_url = url_raw
-        first_pitch = get_first_pitch_utc(event)
-    else:
-        name        = sg_meta["name"]
-        game_dt     = today
-        first_pitch = sg_meta["first_pitch_utc"]
-        if first_pitch is None:
-            raise RuntimeError("SeatGeek event has no UTC datetime — cannot schedule.")
+    name    = event.get("name", "Game")
+    game_dt = event.get("dates", {}).get("start", {}).get("localDate", today)
+    url     = event.get("url")
+    if not url or "ticketmaster.com" not in url:
+        event_id = event.get("id")
+        url = f"https://www.ticketmaster.com/event/{event_id}"
 
-    # Parse opponent for folder name
     opponent = name
-    for sep in (" vs. ", " v. ", " vs ", " v ", " at "):
+    for sep in (" vs. ", " v. ", " vs ", " v "):
         if sep in name:
             opponent = name.split(sep, 1)[1].strip()
             break
@@ -260,63 +222,36 @@ def main():
     ns_csv  = os.path.join(gdir, "no_shows.csv")
     os.makedirs(gdir, exist_ok=True)
 
-    if source == "tm":
-        meta = save_game_meta(event, team, gdir)
-    else:
-        meta = {
-            "home_team":    team["slug"],
-            "opponent":     opponent,
-            "game_date":    game_dt,
-            "day_of_week":  datetime.strptime(game_dt, "%Y-%m-%d").strftime("%A"),
-            "tipoff_local": first_pitch.astimezone().strftime("%H:%M"),
-            "arena":        sg_meta["venue"],
-            "city":         sg_meta["city"],
-            "league":       "mlb",
-        }
-        import json as _json
-        meta_path = os.path.join(gdir, "game_meta.json")
-        if not os.path.isfile(meta_path):
-            with open(meta_path, "w") as f:
-                _json.dump(meta, f, indent=2)
-            print(f"  Game meta saved → {meta_path}")
-
+    meta    = save_game_meta(event, team, gdir)
     game_id = supabase_client.upsert_game(meta, league="mlb")
 
+    first_pitch   = get_first_pitch_utc(event)
     pre_game_time = first_pitch - timedelta(minutes=PRE_GAME_OFFSET_MIN)
     now_utc       = datetime.now(timezone.utc)
 
     print(f"\n  Game:              {name}  ({game_dt})")
-    print(f"  Source:            {'Ticketmaster' if source == 'tm' else 'SeatGeek'}")
     print(f"  First pitch:       {first_pitch.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Pre-game scrape:   {pre_game_time.strftime('%H:%M UTC')}  ({PRE_GAME_OFFSET_MIN} min before pitch)")
     print(f"  Mid-game scrape:   Live clock (inning ≥ {MID_GAME_INNING})  |  fallback: {MID_GAME_FALLBACK_H}h after pitch)")
     print(f"  Data folder:       {gdir}/\n")
 
-    # If the game has already started and we have no pre-game data, skip
     if now_utc >= first_pitch and not os.path.isfile(pg_csv):
         print(f"  Game already started — pre-game window missed. Skipping.")
         sys.exit(0)
 
-    # Jitter 0–4 min so simultaneous runners don't all hit the source at once
     sleep_until(pre_game_time, "pre_game")
     jitter = random.randint(0, 240)
     if jitter:
         print(f"  [jitter] Waiting {jitter}s before scrape...")
         time.sleep(jitter)
 
-    if source == "tm":
-        pre_rows = run_snapshot_tm(event, tm_url, "pre_game", pg_csv)
-    else:
-        pre_rows = run_snapshot_sg(team["slug"], game_dt, "pre_game", pg_csv)
+    pre_rows = run_snapshot_tm(event, url, "pre_game", pg_csv)
     supabase_client.insert_listings(game_id, pre_rows, "pre_game", team["slug"], game_dt, league="mlb")
 
     print("\nWaiting for mid-game...")
     wait_for_mid_game(first_pitch, team["mlb_team_id"], today)
 
-    if source == "tm":
-        mid_rows = run_snapshot_tm(event, tm_url, "mid_game", mid_csv)
-    else:
-        mid_rows = run_snapshot_sg(team["slug"], game_dt, "mid_game", mid_csv)
+    mid_rows = run_snapshot_tm(event, url, "mid_game", mid_csv)
     supabase_client.insert_listings(game_id, mid_rows, "mid_game", team["slug"], game_dt, league="mlb")
 
     print("\nComparing snapshots...")
