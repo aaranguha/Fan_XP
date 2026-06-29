@@ -19,7 +19,7 @@ from wnba_teams import WNBA_TEAMS, ESPN_ABBR_TO_SLUG
 
 PYTHON = sys.executable
 PRE_GAME_OFFSET_MIN = 60
-MAX_WAIT_MIN        = 360  # only launch games whose pre-game is within 6 hours
+MAX_WAIT_MIN        = 120  # only launch games whose pre-game is within 2 hours
 
 
 def get_home_teams_espn(today: str) -> list[tuple[str, str]]:

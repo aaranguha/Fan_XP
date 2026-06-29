@@ -92,7 +92,7 @@ def main():
     # Only launch games whose pre-game scrape window is within the next 6 hours.
     # This keeps GitHub Actions jobs well within the 6-hour timeout.
     PRE_GAME_OFFSET_MIN = 60
-    MAX_WAIT_MIN        = 360  # 6 hours
+    MAX_WAIT_MIN        = 120  # 2 hours — only the cron closest to game time picks it up
     now_utc = datetime.now(timezone.utc)
     eligible = []
     for slug, game_time_str in games:
