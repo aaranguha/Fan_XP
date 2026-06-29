@@ -16,6 +16,15 @@ on:
         description: "Date to run (YYYY-MM-DD). Leave blank for today."
         required: false
         default: ""
+      team:
+        description: "Single team slug to test (e.g. yankees). Leave blank for all."
+        required: false
+        default: ""
+      now:
+        description: "Skip sleep and scrape immediately (for testing)."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -56,7 +65,13 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run MLB daily runner
-        run: .venv/bin/python mlb_runner.py ${{ github.event.inputs.date }}
+        run: |
+          if [ -n "${{ github.event.inputs.team }}" ]; then
+            NOW_FLAG=${{ github.event.inputs.now == 'true' && '--now' || '' }}
+            .venv/bin/python mlb_run_game.py ${{ github.event.inputs.team }} ${{ github.event.inputs.date }} $NOW_FLAG
+          else
+            .venv/bin/python mlb_runner.py ${{ github.event.inputs.date }}
+          fi
 
       - name: Upload failure screenshots
         if: always()

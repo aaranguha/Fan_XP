@@ -194,13 +194,15 @@ def save_game_meta(event: dict, team: dict, gdir: str) -> dict:
 
 
 def main():
-    if len(sys.argv) not in (2, 3):
-        print("Usage: python mlb_run_game.py <team_slug> [YYYY-MM-DD]")
-        print("  e.g. python mlb_run_game.py yankees 2026-07-04")
+    now_flag  = "--now" in sys.argv
+    args      = [a for a in sys.argv[1:] if a != "--now"]
+
+    if len(args) not in (1, 2):
+        print("Usage: python mlb_run_game.py <team_slug> [YYYY-MM-DD] [--now]")
         sys.exit(1)
 
-    team      = get_mlb_team(sys.argv[1])
-    game_date = sys.argv[2] if len(sys.argv) == 3 else None
+    team      = get_mlb_team(args[0])
+    game_date = args[1] if len(args) == 2 else None
     today     = game_date or datetime.now().strftime("%Y-%m-%d")
 
     print(f"Looking up {team['slug'].title()} home game{' on ' + game_date if game_date else ''}...")
@@ -242,15 +244,18 @@ def main():
     print(f"  Mid-game scrape:   Live clock (inning ≥ {MID_GAME_INNING})  |  fallback: {MID_GAME_FALLBACK_H}h after pitch)")
     print(f"  Data folder:       {gdir}/\n")
 
-    if now_utc >= first_pitch and not os.path.isfile(pg_csv):
+    if now_utc >= first_pitch and not os.path.isfile(pg_csv) and not now_flag:
         print(f"  Game already started — pre-game window missed. Skipping.")
         sys.exit(0)
 
-    sleep_until(pre_game_time, "pre_game")
-    jitter = random.randint(0, 240)
-    if jitter:
-        print(f"  [jitter] Waiting {jitter}s before scrape...")
-        time.sleep(jitter)
+    if now_flag:
+        print("  [--now] Skipping sleep — scraping immediately.")
+    else:
+        sleep_until(pre_game_time, "pre_game")
+        jitter = random.randint(0, 240)
+        if jitter:
+            print(f"  [jitter] Waiting {jitter}s before scrape...")
+            time.sleep(jitter)
 
     pre_rows = run_snapshot_tm(event, url, "pre_game", pg_csv)
     supabase_client.insert_listings(game_id, pre_rows, "pre_game", team["slug"], game_dt, league="mlb")
