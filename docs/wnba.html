@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fan XP — WNBA Teams</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #04060f;
+      --bg-2:      #080d1a;
+      --bg-card:   #0b1221;
+      --cyan:      #00f5ff;
+      --cyan-dim:  rgba(0,245,255,0.08);
+      --cyan-glow: rgba(0,245,255,0.35);
+      --gold:      #ffd700;
+      --white:     #eef2ff;
+      --muted:     rgba(220,228,255,0.5);
+      --border:    rgba(0,245,255,0.14);
+      --font:      'Inter', sans-serif;
+      --ease:      cubic-bezier(0.4,0,0.2,1);
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--white); line-height: 1.6; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+    a { text-decoration: none; color: inherit; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: rgba(0,245,255,0.3); border-radius: 5px; }
+    .container { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+      padding: 20px 0;
+      background: rgba(4,6,15,0.3);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid transparent;
+      transition: all 0.3s var(--ease);
+    }
+    .navbar.scrolled { padding: 13px 0; background: rgba(4,6,15,0.9); border-bottom-color: var(--border); }
+    .navbar-inner { display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.04em; display: flex; align-items: center; gap: 1px; }
+    .logo-fan { color: var(--white); }
+    .logo-xp { color: var(--cyan); text-shadow: 0 0 14px var(--cyan), 0 0 28px rgba(0,245,255,.35); }
+    .nav-links { display: flex; align-items: center; gap: 36px; list-style: none; }
+    .nav-links a { font-size: .875rem; font-weight: 500; color: var(--muted); transition: color .2s; }
+    .nav-links a:hover { color: var(--white); }
+    .nav-dropdown { position: relative; }
+    .nav-dropdown > a { display: flex; align-items: center; gap: 5px; font-size: .875rem; font-weight: 500; color: var(--muted); transition: color .2s; cursor: pointer; }
+    .nav-dropdown > a:hover { color: var(--white); }
+    .nav-dropdown > a svg { transition: transform .2s; }
+    .nav-dropdown:hover > a svg { transform: rotate(180deg); }
+    .dropdown-menu {
+      position: absolute; top: calc(100% + 14px); left: 50%;
+      transform: translateX(-50%);
+      background: rgba(8,13,26,0.97); border: 1px solid var(--border);
+      border-radius: 12px; padding: 8px; min-width: 150px;
+      backdrop-filter: blur(20px); opacity: 0; pointer-events: none;
+      transition: opacity .2s, transform .2s;
+      transform: translateX(-50%) translateY(-6px); z-index: 100;
+    }
+    .nav-dropdown:hover .dropdown-menu { opacity: 1; pointer-events: all; transform: translateX(-50%) translateY(0); transition-delay: 0s; }
+    .dropdown-menu { transition-delay: 0.15s; }
+    .dropdown-menu a { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 8px; font-size: .85rem; font-weight: 600; color: var(--muted); transition: background .15s, color .15s; white-space: nowrap; }
+    .dropdown-menu a:hover { background: var(--cyan-dim); color: var(--white); }
+    .dropdown-menu a.active { color: var(--cyan); }
+    .league-tag { font-size: .68rem; font-weight: 700; letter-spacing: .06em; background: var(--cyan-dim); color: var(--cyan); border-radius: 4px; padding: 2px 6px; }
+    .nav-cta { background: var(--cyan); color: var(--bg) !important; font-weight: 800 !important; padding: 9px 22px; border-radius: 999px; font-size: .875rem !important; box-shadow: 0 0 18px rgba(0,245,255,.3); transition: box-shadow .2s, transform .2s !important; }
+    .nav-cta:hover { box-shadow: 0 0 28px rgba(0,245,255,.55); transform: translateY(-1px); }
+
+    .page-header { padding: 140px 0 60px; text-align: center; position: relative; }
+    .page-header::before {
+      content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(0,245,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,245,255,.03) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 40%, black 20%, transparent 75%);
+    }
+    .page-header .badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(0,245,255,.08); border: 1px solid rgba(0,245,255,.28); border-radius: 999px; padding: 7px 16px; font-size: .74rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); margin-bottom: 20px; position: relative; z-index: 1; }
+    .page-header h1 { font-size: clamp(2.2rem, 4vw, 3.4rem); font-weight: 900; letter-spacing: -.03em; position: relative; z-index: 1; }
+    .page-header h1 span { color: var(--cyan); text-shadow: 0 0 28px rgba(0,245,255,.5); }
+    .page-header p { color: var(--muted); font-size: 1rem; margin-top: 14px; position: relative; z-index: 1; }
+
+    .leagues { padding: 20px 0 100px; }
+    .league-section { margin-bottom: 64px; }
+    .league-title { font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--cyan); border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 32px; }
+    .division-label { font-size: .7rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; margin-top: 28px; }
+
+    .teams-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
+    .team-card {
+      background: var(--bg-card); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px; padding: 24px 16px; text-align: center;
+      transition: border-color .2s, transform .2s, box-shadow .2s;
+      cursor: pointer;
+    }
+    .team-card:hover { border-color: rgba(0,245,255,0.3); transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,245,255,0.08); }
+    .team-card.has-data { border-color: rgba(0,245,255,0.15); }
+    .team-logo { width: 64px; height: 64px; object-fit: contain; margin-bottom: 12px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4)); }
+    .team-name { font-size: .875rem; font-weight: 700; color: var(--white); }
+    .team-city { font-size: .72rem; color: var(--muted); margin-top: 3px; }
+    .data-badge {
+      display: inline-block; margin-top: 8px;
+      font-size: .65rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      background: rgba(0,245,255,0.1); color: var(--cyan); border-radius: 4px; padding: 2px 7px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="navbar">
+    <div class="container navbar-inner">
+      <a href="/" class="logo"><span class="logo-fan">Fan</span><span class="logo-xp">XP</span></a>
+      <ul class="nav-links">
+        <li class="nav-dropdown">
+          <a>
+            Leagues
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <div class="dropdown-menu">
+            <a href="nba.html"><span class="league-tag">NBA</span> Basketball</a>
+            <a href="wnba.html" class="active"><span class="league-tag">WNBA</span> Basketball</a>
+            <a href="mlb.html"><span class="league-tag">MLB</span> Baseball</a>
+          </div>
+        </li>
+        <li><a href="pitch.html">Pitch Deck</a></li>
+      </ul>
+      <a href="pitch.html" class="nav-cta">View Pitch</a>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <div class="container">
+      <div class="badge">🏀 WNBA · 15 Teams · 2025–26 Season</div>
+      <h1>WNBA <span>Seat Intelligence</span></h1>
+      <p>Real-time no-show tracking across all 15 teams — pre-game vs. halftime secondary market data</p>
+    </div>
+  </div>
+
+  <div class="leagues">
+    <div class="container">
+
+      <div class="league-section">
+        <div class="league-title">Eastern Conference</div>
+        <div class="teams-grid">
+          <div class="team-card" data-slug="dream" data-team="Atlanta Dream" data-city="Atlanta">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/atl.png" alt="Dream"/>
+            <div class="team-name">Dream</div>
+          </div>
+          <div class="team-card" data-slug="sky" data-team="Chicago Sky" data-city="Chicago">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/chi.png" alt="Sky"/>
+            <div class="team-name">Sky</div>
+          </div>
+          <div class="team-card" data-slug="sun" data-team="Connecticut Sun" data-city="Uncasville">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/conn.png" alt="Sun"/>
+            <div class="team-name">Sun</div>
+          </div>
+          <div class="team-card" data-slug="fever" data-team="Indiana Fever" data-city="Indianapolis">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/ind.png" alt="Fever"/>
+            <div class="team-name">Fever</div>
+          </div>
+          <div class="team-card" data-slug="liberty" data-team="New York Liberty" data-city="New York">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/ny.png" alt="Liberty"/>
+            <div class="team-name">Liberty</div>
+          </div>
+          <div class="team-card" data-slug="tempo" data-team="Toronto Tempo" data-city="Toronto">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/tor.png" alt="Tempo"/>
+            <div class="team-name">Tempo</div>
+          </div>
+          <div class="team-card" data-slug="mystics" data-team="Washington Mystics" data-city="Washington">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/wsh.png" alt="Mystics"/>
+            <div class="team-name">Mystics</div>
+          </div>
+        </div>
+
+        <div class="division-label" style="margin-top:36px">Western Conference</div>
+        <div class="teams-grid">
+          <div class="team-card" data-slug="wings" data-team="Dallas Wings" data-city="Arlington">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/dal.png" alt="Wings"/>
+            <div class="team-name">Wings</div>
+          </div>
+          <div class="team-card" data-slug="valkyries" data-team="Golden State Valkyries" data-city="San Francisco">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/gsv.png" alt="Valkyries"/>
+            <div class="team-name">Valkyries</div>
+          </div>
+          <div class="team-card" data-slug="aces" data-team="Las Vegas Aces" data-city="Las Vegas">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/lv.png" alt="Aces"/>
+            <div class="team-name">Aces</div>
+          </div>
+          <div class="team-card" data-slug="sparks" data-team="Los Angeles Sparks" data-city="Los Angeles">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/la.png" alt="Sparks"/>
+            <div class="team-name">Sparks</div>
+          </div>
+          <div class="team-card" data-slug="lynx" data-team="Minnesota Lynx" data-city="Minneapolis">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/min.png" alt="Lynx"/>
+            <div class="team-name">Lynx</div>
+          </div>
+          <div class="team-card" data-slug="mercury" data-team="Phoenix Mercury" data-city="Phoenix">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/phx.png" alt="Mercury"/>
+            <div class="team-name">Mercury</div>
+          </div>
+          <div class="team-card" data-slug="fire" data-team="Portland Fire" data-city="Portland">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/por.png" alt="Fire"/>
+            <div class="team-name">Fire</div>
+          </div>
+          <div class="team-card" data-slug="storm" data-team="Seattle Storm" data-city="Seattle">
+            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/sea.png" alt="Storm"/>
+            <div class="team-name">Storm</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => { navbar.classList.toggle('scrolled', window.scrollY > 20); });
+
+    document.querySelectorAll('.team-card').forEach(card => {
+      const slug = card.dataset.slug;
+      const city = card.dataset.city;
+      const nameDiv = card.querySelector('.team-name');
+
+      if (city && nameDiv) {
+        const d = document.createElement('div');
+        d.className = 'team-city';
+        d.textContent = city;
+        nameDiv.after(d);
+      }
+
+      card.classList.add('has-data');
+      card.addEventListener('click', () => {
+        window.location.href = `wnba_${slug}_story.html`;
+      });
+    });
+  </script>
+</body>
+</html>

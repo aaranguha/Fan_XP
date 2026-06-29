@@ -125,6 +125,14 @@ def main():
     failed    = [s for s, proc, _ in procs if proc.returncode != 0]
 
     if succeeded:
+        print("\n  Regenerating WNBA story pages...")
+        for slug in succeeded:
+            result = subprocess.run([PYTHON, "generate_wnba_story.py", slug], capture_output=True, text=True)
+            if result.returncode == 0:
+                print(f"  [{slug}] story page updated")
+            else:
+                print(f"  [{slug}] story page error: {result.stderr.strip()}")
+
         teams_str = "-".join(sorted(succeeded))
         subprocess.run(["git", "add", "data/wnba/", "docs/"], check=True)
         commit = subprocess.run([
