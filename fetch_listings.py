@@ -249,6 +249,10 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
 
         def on_request(req):
             url = req.url
+            # Log ALL ticketmaster-related XHR/fetch requests for debugging
+            if any(d in url for d in ["ticketmaster.com", "livenation.com", "offeradapter"]) \
+                    and req.resource_type in ("xhr", "fetch"):
+                print(f"  [tm-req] {url[:160]}")
             # Inventory: TM services facets endpoint (section+seating or broader inventory query)
             if "services.ticketmaster.com" in url and "facets" in url \
                     and not captured["inventory"] \
@@ -282,6 +286,7 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
             for attempt in range(max_retries):
                 if captured["inventory"]:
                     break
+                print(f"  Page title: {page.title()!r}  URL: {page.url[:100]}")
                 print(f"  No inventory request captured — retrying in 15s... (attempt {attempt + 1}/{max_retries})")
                 page.wait_for_timeout(15000)
                 captured["inventory"] = None
