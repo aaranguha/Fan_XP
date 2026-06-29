@@ -31,7 +31,7 @@ permissions:
 
 jobs:
   run-mlb:
-    runs-on: macos-latest
+    runs-on: self-hosted
     timeout-minutes: 360
 
     env:
