@@ -2,10 +2,14 @@ name: MLB Game Runner
 
 on:
   schedule:
-    # 4 PM UTC = 11 AM ET — catches afternoon games (1 PM ET first pitch)
-    - cron: "0 16 * * *"
-    # 10 PM UTC = 5 PM ET — catches evening games (7 PM ET first pitch)
-    - cron: "0 22 * * *"
+    # Fire every 2 hours during the MLB window (17:00–03:00 UTC).
+    # Each run only launches games whose pre-game is within the next 6 hours.
+    - cron: "0 17 * * *"
+    - cron: "0 19 * * *"
+    - cron: "0 21 * * *"
+    - cron: "0 23 * * *"
+    - cron: "0 1 * * *"
+    - cron: "0 3 * * *"
   workflow_dispatch:
     inputs:
       date:

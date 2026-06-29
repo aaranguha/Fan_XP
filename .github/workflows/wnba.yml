@@ -2,10 +2,13 @@ name: WNBA Game Runner
 
 on:
   schedule:
-    # 6 PM UTC = 2 PM ET — catches afternoon/evening tip-offs
+    # Fire every 2 hours during the WNBA window (18:00–02:00 UTC).
+    # Each run only launches games whose pre-game is within the next 6 hours.
     - cron: "0 18 * * *"
-    # 11 PM UTC = 7 PM ET — catches late evening tip-offs
-    - cron: "0 23 * * *"
+    - cron: "0 20 * * *"
+    - cron: "0 22 * * *"
+    - cron: "0 0 * * *"
+    - cron: "0 2 * * *"
   workflow_dispatch:
     inputs:
       date:

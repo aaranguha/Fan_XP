@@ -15,7 +15,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 import requests
 
@@ -89,7 +89,32 @@ def main():
         print("No MLB home games today.")
         return
 
-    slugs = [slug for slug, _ in games]
+    # Only launch games whose pre-game scrape window is within the next 6 hours.
+    # This keeps GitHub Actions jobs well within the 6-hour timeout.
+    PRE_GAME_OFFSET_MIN = 60
+    MAX_WAIT_MIN        = 360  # 6 hours
+    now_utc = datetime.now(timezone.utc)
+    eligible = []
+    for slug, game_time_str in games:
+        if not game_time_str:
+            eligible.append(slug)
+            continue
+        try:
+            game_utc  = datetime.fromisoformat(game_time_str.replace("Z", "+00:00"))
+            pregame   = game_utc - timedelta(minutes=PRE_GAME_OFFSET_MIN)
+            wait_min  = (pregame - now_utc).total_seconds() / 60
+            if wait_min <= MAX_WAIT_MIN:
+                eligible.append(slug)
+            else:
+                print(f"  Skipping {slug} — pre-game in {wait_min:.0f} min (next cron will catch it)")
+        except Exception:
+            eligible.append(slug)
+
+    if not eligible:
+        print("No games within the next 6 hours — next cron will handle them.")
+        return
+
+    slugs = eligible
     print(f"\nLaunching {len(slugs)} game runner(s)...\n")
 
     procs = []
@@ -104,8 +129,9 @@ def main():
     sys.stdout.flush()
 
     succeeded = []
+    last_lines = {}
     for slug, proc, log_file in procs:
-        # Poll every 60s so GitHub Actions shows we're alive
+        # Poll every 60s; only print when the last log line actually changes
         while proc.poll() is None:
             time.sleep(60)
             log_path = f"data/mlb/{slug}/game.log"
@@ -113,9 +139,9 @@ def main():
                 try:
                     with open(log_path) as lf:
                         lines = lf.readlines()
-                    # Print last non-empty line as heartbeat
                     last = next((l.rstrip() for l in reversed(lines) if l.strip()), "")
-                    if last:
+                    if last and last != last_lines.get(slug):
+                        last_lines[slug] = last
                         print(f"  [{slug}] {last}", flush=True)
                 except Exception:
                     pass

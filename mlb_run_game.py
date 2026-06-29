@@ -60,8 +60,15 @@ def sleep_until(target: datetime, label: str) -> None:
         print(f"  [{label}] Scheduled time already passed — running now.")
         return
     wake = target.strftime("%Y-%m-%d %H:%M:%S UTC")
-    print(f"  Waiting until {wake} for {label} scrape ({wait / 60:.1f} min)...")
-    time.sleep(wait)
+    print(f"  Waiting until {wake} for {label} scrape ({wait / 60:.1f} min)...", flush=True)
+    # Sleep in 5-min chunks so the log shows we're alive without spamming
+    chunk = 300
+    while wait > 0:
+        time.sleep(min(chunk, wait))
+        wait -= chunk
+        remaining = (target - datetime.now(timezone.utc)).total_seconds()
+        if remaining > chunk:
+            print(f"  [{label}] ~{remaining/60:.0f} min remaining...", flush=True)
 
 
 def get_mlb_game_pk(mlb_team_id: int, today: str) -> int | None:
