@@ -72,7 +72,11 @@ def launch_team(slug: str, today: str) -> subprocess.Popen:
 
 
 def main():
-    today = datetime.now().strftime("%Y-%m-%d")
+    # Allow date override via CLI arg or environment variable (for testing)
+    if len(sys.argv) > 1:
+        today = sys.argv[1]
+    else:
+        today = os.getenv("MLB_DATE") or datetime.now().strftime("%Y-%m-%d")
     print(f"[{today}] Checking today's MLB schedule...")
 
     try:
