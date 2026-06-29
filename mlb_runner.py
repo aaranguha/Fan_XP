@@ -154,14 +154,17 @@ def main():
                 subprocess.run(["git", "remote", "set-url", "origin", auth_url], check=True)
 
         subprocess.run(["git", "add", "data/mlb/", "docs/"], check=True)
-        subprocess.run([
+        commit = subprocess.run([
             "git", "commit", "-m", f"MLB auto-update {date_str}: {teams_str}"
-        ], check=True)
-        result = subprocess.run(["git", "push"])
-        if result.returncode == 0:
-            print("  Pushed to GitHub.")
+        ])
+        if commit.returncode == 0:
+            result = subprocess.run(["git", "push"])
+            if result.returncode == 0:
+                print("  Pushed to GitHub.")
+            else:
+                print("  git push failed — check SSH keys / remote access.")
         else:
-            print("  git push failed — check SSH keys / remote access.")
+            print("  Nothing new to commit.")
 
     print("\nAll done.")
 

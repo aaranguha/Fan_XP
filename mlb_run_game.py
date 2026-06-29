@@ -195,7 +195,11 @@ def main():
     today     = game_date or datetime.now().strftime("%Y-%m-%d")
 
     print(f"Looking up {team['slug'].title()} home game{' on ' + game_date if game_date else ''}...")
-    event   = find_next_home_game(team["tm_keyword"], game_date, classification="Baseball")
+    try:
+        event = find_next_home_game(team["tm_keyword"], game_date, classification="Baseball")
+    except RuntimeError as e:
+        print(f"  No TM listing: {e} — skipping.")
+        sys.exit(0)
     name    = event.get("name", "Game")
     game_dt = event.get("dates", {}).get("start", {}).get("localDate", "?")
     url     = event.get("url")
