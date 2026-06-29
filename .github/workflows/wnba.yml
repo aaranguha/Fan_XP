@@ -1,0 +1,62 @@
+name: WNBA Game Runner
+
+on:
+  schedule:
+    # 6 PM UTC = 2 PM ET — catches afternoon/evening tip-offs
+    - cron: "0 18 * * *"
+    # 11 PM UTC = 7 PM ET — catches late evening tip-offs
+    - cron: "0 23 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Date to run (YYYY-MM-DD). Leave blank for today."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  run-wnba:
+    runs-on: macos-latest
+    timeout-minutes: 360
+
+    env:
+      TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
+      SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
+      GIT_USER_NAME:        "github-actions[bot]"
+      GIT_USER_EMAIL:       "github-actions[bot]@users.noreply.github.com"
+      HEADLESS_BROWSER:     "1"
+      PYTHONUNBUFFERED:     "1"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+
+      - name: Install Playwright + Chromium
+        run: .venv/bin/python -m playwright install chromium
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run WNBA daily runner
+        run: .venv/bin/python wnba_runner.py ${{ github.event.inputs.date }}
+
+      - name: Upload failure screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wnba-failure-screenshots
+          path: data/wnba/**/tm_failure.png
+          if-no-files-found: ignore
