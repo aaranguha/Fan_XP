@@ -32,17 +32,11 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: pip3 install -r requirements.txt
 
       - name: Install Playwright + Chromium
-        run: playwright install chromium
+        run: python3 -m playwright install chromium
 
       - name: Configure git
         run: |
@@ -50,7 +44,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run MLB daily runner
-        run: python mlb_runner.py
+        run: python3 mlb_runner.py
 
       - name: Upload failure screenshots
         if: always()
