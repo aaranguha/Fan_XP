@@ -117,10 +117,13 @@ def main():
     slugs = eligible
     print(f"\nLaunching {len(slugs)} game runner(s)...\n")
 
+    # Stagger launches by 90s so browsers don't all hit TM simultaneously
+    LAUNCH_STAGGER_SEC = 90
     procs = []
     for i, slug in enumerate(slugs):
         if i > 0:
-            time.sleep(5)
+            print(f"  Waiting {LAUNCH_STAGGER_SEC}s before next launch...")
+            time.sleep(LAUNCH_STAGGER_SEC)
         proc, log_file = launch_team(slug, today)
         procs.append((slug, proc, log_file))
         print(f"  [{slug}] PID {proc.pid}  →  data/mlb/{slug}/game.log")

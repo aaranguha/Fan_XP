@@ -252,7 +252,7 @@ def main():
         print("  [--now] Skipping sleep — scraping immediately.")
     else:
         sleep_until(pre_game_time, "pre_game")
-        jitter = random.randint(0, 240)
+        jitter = random.randint(30, 600)
         if jitter:
             print(f"  [jitter] Waiting {jitter}s before scrape...")
             time.sleep(jitter)
