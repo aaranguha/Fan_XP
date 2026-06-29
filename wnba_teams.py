@@ -3,7 +3,7 @@
 WNBA_TEAMS = {
     "dream":      {"tm_keyword": "Atlanta Dream",           "espn_abbr": "ATL"},
     "sky":        {"tm_keyword": "Chicago Sky",             "espn_abbr": "CHI"},
-    "sun":        {"tm_keyword": "Connecticut Sun",         "espn_abbr": "CONN"},
+    "sun":        {"tm_keyword": "Connecticut Sun",         "espn_abbr": "CON"},
     "wings":      {"tm_keyword": "Dallas Wings",            "espn_abbr": "DAL"},
     "valkyries":  {"tm_keyword": "Golden State Valkyries",  "espn_abbr": "GS"},
     "fever":      {"tm_keyword": "Indiana Fever",           "espn_abbr": "IND"},
@@ -14,6 +14,8 @@ WNBA_TEAMS = {
     "mercury":    {"tm_keyword": "Phoenix Mercury",         "espn_abbr": "PHX"},
     "storm":      {"tm_keyword": "Seattle Storm",           "espn_abbr": "SEA"},
     "mystics":    {"tm_keyword": "Washington Mystics",      "espn_abbr": "WSH"},
+    "fire":       {"tm_keyword": "Portland Fire",           "espn_abbr": "POR"},
+    "tempo":      {"tm_keyword": "Toronto Tempo",           "espn_abbr": "TOR"},
 }
 
 ESPN_ABBR_TO_SLUG = {v["espn_abbr"]: k for k, v in WNBA_TEAMS.items()}
