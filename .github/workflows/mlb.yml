@@ -18,6 +18,7 @@ jobs:
 
     env:
       TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
+      SEATGEEK_CLIENT_ID:   ${{ secrets.SEATGEEK_CLIENT_ID }}
       SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
