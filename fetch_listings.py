@@ -42,7 +42,7 @@ load_dotenv()
 # ── Config ────────────────────────────────────────────────────────────────────
 
 TM_API_KEY          = os.getenv("TICKETMASTER_API_KEY", "")
-WAIT_MS             = 20000   # ms to wait after page load for all XHR calls to fire
+WAIT_MS             = 30000   # ms to wait after page load for all XHR calls to fire
 CHROME_PROFILE_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".tm_chrome_profile")
 
 
@@ -249,18 +249,27 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
 
         def on_request(req):
             url = req.url
+            # Inventory: TM services facets endpoint (section+seating or broader inventory query)
             if "services.ticketmaster.com" in url and "facets" in url \
-                    and "section" in url and "seating" in url \
-                    and not captured["inventory"]:
+                    and not captured["inventory"] \
+                    and ("section" in url or "inventory" in url.lower()) \
+                    and "compress=places" not in url \
+                    and "by=offers" not in url:
                 captured["inventory"] = {"url": url, "headers": dict(req.headers)}
-            elif "offeradapter" in url and "facets" in url \
-                    and "by=offers" in url and "totalpricerange" in url \
-                    and not captured["pricing"]:
+                print(f"  [captured] inventory: {url[:120]}")
+            # Pricing: offeradapter or TM services offer price map
+            elif not captured["pricing"] \
+                    and ("offeradapter" in url or "services.ticketmaster.com" in url) \
+                    and "facets" in url \
+                    and ("by=offers" in url or "totalpricerange" in url or "offer" in url.lower()):
                 captured["pricing"] = {"url": url, "headers": dict(req.headers)}
+                print(f"  [captured] pricing: {url[:120]}")
+            # Places: seat-level row/seat data
             elif "services.ticketmaster.com" in url and "facets" in url \
                     and "compress=places" in url \
                     and not captured["places"]:
                 captured["places"] = {"url": url, "headers": dict(req.headers)}
+                print(f"  [captured] places: {url[:120]}")
 
         page.on("request", on_request)
 
@@ -382,12 +391,15 @@ def refresh_endpoints(page, event_url: str, endpoints_path: str) -> bool:
     def on_request(req):
         url = req.url
         if "services.ticketmaster.com" in url and "facets" in url \
-                and "section" in url and "seating" in url \
-                and not captured["inventory"]:
+                and not captured["inventory"] \
+                and ("section" in url or "inventory" in url.lower()) \
+                and "compress=places" not in url \
+                and "by=offers" not in url:
             captured["inventory"] = {"url": url, "headers": dict(req.headers)}
-        elif "offeradapter" in url and "facets" in url \
-                and "by=offers" in url and "totalpricerange" in url \
-                and not captured["pricing"]:
+        elif not captured["pricing"] \
+                and ("offeradapter" in url or "services.ticketmaster.com" in url) \
+                and "facets" in url \
+                and ("by=offers" in url or "totalpricerange" in url or "offer" in url.lower()):
             captured["pricing"] = {"url": url, "headers": dict(req.headers)}
         elif "services.ticketmaster.com" in url and "facets" in url \
                 and "compress=places" in url \
