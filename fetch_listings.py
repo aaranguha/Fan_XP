@@ -277,11 +277,10 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
                     and "by=offers" not in url:
                 captured["inventory"] = {"url": url, "headers": dict(req.headers)}
                 print(f"  [captured] inventory: {url[:120]}")
-            # Pricing: offeradapter or TM services offer price map
+            # Pricing: TM services facets with totalpricerange+by=offers (the price map endpoint)
             elif not captured["pricing"] \
-                    and ("offeradapter" in url or "services.ticketmaster.com" in url) \
-                    and "facets" in url \
-                    and ("by=offers" in url or "totalpricerange" in url or "offer" in url.lower()):
+                    and "services.ticketmaster.com" in url and "facets" in url \
+                    and "totalpricerange" in url and "by=offers" in url:
                 captured["pricing"] = {"url": url, "headers": dict(req.headers)}
                 print(f"  [captured] pricing: {url[:120]}")
             # Places: seat-level row/seat data
