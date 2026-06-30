@@ -88,9 +88,14 @@ def main():
         print("  No games within the next 6 hours — next cron will handle them.")
         sys.exit(0)
 
-    print(f"\n  Launching {len(eligible)} game runner(s)...\n")
+    LAUNCH_STAGGER_SEC = 90
+    print(f"\n  Launching {len(eligible)} game runner(s) ({LAUNCH_STAGGER_SEC}s apart)...\n")
+    import time as _time
     procs = []
-    for slug in eligible:
+    for i, slug in enumerate(eligible):
+        if i > 0:
+            print(f"  Waiting {LAUNCH_STAGGER_SEC}s before next launch...")
+            _time.sleep(LAUNCH_STAGGER_SEC)
         log_dir  = f"data/wnba/{slug}"
         os.makedirs(log_dir, exist_ok=True)
         log_path = f"{log_dir}/game.log"

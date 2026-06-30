@@ -28,6 +28,8 @@ import base64
 import json
 import os
 import csv
+import random
+import shutil
 import sys
 import requests
 from collections import Counter
@@ -186,21 +188,39 @@ def find_next_home_game(tm_keyword: str, game_date: str | None = None, classific
 
 # ── Browser scraping ──────────────────────────────────────────────────────────
 
+def _team_profile_path(team_slug: str) -> str:
+    """
+    Return a per-team profile directory seeded from the shared logged-in profile.
+    Each team gets its own copy so multiple browsers don't conflict on the same dir.
+    """
+    shared = os.path.join(CHROME_PROFILE_BASE, "shared")
+    team_path = os.path.join(CHROME_PROFILE_BASE, team_slug)
+    if os.path.isdir(shared) and not os.path.isdir(team_path):
+        print(f"  [browser] Copying shared profile → {team_path}")
+        shutil.copytree(shared, team_path)
+    elif not os.path.isdir(team_path):
+        os.makedirs(team_path, exist_ok=True)
+    return team_path
+
+
 def launch_browser_session(team_slug: str):
     """
-    Launch a persistent browser session using the shared logged-in TM profile.
-    Falls back to per-team profile if shared profile doesn't exist.
+    Launch a persistent browser session using a per-team copy of the shared
+    logged-in TM profile. Each team has its own profile dir to avoid conflicts.
     Returns (pw, ctx, page). Caller must call close_browser_session() when done.
     """
     pw = sync_playwright().start()
-    shared_profile = os.path.join(CHROME_PROFILE_BASE, "shared")
-    chrome_profile = shared_profile if os.path.isdir(shared_profile) else os.path.join(CHROME_PROFILE_BASE, team_slug)
+    chrome_profile = _team_profile_path(team_slug)
     headless = sys.platform != "darwin" or os.getenv("HEADLESS_BROWSER", "0") == "1"
-    print(f"  [browser] Using profile: {chrome_profile}  headless={headless}")
+    print(f"  [browser] profile={chrome_profile}  headless={headless}")
     ctx = pw.chromium.launch_persistent_context(
         chrome_profile,
         headless=headless,
-        args=["--disable-blink-features=AutomationControlled"],
+        args=[
+            "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+        ],
         user_agent=(
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -208,6 +228,7 @@ def launch_browser_session(team_slug: str):
         ),
         viewport={"width": 1280, "height": 800},
         locale="en-US",
+        timezone_id="America/New_York",
     )
     page = ctx.new_page()
     Stealth().apply_stealth_sync(page)
@@ -280,10 +301,35 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
 
         page.on("request", on_request)
 
+        def human_browse(pg):
+            """Simulate natural browsing: random scrolls and short pauses."""
+            try:
+                for _ in range(random.randint(2, 4)):
+                    pg.mouse.move(random.randint(200, 1000), random.randint(200, 600))
+                    pg.wait_for_timeout(random.randint(400, 900))
+                    pg.evaluate(f"window.scrollBy(0, {random.randint(100, 400)})")
+                    pg.wait_for_timeout(random.randint(600, 1400))
+            except Exception:
+                pass
+
+        def is_bot_blocked(pg) -> bool:
+            title = pg.title().lower()
+            url   = pg.url.lower()
+            return (
+                "browsing activity has been paused" in title
+                or "block.json" in url
+                or "access denied" in title
+                or pg.query_selector("text=Your Browsing Activity Has Been Paused") is not None
+            )
+
         try:
             print(f"  Loading: {event_url}")
             page.goto(event_url, wait_until="load", timeout=45000)
+            human_browse(page)
             page.wait_for_timeout(WAIT_MS)
+
+            if is_bot_blocked(page):
+                raise RuntimeError("TM bot block detected — IP flagged. Try again later or re-run tm_login.py.")
 
             # Retry up to max_retries times if inventory XHR wasn't captured
             for attempt in range(max_retries):
@@ -291,12 +337,15 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
                     break
                 print(f"  Page title: {page.title()!r}  URL: {page.url[:100]}")
                 print(f"  No inventory request captured — retrying in 15s... (attempt {attempt + 1}/{max_retries})")
-                page.wait_for_timeout(15000)
+                page.wait_for_timeout(random.randint(10000, 20000))
                 captured["inventory"] = None
-                captured["pricing"] = None
-                captured["places"] = None
+                captured["pricing"]   = None
+                captured["places"]    = None
                 page.goto(event_url, wait_until="load", timeout=45000)
+                human_browse(page)
                 page.wait_for_timeout(WAIT_MS)
+                if is_bot_blocked(page):
+                    raise RuntimeError("TM bot block detected on retry — IP flagged.")
 
             if not captured["inventory"]:
                 # Save screenshot + page title so we can diagnose what TM showed

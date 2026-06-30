@@ -244,10 +244,9 @@ def main():
         sys.exit(0)
 
     sleep_until(pre_game_time, "pre_game")
-    jitter = random.randint(0, 240)
-    if jitter:
-        print(f"  [jitter] Waiting {jitter}s...")
-        time.sleep(jitter)
+    jitter = random.randint(30, 600)
+    print(f"  [jitter] Waiting {jitter}s before scrape...")
+    time.sleep(jitter)
 
     pre_rows = run_snapshot(event, url, "pre_game", pg_csv)
     supabase_client.insert_listings(game_id, pre_rows, "pre_game", team["slug"], game_dt, league="wnba")
