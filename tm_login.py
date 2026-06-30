@@ -8,7 +8,7 @@ Usage:
 import os
 from playwright.sync_api import sync_playwright
 
-profile = os.path.join(os.getcwd(), ".tm_chrome_profile", "shared")
+profile = os.path.expanduser("~/.tm_chrome_profile/shared")
 os.makedirs(profile, exist_ok=True)
 print(f"Using profile: {profile}")
 

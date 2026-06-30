@@ -45,7 +45,7 @@ load_dotenv()
 
 TM_API_KEY          = os.getenv("TICKETMASTER_API_KEY", "")
 WAIT_MS             = 30000   # ms to wait after page load for all XHR calls to fire
-CHROME_PROFILE_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".tm_chrome_profile")
+CHROME_PROFILE_BASE = os.path.expanduser("~/.tm_chrome_profile")
 
 
 # ── Seat-level place decoding ──────────────────────────────────────────────────
