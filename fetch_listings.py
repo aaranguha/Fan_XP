@@ -188,12 +188,15 @@ def find_next_home_game(tm_keyword: str, game_date: str | None = None, classific
 
 def launch_browser_session(team_slug: str):
     """
-    Launch a persistent browser session for long-lived use (e.g. keep-alive between scrapes).
+    Launch a persistent browser session using the shared logged-in TM profile.
+    Falls back to per-team profile if shared profile doesn't exist.
     Returns (pw, ctx, page). Caller must call close_browser_session() when done.
     """
     pw = sync_playwright().start()
-    chrome_profile = os.path.join(CHROME_PROFILE_BASE, team_slug)
+    shared_profile = os.path.join(CHROME_PROFILE_BASE, "shared")
+    chrome_profile = shared_profile if os.path.isdir(shared_profile) else os.path.join(CHROME_PROFILE_BASE, team_slug)
     headless = sys.platform != "darwin" or os.getenv("HEADLESS_BROWSER", "0") == "1"
+    print(f"  [browser] Using profile: {chrome_profile}  headless={headless}")
     ctx = pw.chromium.launch_persistent_context(
         chrome_profile,
         headless=headless,
