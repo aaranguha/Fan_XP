@@ -269,17 +269,18 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
             if any(d in url for d in ["ticketmaster.com", "livenation.com", "offeradapter"]) \
                     and req.resource_type in ("xhr", "fetch"):
                 print(f"  [tm-req] {url[:160]}")
-            # Inventory: TM services facets endpoint (section+seating or broader inventory query)
-            if "services.ticketmaster.com" in url and "facets" in url \
+            # Inventory: TM services/offeradapter facets endpoint
+            _is_tm_facets = ("services.ticketmaster.com" in url or "offeradapter.ticketmaster.com" in url) and "facets" in url
+            if _is_tm_facets \
                     and not captured["inventory"] \
                     and ("section" in url or "inventory" in url.lower()) \
                     and "compress=places" not in url \
                     and "by=offers" not in url:
                 captured["inventory"] = {"url": url, "headers": dict(req.headers)}
                 print(f"  [captured] inventory: {url[:120]}")
-            # Pricing: TM services facets with totalpricerange+by=offers (the price map endpoint)
+            # Pricing: TM services/offeradapter facets with totalpricerange+by=offers
             elif not captured["pricing"] \
-                    and "services.ticketmaster.com" in url and "facets" in url \
+                    and _is_tm_facets \
                     and "totalpricerange" in url and "by=offers" in url:
                 captured["pricing"] = {"url": url, "headers": dict(req.headers)}
                 print(f"  [captured] pricing: {url[:120]}")
