@@ -215,17 +215,9 @@ def launch_browser_session(team_slug: str):
     print(f"  [browser] profile={chrome_profile}  headless={headless}")
     ctx = pw.chromium.launch_persistent_context(
         chrome_profile,
+        channel="chrome",
         headless=headless,
-        args=[
-            "--disable-blink-features=AutomationControlled",
-            "--disable-dev-shm-usage",
-            "--no-sandbox",
-        ],
-        user_agent=(
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/122.0.0.0 Safari/537.36"
-        ),
+        args=["--disable-blink-features=AutomationControlled"],
         viewport={"width": 1280, "height": 800},
         locale="en-US",
         timezone_id="America/New_York",

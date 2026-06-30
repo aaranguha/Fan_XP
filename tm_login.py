@@ -15,13 +15,9 @@ print(f"Using profile: {profile}")
 with sync_playwright() as p:
     ctx = p.chromium.launch_persistent_context(
         profile,
+        channel="chrome",
         headless=False,
         args=["--disable-blink-features=AutomationControlled"],
-        user_agent=(
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/122.0.0.0 Safari/537.36"
-        ),
         viewport={"width": 1280, "height": 800},
         locale="en-US",
     )
