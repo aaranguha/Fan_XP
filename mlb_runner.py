@@ -191,6 +191,7 @@ def main():
             "git", "commit", "-m", f"MLB auto-update {date_str}: {teams_str}"
         ])
         if commit.returncode == 0:
+            subprocess.run(["git", "pull", "--rebase"], check=False)
             result = subprocess.run(["git", "push"])
             if result.returncode == 0:
                 print("  Pushed to GitHub.")

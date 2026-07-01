@@ -144,6 +144,7 @@ def main():
             "git", "commit", "-m", f"WNBA auto-update {today}: {teams_str}"
         ])
         if commit.returncode == 0:
+            subprocess.run(["git", "pull", "--rebase"], check=False)
             result = subprocess.run(["git", "push"])
             print("  Pushed to GitHub." if result.returncode == 0 else "  git push failed.")
         else:

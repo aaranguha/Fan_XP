@@ -263,8 +263,16 @@ def main():
     print("\nWaiting for mid-game...")
     wait_for_mid_game(first_pitch, team["mlb_team_id"], today)
 
-    mid_rows = run_snapshot_tm(event, url, "mid_game", mid_csv)
-    supabase_client.insert_listings(game_id, mid_rows, "mid_game", team["slug"], game_dt, league="mlb")
+    try:
+        mid_rows = run_snapshot_tm(event, url, "mid_game", mid_csv)
+        supabase_client.insert_listings(game_id, mid_rows, "mid_game", team["slug"], game_dt, league="mlb")
+    except Exception as e:
+        print(f"\n  [mid_game] Scrape failed: {e}")
+        sys.exit(1)
+
+    if not os.path.isfile(mid_csv):
+        print("\n  [mid_game] CSV not saved — skipping compare.")
+        sys.exit(1)
 
     print("\nComparing snapshots...")
     pre_rows = load_csv(pg_csv)
