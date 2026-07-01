@@ -116,8 +116,19 @@ def parse_seats(all_facets, places_facets, offer_price_map, scraped_at):
             for oid in facet.get("offers", [])
             if offer_price_map.get(oid) is not None
         ]
+        # Also try fields that may exist directly on inventory facets
+        if not prices:
+            price_ranges = (
+                facet.get("totalPriceRange")
+                or facet.get("priceRange")
+                or []
+            )
+            if price_ranges:
+                direct = price_ranges[0].get("min") or price_ranges[0].get("low")
+                if direct is not None:
+                    prices = [direct]
         if prices:
-            min_price = min(prices)
+            min_price = min(p for p in prices if p is not None)
             if section not in section_price or min_price < section_price[section]["price"]:
                 section_price[section] = {"price": min_price, "sel_type": sel_type}
 
@@ -130,6 +141,11 @@ def parse_seats(all_facets, places_facets, offer_price_map, scraped_at):
                 sec, row, seat = decode_place(place_str)
                 section = sec or section_label
                 info = section_price.get(section, {})
+                if not info:
+                    # Fallback: section→price stored directly from pricing facets
+                    direct_price = offer_price_map.get(f"__sec__{section}")
+                    if direct_price is not None:
+                        info = {"price": direct_price, "sel_type": "standard"}
                 if row and seat:
                     rows.append({
                         "section":        section,
@@ -278,10 +294,10 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
                     and "by=offers" not in url:
                 captured["inventory"] = {"url": url, "headers": dict(req.headers)}
                 print(f"  [captured] inventory: {url[:120]}")
-            # Pricing: TM services/offeradapter facets with totalpricerange+by=offers
+            # Pricing: TM services/offeradapter facets with by=offers (captures price range)
             elif not captured["pricing"] \
                     and _is_tm_facets \
-                    and "totalpricerange" in url and "by=offers" in url:
+                    and "by=offers" in url.lower():
                 captured["pricing"] = {"url": url, "headers": dict(req.headers)}
                 print(f"  [captured] pricing: {url[:120]}")
             # Places: seat-level row/seat data
@@ -389,10 +405,24 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
                     pr = captured["pricing"]
                     pricing_data = browser_fetch(pr["url"], pr["headers"])
                     for facet in pricing_data.get("facets", []):
-                        price_ranges = facet.get("totalPriceRange", [])
-                        price = price_ranges[0].get("min") if price_ranges else None
+                        price_ranges = (
+                            facet.get("totalPriceRange")
+                            or facet.get("priceRange")
+                            or []
+                        )
+                        price = None
+                        if price_ranges:
+                            price = price_ranges[0].get("min") or price_ranges[0].get("low")
+                        if price is None:
+                            price = facet.get("listPrice") or facet.get("price")
                         for offer_id in facet.get("offers", []):
                             offer_price_map[offer_id] = price
+                        # Also store section→price directly as fallback sentinel key
+                        sec = (facet.get("section") or "").strip()
+                        if sec and price is not None:
+                            sentinel = f"__sec__{sec}"
+                            if sentinel not in offer_price_map or price < offer_price_map[sentinel]:
+                                offer_price_map[sentinel] = price
                 except Exception as e:
                     print(f"  Warning: could not fetch price data: {e}")
             else:
@@ -514,10 +544,23 @@ def scrape_from_endpoints(page, endpoints_path: str, scraped_at: str) -> tuple[l
         try:
             pricing_data = direct_fetch(pr["url"], pr["headers"])
             for facet in pricing_data.get("facets", []):
-                price_ranges = facet.get("totalPriceRange", [])
-                price = price_ranges[0].get("min") if price_ranges else None
+                price_ranges = (
+                    facet.get("totalPriceRange")
+                    or facet.get("priceRange")
+                    or []
+                )
+                price = None
+                if price_ranges:
+                    price = price_ranges[0].get("min") or price_ranges[0].get("low")
+                if price is None:
+                    price = facet.get("listPrice") or facet.get("price")
                 for offer_id in facet.get("offers", []):
                     offer_price_map[offer_id] = price
+                sec = (facet.get("section") or "").strip()
+                if sec and price is not None:
+                    sentinel = f"__sec__{sec}"
+                    if sentinel not in offer_price_map or price < offer_price_map[sentinel]:
+                        offer_price_map[sentinel] = price
         except Exception as e:
             print(f"  [direct] Warning: could not fetch price data: {e}")
     else:
@@ -555,8 +598,11 @@ def parse_facet(facet: dict, offer_price_map: dict, scraped_at: str) -> list[dic
     offer_ids = facet.get("offers", [])
 
     rows = []
+    section_fallback_price = offer_price_map.get(f"__sec__{section}")
     for offer_id in offer_ids:
         price = offer_price_map.get(offer_id)
+        if price is None:
+            price = section_fallback_price
         rows.append({
             "offer_id":       offer_id,
             "section":        section,
