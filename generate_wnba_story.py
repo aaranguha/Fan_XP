@@ -16,6 +16,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from wnba_teams import WNBA_TEAMS
+import supabase_client
 
 WNBA_COLORS = {
     "dream":     "#C8102E",
@@ -199,6 +200,37 @@ def load_game(slug: str, folder: str) -> dict | None:
     return {"folder": folder, "meta": meta, "pre": pre, "mid": mid, "noshows": ns}
 
 
+def load_games_from_supabase(slug: str) -> list[dict]:
+    """Load all game data for a team from Supabase (primary data source)."""
+    games_meta = supabase_client.fetch_games_for_team(slug, league="wnba")
+    games = []
+    for g in games_meta:
+        game_id   = g.get("id")
+        pre_count = supabase_client.count_listings(game_id, "pre_game")
+        if pre_count == 0:
+            continue
+        mid_count = supabase_client.count_listings(game_id, "halftime")
+        no_shows  = supabase_client.fetch_no_shows_for_game(game_id)
+        games.append({
+            "folder":     g.get("game_date", ""),
+            "meta": {
+                "game_date":   g.get("game_date", ""),
+                "opponent":    g.get("opponent", ""),
+                "arena":       g.get("arena", ""),
+                "city":        g.get("city", ""),
+                "home_team":   g.get("home_team", ""),
+                "league":      g.get("league", "wnba"),
+                "day_of_week": g.get("day_of_week", ""),
+            },
+            "pre":       [],
+            "mid":       [],
+            "noshows":   no_shows,
+            "pre_count": pre_count,
+            "mid_count": mid_count,
+        })
+    return games
+
+
 def analyse_games(games: list[dict]) -> dict:
     per_game   = []
     sec_totals = defaultdict(lambda: {"pre": 0, "ns": 0, "value": 0.0})
@@ -209,8 +241,8 @@ def analyse_games(games: list[dict]) -> dict:
         ns   = g["noshows"]
         meta = g["meta"]
 
-        pre_count = len(pre)
-        mid_count = len(mid)
+        pre_count = g["pre_count"] if "pre_count" in g else len(pre)
+        mid_count = g["mid_count"] if "mid_count" in g else len(mid)
         ns_count  = len(ns)
 
         ns_value = sum(float(r.get("price_usd", 0) or 0) for r in ns)
@@ -274,8 +306,11 @@ def fmt_name(slug: str) -> str:
 
 
 def generate_html(slug: str) -> str:
-    folders = find_all_games(slug)
-    games   = [g for f in folders if (g := load_game(slug, f))]
+    # Supabase is the primary source; fall back to local CSVs for dev/offline use
+    games = load_games_from_supabase(slug)
+    if not games:
+        folders = find_all_games(slug)
+        games   = [g for f in folders if (g := load_game(slug, f))]
     has_data = len(games) > 0
     stats    = analyse_games(games) if has_data else {
         "per_game": [], "avg_rate": 0, "avg_value": 0, "total_ns": 0, "top_sections": []

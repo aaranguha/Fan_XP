@@ -131,7 +131,8 @@ def main():
 
     if succeeded:
         print("\n  Regenerating WNBA story pages...")
-        for slug in succeeded:
+        all_slugs = list(WNBA_TEAMS.keys()) if len(succeeded) > 1 else succeeded
+        for slug in all_slugs:
             result = subprocess.run([PYTHON, "generate_wnba_story.py", slug], capture_output=True, text=True)
             if result.returncode == 0:
                 print(f"  [{slug}] story page updated")

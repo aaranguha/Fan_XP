@@ -158,9 +158,11 @@ def main():
             print(f"  [{slug}] ✗ FAILED (exit {proc.returncode})", flush=True)
 
     if succeeded:
-        # Regenerate HTML story pages for teams that completed
+        # Regenerate HTML story pages for ALL teams (reads from Supabase, so
+        # any team with prior data will also get refreshed pages)
         print("\nRegenerating MLB story pages...")
-        for slug in succeeded:
+        all_slugs = list(MLB_TEAMS.keys()) if len(succeeded) > 1 else succeeded
+        for slug in all_slugs:
             try:
                 subprocess.run([PYTHON, "generate_mlb_story.py", slug], check=True)
                 print(f"  [{slug}] HTML regenerated")

@@ -118,6 +118,72 @@ def insert_listings(
         print(f"  [supabase] insert_listings failed: {e}")
 
 
+def fetch_games_for_team(home_team: str, league: str = "mlb") -> list[dict]:
+    """Return all games for a team ordered by date."""
+    client = _get_client()
+    if not client:
+        return []
+    try:
+        result = (
+            client.table("games")
+            .select("*")
+            .eq("home_team", home_team)
+            .eq("league", league)
+            .order("game_date")
+            .execute()
+        )
+        return result.data or []
+    except Exception as e:
+        print(f"  [supabase] fetch_games_for_team failed: {e}")
+        return []
+
+
+def count_listings(game_id: int, snapshot: str) -> int:
+    """Return the number of seat listings for a game snapshot."""
+    client = _get_client()
+    if not client or game_id is None:
+        return 0
+    try:
+        result = (
+            client.table("listings")
+            .select("id", count="exact")
+            .eq("game_id", game_id)
+            .eq("snapshot", snapshot)
+            .execute()
+        )
+        return result.count or 0
+    except Exception as e:
+        print(f"  [supabase] count_listings failed: {e}")
+        return 0
+
+
+def fetch_no_shows_for_game(game_id: int) -> list[dict]:
+    """Return all no-show seat records for a game (paginated)."""
+    client = _get_client()
+    if not client or game_id is None:
+        return []
+    try:
+        all_rows = []
+        page = 0
+        while True:
+            result = (
+                client.table("no_shows")
+                .select("section,row,seat,price_usd,selection_type")
+                .eq("game_id", game_id)
+                .range(page * 1000, (page + 1) * 1000 - 1)
+                .execute()
+            )
+            batch = result.data or []
+            all_rows.extend(batch)
+            if len(batch) < 1000:
+                break
+            page += 1
+        return all_rows
+    except Exception as e:
+        print(f"  [supabase] fetch_no_shows_for_game failed: {e}")
+        return []
+
+
 def insert_no_shows(
     game_id: int,
     rows: list[dict],
