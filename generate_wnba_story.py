@@ -11,7 +11,7 @@ Output:
     docs/wnba_{slug}_story.html
 """
 
-import csv, json, os, sys
+import csv, json, math, os, sys
 from collections import defaultdict
 from datetime import datetime
 
@@ -70,6 +70,101 @@ WNBA_CITIES = {
     "fire":      "Portland",
     "tempo":     "Toronto",
 }
+
+
+# ── Arena heatmap helpers ──────────────────────────────────────────────────────
+
+def _rate_color(r):
+    r = max(0.0, min(1.0, r))
+    if r <= 0.5:
+        t = r * 2
+        return f"#{int(t*255):02x}{int(229-t*14):02x}{int(160-t*160):02x}"
+    else:
+        t = (r - 0.5) * 2
+        return f"#ff{int(215-t*138):02x}{int(t*109):02x}"
+
+def _arc(cx, cy, ia, ib, oa, ob, sd, ed, gap=0.8):
+    s, e = sd - gap, ed + gap
+    sr, er = math.radians(s), math.radians(e)
+    def pt(a, b, ang): return cx + a * math.cos(ang), cy + b * math.sin(ang)
+    ix1, iy1 = pt(ia, ib, sr); ix2, iy2 = pt(ia, ib, er)
+    ox1, oy1 = pt(oa, ob, sr); ox2, oy2 = pt(oa, ob, er)
+    laf = 1 if abs(s - e) > 180 else 0
+    return (f"M{ix1:.1f},{iy1:.1f} A{ia},{ib} 0 {laf},1 {ix2:.1f},{iy2:.1f}"
+            f" L{ox2:.1f},{oy2:.1f} A{oa},{ob} 0 {laf},0 {ox1:.1f},{oy1:.1f}Z")
+
+def _mid_pt(cx, cy, ia, ib, oa, ob, sd, ed):
+    a = math.radians((sd + ed) / 2)
+    return cx + (ia + oa) / 2 * math.cos(a), cy + (ib + ob) / 2 * math.sin(a)
+
+def _court(cx, cy):
+    hw, hh = 105, 56
+    L, R, T, B = cx - hw, cx + hw, cy - hh, cy + hh
+    pD, pH, tp, fr = 41, 18, 52, 13
+    tpy = math.sqrt(max(0, tp**2 - pD**2))
+    aT, aB = cy - tpy, cy + tpy
+    fxL, fxR = L + pD, R - pD
+    o = []
+    o.append(f'<rect x="{L}" y="{T}" width="{hw*2}" height="{hh*2}" fill="#c8922a" rx="3"/>')
+    for xl, xr in [(L, L+pD), (R-pD, R)]:
+        o.append(f'<rect x="{xl}" y="{cy-pH}" width="{xr-xl}" height="{pH*2}" fill="#b8821f" stroke="rgba(255,255,255,.6)" stroke-width="1"/>')
+    o.append(f'<line x1="{cx}" y1="{T}" x2="{cx}" y2="{B}" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>')
+    o.append(f'<circle cx="{cx}" cy="{cy}" r="13" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>')
+    for fx, s1, s2 in [(fxL, "0,1", "0,0"), (fxR, "0,0", "0,1")]:
+        o.append(f'<path d="M{fx},{cy-fr} A{fr},{fr} 0 {s1} {fx},{cy+fr}" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="1"/>')
+        o.append(f'<path d="M{fx},{cy-fr} A{fr},{fr} 0 {s2} {fx},{cy+fr}" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="1" stroke-dasharray="3,3"/>')
+    for side, sw in [(L, "1,1"), (R, "1,0")]:
+        o.append(f'<line x1="{side}" y1="{T}" x2="{side}" y2="{aT:.1f}" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>')
+        o.append(f'<path d="M{side},{aT:.1f} A{tp},{tp} 0 {sw} {side},{aB:.1f}" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>')
+        o.append(f'<line x1="{side}" y1="{aB:.1f}" x2="{side}" y2="{B}" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>')
+    for bx in (L+11, R-11):
+        o.append(f'<circle cx="{bx}" cy="{cy}" r="8" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="1"/>')
+        o.append(f'<circle cx="{bx}" cy="{cy}" r="4.5" fill="#e87722" stroke="rgba(255,255,255,.8)" stroke-width="1"/>')
+    o.append(f'<rect x="{L}" y="{T}" width="{hw*2}" height="{hh*2}" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="1.5" rx="3"/>')
+    return "\n".join(o)
+
+def _arena_svg(sec_totals):
+    def sec_num(s):
+        d = ''.join(filter(str.isdigit, s))
+        return int(d) if d else 0
+
+    lower = sorted([s for s in sec_totals if 100 <= sec_num(s) < 200], key=sec_num)
+    upper = sorted([s for s in sec_totals if sec_num(s) >= 200], key=sec_num)
+
+    cx, cy = 450, 310
+    BG = "#07090f"
+    OU_A, OU_B = 282, 194
+    IU_A, IU_B = 214, 147
+    OL_A, OL_B = 206, 142
+    IL_A, IL_B = 128, 80
+
+    o = [f'<rect width="900" height="620" fill="{BG}"/>',
+         f'<ellipse cx="{cx}" cy="{cy}" rx="{OU_A+6}" ry="{OU_B+6}" fill="#10182a"/>']
+
+    def ring(secs, ia, ib, oa, ob, gap, label_inner):
+        if not secs:
+            return
+        n = len(secs); sp = 360 / n
+        for i, sec in enumerate(secs):
+            sd = 180 - i * sp; ed = 180 - (i+1) * sp
+            d = sec_totals.get(sec, {}); pre = d.get("pre", 0); ns = d.get("ns", 0)
+            rate = ns / pre if pre else 0
+            color = _rate_color(rate) if pre > 0 else "#1e293b"
+            r_str = f"{rate*100:.1f}%" if pre > 0 else "N/A"
+            v_str = f"${d.get('value', 0):,.0f}" if pre > 0 else "N/A"
+            attrs = f'data-s="{sec}" data-pre="{pre}" data-ns="{ns}" data-r="{r_str}" data-v="{v_str}"'
+            o.append(f'<path d="{_arc(cx,cy,ia,ib,oa,ob,sd,ed,gap)}" fill="{color}" stroke="{BG}" stroke-width="1.2" {attrs} class="sec"/>')
+            if label_inner:
+                lx, ly = _mid_pt(cx, cy, ia, ib, oa, ob, sd, ed)
+                o.append(f'<text x="{lx:.0f}" y="{ly:.0f}" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">{sec}</text>')
+
+    ring(upper, IU_A, IU_B, OU_A, OU_B, 0.5, False)
+    o.append(f'<ellipse cx="{cx}" cy="{cy}" rx="{IU_A}" ry="{IU_B}" fill="#0c1422"/>')
+    o.append(f'<ellipse cx="{cx}" cy="{cy}" rx="{OL_A}" ry="{OL_B}" fill="#10182a"/>')
+    ring(lower, IL_A, IL_B, OL_A, OL_B, 0.8, True)
+    o.append(f'<ellipse cx="{cx}" cy="{cy}" rx="{IL_A}" ry="{IL_B}" fill="#0c1828"/>')
+    o.append(_court(cx, cy))
+    return "\n".join(o)
 
 
 def find_all_games(slug: str) -> list[str]:
@@ -161,6 +256,7 @@ def analyse_games(games: list[dict]) -> dict:
         "avg_value":    avg_value,
         "total_ns":     total_ns,
         "top_sections": top_sections,
+        "sec_totals":   dict(sec_totals),
     }
 
 
@@ -190,6 +286,7 @@ def generate_html(slug: str) -> str:
     city     = WNBA_CITIES.get(slug, "")
     name     = fmt_name(slug)
     per_game = sorted(stats["per_game"], key=lambda g: g["date"], reverse=True)
+    arena_svg_str = _arena_svg(stats.get("sec_totals", {})) if has_data else ""
 
     rows_html = ""
     for g in per_game:
@@ -295,6 +392,23 @@ def generate_html(slug: str) -> str:
     td.hl {{ color: var(--accent); font-weight: 700; }}
     .tbl-wrap {{ background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }}
     .footer {{ margin-top: 60px; font-size: 12px; color: var(--muted); text-align: center; }}
+    .arena-wrap {{ background: #07090f; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 40px; }}
+    .arena-wrap svg {{ width: 100%; height: auto; display: block; }}
+    .sec {{ cursor: pointer; transition: filter .08s; }}
+    .sec:hover, .sec.on {{ filter: brightness(1.3) drop-shadow(0 0 4px rgba(255,255,255,.3)); stroke: #fff !important; stroke-width: 2px !important; }}
+    .arena-legend {{ display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }}
+    .arena-legend .lb {{ width: 120px; height: 8px; border-radius: 4px; background: linear-gradient(90deg,#16a34a,#d97706,#dc2626); }}
+    .arena-legend .lnd {{ width: 18px; height: 8px; border-radius: 3px; background: #1e293b; }}
+    #tt {{ position: fixed; z-index: 99; pointer-events: none; display: none; min-width: 180px;
+      background: rgba(3,6,16,.97); border: 1px solid rgba(0,245,255,.15); border-radius: 12px;
+      padding: 12px 15px; backdrop-filter: blur(20px); box-shadow: 0 12px 40px rgba(0,0,0,.8); }}
+    .th {{ display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }}
+    .tn {{ font-size: .78rem; font-weight: 800; color: var(--accent); }}
+    .tv {{ font-size: .95rem; font-weight: 900; }}
+    hr.td {{ border: none; border-top: 1px solid rgba(255,255,255,.06); margin: 0 0 7px; }}
+    .tr {{ display: flex; justify-content: space-between; margin-bottom: 2px; }}
+    .tk {{ font-size: .67rem; color: var(--muted); }}
+    .tw {{ font-size: .73rem; font-weight: 600; }}
   </style>
 </head>
 <body>
@@ -312,6 +426,14 @@ def generate_html(slug: str) -> str:
     <div class="kpi"><div class="kpi-val">{stats['avg_rate']*100:.0f}%</div><div class="kpi-label">Avg no-show rate</div></div>
     <div class="kpi"><div class="kpi-val">${stats['avg_value']:,.0f}</div><div class="kpi-label">Avg value/game</div></div>
     <div class="kpi"><div class="kpi-val">{stats['total_ns']:,}</div><div class="kpi-label">Total no-show seats</div></div>
+  </div>
+
+  <div class="arena-wrap">
+    <svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg">{arena_svg_str}</svg>
+    <div class="arena-legend">
+      <span>0%</span><div class="lb"></div><span>100% no-show</span>
+      &nbsp;&nbsp;<div class="lnd"></div><span>No data</span>
+    </div>
   </div>
 
   <div class="section">
@@ -338,6 +460,43 @@ def generate_html(slug: str) -> str:
 
   <div class="footer">Generated by FanXP · {datetime.now().strftime("%b %-d, %Y")}</div>
 </body>
+
+<div id="tt">
+  <div class="th"><span class="tn" id="tn2">—</span><span class="tv" id="tv2">—</span></div>
+  <hr class="td"/>
+  <div class="tr"><span class="tk">Pre-game</span><span class="tw" id="tpre">—</span></div>
+  <div class="tr"><span class="tk">No-shows</span><span class="tw" id="tns">—</span></div>
+  <div class="tr"><span class="tk">Value</span><span class="tw" id="tdv">—</span></div>
+</div>
+<script>
+(function(){{
+  var tt=document.getElementById('tt'),hi=null;
+  document.addEventListener('mousemove',function(e){{
+    var el=e.target,ok=el&&el.classList.contains('sec');
+    if(ok){{
+      var W=tt.offsetWidth||190,H=tt.offsetHeight||120;
+      tt.style.left=(e.clientX+14+W>innerWidth?e.clientX-W-8:e.clientX+14)+'px';
+      tt.style.top=(e.clientY-12+H>innerHeight?e.clientY-H-4:e.clientY-12)+'px';
+      if(el!==hi){{
+        if(hi)hi.classList.remove('on');
+        hi=el;hi.classList.add('on');
+        var s=el.dataset.s,r=el.dataset.r,v=el.dataset.v;
+        document.getElementById('tn2').textContent='Section '+s;
+        document.getElementById('tv2').textContent=r;
+        var rv=parseFloat(r)/100;
+        document.getElementById('tv2').style.color=rv<.33?'#22c55e':rv<.66?'#f59e0b':'#ef4444';
+        document.getElementById('tpre').textContent=parseInt(el.dataset.pre).toLocaleString();
+        document.getElementById('tns').textContent=parseInt(el.dataset.ns).toLocaleString();
+        document.getElementById('tdv').textContent=v;
+      }}
+      tt.style.display='block';
+    }} else {{
+      if(hi){{hi.classList.remove('on');hi=null;}}
+      tt.style.display='none';
+    }}
+  }});
+}})();
+</script>
 </html>"""
 
 
