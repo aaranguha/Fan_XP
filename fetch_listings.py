@@ -32,6 +32,7 @@ import random
 import shutil
 import sys
 import requests
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from collections import Counter
 from datetime import datetime, timezone
 from dotenv import load_dotenv
@@ -400,10 +401,30 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
             print(f"  Found {len(all_facets)} listing groups covering {total_seats} seats.")
 
             # Build offer→price map
+            # Try intercepted pricing URL first; if not captured, construct one from inventory URL
+            pricing_sources = []
             if captured["pricing"]:
+                pricing_sources.append(("intercepted", captured["pricing"]["url"], captured["pricing"]["headers"]))
+            # Always also try a constructed pricing URL derived from the inventory URL
+            try:
+                parsed = urlparse(inv["url"])
+                params = parse_qs(parsed.query, keep_blank_values=True)
+                pricing_params = {k: v for k, v in params.items()
+                                  if k.lower() not in ("by", "show", "compress", "includewithoutseat")}
+                pricing_params["by"] = ["offers"]
+                pricing_params["show"] = ["totalpricerange"]
+                pricing_query = urlencode({k: v[0] for k, v in pricing_params.items()})
+                constructed_url = urlunparse(parsed._replace(query=pricing_query))
+                pricing_sources.append(("constructed", constructed_url, inv["headers"]))
+            except Exception as _e:
+                print(f"  Warning: could not build pricing URL: {_e}")
+
+            for _src, _url, _hdrs in pricing_sources:
+                if offer_price_map:
+                    break  # already got prices from a previous source
                 try:
-                    pr = captured["pricing"]
-                    pricing_data = browser_fetch(pr["url"], pr["headers"])
+                    pricing_data = browser_fetch(_url, _hdrs)
+                    _count_before = len(offer_price_map)
                     for facet in pricing_data.get("facets", []):
                         price_ranges = (
                             facet.get("totalPriceRange")
@@ -417,16 +438,18 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
                             price = facet.get("listPrice") or facet.get("price")
                         for offer_id in facet.get("offers", []):
                             offer_price_map[offer_id] = price
-                        # Also store section→price directly as fallback sentinel key
                         sec = (facet.get("section") or "").strip()
                         if sec and price is not None:
                             sentinel = f"__sec__{sec}"
                             if sentinel not in offer_price_map or price < offer_price_map[sentinel]:
                                 offer_price_map[sentinel] = price
+                    added = len(offer_price_map) - _count_before
+                    print(f"  [{_src} pricing] {added} offers/sections priced from {_url[:80]}")
                 except Exception as e:
-                    print(f"  Warning: could not fetch price data: {e}")
-            else:
-                print("  Warning: no pricing request captured — prices will be empty.")
+                    print(f"  Warning: could not fetch {_src} price data: {e}")
+
+            if not offer_price_map:
+                print("  Warning: no pricing data found — prices will be empty.")
 
             # Fetch seat-level places data
             all_places_facets = []
@@ -537,12 +560,31 @@ def scrape_from_endpoints(page, endpoints_path: str, scraped_at: str) -> tuple[l
     total_seats = sum(f.get("count", 0) for f in all_facets)
     print(f"  [direct] Found {len(all_facets)} listing groups covering {total_seats} seats.")
 
-    # Offer → price map
+    # Offer → price map — try saved pricing URL then a constructed one from inventory URL
     offer_price_map: dict[str, float] = {}
+    pricing_sources = []
     pr = endpoints.get("pricing")
     if pr:
+        pricing_sources.append(("saved", pr["url"], pr["headers"]))
+    try:
+        parsed = urlparse(inv["url"])
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        pricing_params = {k: v for k, v in params.items()
+                          if k.lower() not in ("by", "show", "compress", "includewithoutseat")}
+        pricing_params["by"] = ["offers"]
+        pricing_params["show"] = ["totalpricerange"]
+        pricing_query = urlencode({k: v[0] for k, v in pricing_params.items()})
+        constructed_url = urlunparse(parsed._replace(query=pricing_query))
+        pricing_sources.append(("constructed", constructed_url, inv["headers"]))
+    except Exception as _e:
+        print(f"  [direct] Warning: could not build pricing URL: {_e}")
+
+    for _src, _url, _hdrs in pricing_sources:
+        if offer_price_map:
+            break
         try:
-            pricing_data = direct_fetch(pr["url"], pr["headers"])
+            pricing_data = direct_fetch(_url, _hdrs)
+            _count_before = len(offer_price_map)
             for facet in pricing_data.get("facets", []):
                 price_ranges = (
                     facet.get("totalPriceRange")
@@ -561,10 +603,13 @@ def scrape_from_endpoints(page, endpoints_path: str, scraped_at: str) -> tuple[l
                     sentinel = f"__sec__{sec}"
                     if sentinel not in offer_price_map or price < offer_price_map[sentinel]:
                         offer_price_map[sentinel] = price
+            added = len(offer_price_map) - _count_before
+            print(f"  [direct {_src} pricing] {added} offers/sections priced")
         except Exception as e:
-            print(f"  [direct] Warning: could not fetch price data: {e}")
-    else:
-        print("  [direct] Warning: no pricing endpoint saved — prices will be empty.")
+            print(f"  [direct] Warning: could not fetch {_src} price data: {e}")
+
+    if not offer_price_map:
+        print("  [direct] Warning: no pricing data found — prices will be empty.")
 
     # Places facets (seat-level row/seat data)
     all_places_facets = []
