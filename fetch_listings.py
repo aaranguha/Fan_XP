@@ -106,32 +106,45 @@ def parse_seats(all_facets, places_facets, offer_price_map, scraped_at):
     Returns one row per seat:
         section, row, seat, price_usd, selection_type, scraped_at
     """
-    # Build section → cheapest {price, sel_type} from inventory facets
+    # Build section → cheapest {price, sel_type}
+    # Try both inventory facets AND places facets — TM sometimes groups inventory
+    # by type (not section), so inventory facets lack a section key. Places facets
+    # always have section + offers, making them a reliable source for this join.
     section_price = {}
-    for facet in all_facets:
-        section = (facet.get("section") or "").strip()
-        inv_type = (facet.get("inventoryTypes") or ["unknown"])[0]
-        sel_type = "resale" if inv_type == "resale" else "standard"
-        prices = [
-            offer_price_map[oid]
-            for oid in facet.get("offers", [])
-            if offer_price_map.get(oid) is not None
-        ]
-        # Also try fields that may exist directly on inventory facets
-        if not prices:
-            price_ranges = (
-                facet.get("totalPriceRange")
-                or facet.get("priceRange")
-                or []
-            )
-            if price_ranges:
-                direct = price_ranges[0].get("min") or price_ranges[0].get("low")
+
+    def _apply_facet_prices(facets_list):
+        for facet in facets_list:
+            section = (facet.get("section") or "").strip()
+            if not section:
+                continue
+            inv_type = (facet.get("inventoryTypes") or ["unknown"])[0]
+            sel_type = "resale" if inv_type == "resale" else "standard"
+            prices = [
+                offer_price_map[oid]
+                for oid in facet.get("offers", [])
+                if offer_price_map.get(oid) is not None
+            ]
+            if not prices:
+                price_ranges = (
+                    facet.get("totalPriceRange")
+                    or facet.get("priceRange")
+                    or []
+                )
+                if price_ranges:
+                    direct = price_ranges[0].get("min") or price_ranges[0].get("low")
+                    if direct is not None:
+                        prices = [direct]
+            if not prices:
+                direct = offer_price_map.get(f"__sec__{section}")
                 if direct is not None:
                     prices = [direct]
-        if prices:
-            min_price = min(p for p in prices if p is not None)
-            if section not in section_price or min_price < section_price[section]["price"]:
-                section_price[section] = {"price": min_price, "sel_type": sel_type}
+            if prices:
+                min_price = min(p for p in prices if p is not None)
+                if section not in section_price or min_price < section_price[section]["price"]:
+                    section_price[section] = {"price": min_price, "sel_type": sel_type}
+
+    _apply_facet_prices(all_facets)
+    _apply_facet_prices(places_facets)  # places facets always have section + offers
 
     # Expand places to one row per individual seat
     rows = []
@@ -142,11 +155,6 @@ def parse_seats(all_facets, places_facets, offer_price_map, scraped_at):
                 sec, row, seat = decode_place(place_str)
                 section = sec or section_label
                 info = section_price.get(section, {})
-                if not info:
-                    # Fallback: section→price stored directly from pricing facets
-                    direct_price = offer_price_map.get(f"__sec__{section}")
-                    if direct_price is not None:
-                        info = {"price": direct_price, "sel_type": "standard"}
                 if row and seat:
                     rows.append({
                         "section":        section,
