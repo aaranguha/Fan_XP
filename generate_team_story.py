@@ -174,6 +174,8 @@ def build_games_data(team_slug, game_folders):
 
         # Dead $ estimate
         dead = sum(pre_price.get(k, 0) for k in ns_keys) if ns_keys else 0
+        CONCESSION_PER_SEAT = 35
+        phantom = dead + total_ns * CONCESSION_PER_SEAT
 
         # Top sections for bar chart (top 7 by ns, fallback to pre)
         sec_counts = dict(sec_ns) if total_ns > 0 else dict(sec_pre)
@@ -181,26 +183,23 @@ def build_games_data(team_slug, game_folders):
 
         # Story text fields
         total_listed_value = sum(pre_price.get(k, 0) for k in pre_keys)
-        half_value = round(total_listed_value / 2)
-        half_str = f" Even at <strong>half their listed price</strong>, that's <strong>${half_value:,}</strong> in potential revenue from a single game." if half_value > 0 else ""
         if total_ns > 0:
             avg_price = round(dead / total_ns) if total_ns else 0
-            story_headline = f"{total_ns:,} seats went empty at halftime."
-            story_headline_span = str(total_ns)
-            story_sub = (f"Every glowing dot is a seat listed on the secondary market before tip-off "
-                         f"— and gone by halftime. At an average of "
-                         f"${avg_price:,}/seat, that's ${dead:,.0f} in dead inventory in a single game."
-                         f"{half_str}")
+            concession_lost = total_ns * CONCESSION_PER_SEAT
+            story_headline = f"${phantom:,.0f} in phantom revenue."
+            story_headline_span = f"${phantom:,.0f}"
+            story_sub = (f"{total_ns:,} seats listed pre-game were gone by halftime — "
+                         f"<strong>${dead:,.0f}</strong> in dead seat value "
+                         f"(avg ${avg_price:,}/seat) plus <strong>${concession_lost:,}</strong> in "
+                         f"estimated concession spend ($35/seat). "
+                         f"That's <strong>${phantom:,.0f} in phantom revenue</strong> from a single game.")
             chart_note = "Every listed seat in these sections was empty by halftime."
             chart_title_prefix = "Top sections by no-shows"
         else:
             story_headline = f"{total_pre:,} seats listed on the secondary market."
             story_headline_span = str(total_pre)
             story_sub = (f"These are all seats listed on Ticketmaster's secondary market before tip-off "
-                         f"for this game — real inventory that fans paid for but may not show up to use."
-                         f"{half_str}")
-            chart_note = "Top sections by secondary market listings pre-game."
-            chart_title_prefix = "Top sections pre-game"
+                         f"for this game — real inventory that fans paid for but may not show up to use.")
             chart_note = "Top sections by secondary market listings pre-game."
             chart_title_prefix = "Top sections pre-game"
 
@@ -215,6 +214,7 @@ def build_games_data(team_slug, game_folders):
             "ns":       total_ns,
             "rate":     rate,
             "dead":     dead,
+            "phantom":  phantom,
             "ns_keys":  list(ns_keys),
             "pre_keys": list(pre_keys),
             "pre_price":pre_price,
@@ -370,13 +370,13 @@ def gen_story_html(team_slug, games_data, color):
     for g in games_data:
         opp_display = g["opp"].split("(")[0].strip() if g["opp"] else g["folder"].replace("_", " ").title()
         if g["ns"] > 0:
-            ns_cell   = f'<td class="hi">{g["ns"]:,} ({g["rate"]:.0%})</td>'
-            dead_cell = f'<td class="hi">${g["dead"]:,.0f}</td>'
+            ns_cell      = f'<td class="hi">{g["ns"]:,} ({g["rate"]:.0%})</td>'
+            phantom_cell = f'<td class="hi">${g["phantom"]:,.0f}</td>'
             row_style = ' style="background:rgba(255,255,255,.03)"'
             chip = '<span class="dot-chip"></span>'
         else:
-            ns_cell   = '<td style="color:rgba(200,185,185,.3)">—</td>'
-            dead_cell = '<td style="color:rgba(200,185,185,.3)">—</td>'
+            ns_cell      = '<td style="color:rgba(200,185,185,.3)">—</td>'
+            phantom_cell = '<td style="color:rgba(200,185,185,.3)">—</td>'
             row_style = ""
             chip = ""
         try:
@@ -384,7 +384,7 @@ def gen_story_html(team_slug, games_data, color):
             date_disp = d.strftime("%b %-d")
         except Exception:
             date_disp = g["date"]
-        table_rows += f'      <tr{row_style}>\n        <td>{date_disp}</td><td>{chip}{opp_display}</td><td>{g["pre"]:,}</td>{ns_cell}{dead_cell}\n      </tr>\n'
+        table_rows += f'      <tr{row_style}>\n        <td>{date_disp}</td><td>{chip}{opp_display}</td><td>{g["pre"]:,}</td>{ns_cell}{phantom_cell}\n      </tr>\n'
 
     return f"""
 <!-- ── Story Section ─────────────────────────────────────────────────────── -->
@@ -408,7 +408,7 @@ def gen_story_html(team_slug, games_data, color):
   <div class="chart-title">All tracked {name} games</div>
   <table class="comp-table">
     <thead>
-      <tr><th>Game</th><th>Opponent</th><th>Pre-game seats</th><th>Empty at halftime</th><th>Est. dead $</th></tr>
+      <tr><th>Game</th><th>Opponent</th><th>Pre-game seats</th><th>Empty at halftime</th><th>Phantom Revenue</th></tr>
     </thead>
     <tbody>
 {table_rows}    </tbody>
@@ -475,13 +475,14 @@ def gen_html(team_slug, games_data, sec_paths, geo_sections, bg_inner, court_img
     for i, g in enumerate(games_data):
         ns_list  = [f"{s}_{r}_{seat}" for s, r, seat in g["ns_keys"]]
         pre_list = [f"{s}_{r}_{seat}" for s, r, seat in g["pre_keys"]]
-        disp_ns  = g["ns"] if g["ns"] > 0 else g["pre"]
+        disp_ns   = g["ns"] if g["ns"] > 0 else g["pre"]
         rate_disp = g["rate"] if g["ns"] > 0 else 1.0
         dead_disp = g["dead"] if g["ns"] > 0 else g["pre"] * 180
+        phantom_disp = g["phantom"] if g["ns"] > 0 else 0
         comma = "," if i < len(games_data) - 1 else ""
         games_js_parts.append(
             f'  {{label:{json.dumps(g["label"])},pre:{g["pre"]},ns:{g["ns"]},'
-            f'displayNs:{disp_ns},rate:{rate_disp:.4f},dead:{dead_disp:.0f},'
+            f'displayNs:{disp_ns},rate:{rate_disp:.4f},dead:{dead_disp:.0f},phantom:{phantom_disp:.0f},'
             f'nsKeys:new Set({json.dumps(ns_list)}),'
             f'preKeys:new Set({json.dumps(pre_list)}),'
             f'secPre:{json.dumps(g["sec_pre"])},secNs:{json.dumps(g["sec_ns"])}}}{comma}'
@@ -699,7 +700,7 @@ circle.red:hover{{ fill:#fff; }}
     <div class="stat"><span class="sv" id="sv-pre">—</span><span class="sl">Secondary mkt seats</span></div>
     <div class="stat"><span class="sv rd" id="sv-ns">—</span><span class="sl">Empty at halftime</span></div>
     <div class="stat"><span class="sv rd" id="sv-rt">—</span><span class="sl">No-show rate</span></div>
-    <div class="stat"><span class="sv rd" id="sv-dv">—</span><span class="sl">Dead inventory</span></div>
+    <div class="stat"><span class="sv rd" id="sv-dv">—</span><span class="sl">Phantom Revenue</span></div>
   </div>
   <div class="scroll-hint">
     <span>scroll</span>
@@ -879,7 +880,7 @@ function updateStats() {{
   document.getElementById('sv-pre').textContent = cg.pre.toLocaleString();
   document.getElementById('sv-ns').textContent  = cg.displayNs.toLocaleString();
   document.getElementById('sv-rt').textContent  = cg.ns > 0 ? (cg.rate*100).toFixed(1)+'%' : '—';
-  document.getElementById('sv-dv').textContent  = cg.dead > 0 ? '$'+Math.round(cg.dead).toLocaleString() : '—';
+  document.getElementById('sv-dv').textContent  = cg.phantom > 0 ? '$'+Math.round(cg.phantom).toLocaleString() : '—';
 }}
 
 function renderStory(idx) {{
@@ -984,10 +985,11 @@ function zoomToSection(sec) {{
     ? `${{sNs}} empty · ${{sPre}} tracked · ${{sPre ? (sNs/sPre*100).toFixed(0) : 0}}% no-show`
     : `${{sPre}} tracked seats`;
   document.getElementById('sec-sub').classList.add('show');
+  const secPhantom = cg.secNs[sec] ? cg.secNs[sec] * 35 : 0;
   document.getElementById('sv-pre').textContent = sPre.toLocaleString();
   document.getElementById('sv-ns').textContent  = sNs.toLocaleString();
   document.getElementById('sv-rt').textContent  = sPre ? (sNs/sPre*100).toFixed(0)+'%' : '—';
-  document.getElementById('sv-dv').textContent  = '—';
+  document.getElementById('sv-dv').textContent  = secPhantom > 0 ? '$'+Math.round(secPhantom).toLocaleString() : '—';
 }}
 
 function resetView() {{

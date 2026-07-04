@@ -38,6 +38,8 @@
     td.hl { color: var(--accent); font-weight: 700; }
     .tbl-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }
     .footer { margin-top: 60px; font-size: 12px; color: var(--muted); text-align: center; }
+    .phantom-alert { background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.12); border-left: 3px solid var(--accent); border-radius: 12px; padding: 16px 20px; margin-bottom: 40px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .phantom-alert strong { color: var(--white); }
   </style>
 </head>
 <body>
@@ -51,26 +53,27 @@
 
   <div class="kpi-grid">
     <div class="kpi">
-      <div class="kpi-val">3</div>
+      <div class="kpi-val">1</div>
       <div class="kpi-label">Games tracked</div>
     </div>
     <div class="kpi">
-      <div class="kpi-val">3</div>
-      <div class="kpi-label">With mid-game data</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-val">73%</div>
-      <div class="kpi-label">Avg no-show rate</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-val">$563,085</div>
-      <div class="kpi-label">Avg no-show value/game</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-val">98,546</div>
+      <div class="kpi-val">0</div>
       <div class="kpi-label">Total no-show seats</div>
     </div>
+    <div class="kpi">
+      <div class="kpi-val">0%</div>
+      <div class="kpi-label">Avg no-show rate</div>
+    </div>
+    <div class="kpi" style="border-color:rgba(255,255,255,.18)">
+      <div class="kpi-val" style="color:#A71930">$0</div>
+      <div class="kpi-label">Total phantom revenue</div>
+    </div>
+    <div class="kpi" style="border-color:rgba(255,255,255,.18)">
+      <div class="kpi-val" style="color:#A71930">$0</div>
+      <div class="kpi-label">Avg phantom / game</div>
+    </div>
   </div>
+  
 
   <div class="section">
     <h2>Game Log</h2>
@@ -79,36 +82,18 @@
         <thead>
           <tr>
             <th>Date</th><th>Opponent</th><th>Pre-game</th><th>Mid-game</th>
-            <th>No-shows</th><th>Rate</th><th>Value</th>
+            <th>No-shows</th><th>Rate</th><th>Phantom Revenue</th>
           </tr>
         </thead>
         <tbody>
         <tr>
-          <td>Jul 3, 2026</td>
-          <td>vs Milwaukee Brewers</td>
-          <td>26,673</td>
-          <td>26025</td>
-          <td class="hl">25647</td>
-          <td class="hl">96%</td>
-          <td>$1,689,254</td>
-        </tr>
-        <tr>
           <td>Jul 1, 2026</td>
           <td>vs San Francisco Giants</td>
-          <td>110,918</td>
-          <td>27600</td>
-          <td class="hl">27586</td>
-          <td class="hl">25%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>Jun 30, 2026</td>
-          <td>vs San Francisco Giants</td>
-          <td>45,584</td>
-          <td>45320</td>
-          <td class="hl">45313</td>
-          <td class="hl">99%</td>
-          <td>$0</td>
+          <td>27,730</td>
+          <td>—</td>
+          <td class="hl">—</td>
+          <td class="hl">—</td>
+          <td class="hl">—</td>
         </tr></tbody>
       </table>
     </div>
@@ -123,71 +108,71 @@
         </thead>
         <tbody>
         <tr>
-          <td>307</td>
-          <td>2273</td>
-          <td>100%</td>
-          <td>$23,537</td>
+          <td>100AW</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0</td>
         </tr>
         <tr>
-          <td>305</td>
-          <td>2255</td>
-          <td>100%</td>
-          <td>$24,761</td>
+          <td>100BW</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0</td>
         </tr>
         <tr>
-          <td>112</td>
-          <td>2239</td>
-          <td>100%</td>
-          <td>$48,188</td>
+          <td>101</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0</td>
         </tr>
         <tr>
-          <td>308</td>
-          <td>2222</td>
-          <td>100%</td>
-          <td>$17,414</td>
+          <td>102</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0</td>
         </tr>
         <tr>
-          <td>327</td>
-          <td>2183</td>
-          <td>100%</td>
-          <td>$27,618</td>
+          <td>103</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0</td>
         </tr>
         <tr>
-          <td>113</td>
-          <td>2077</td>
-          <td>100%</td>
-          <td>$51,375</td>
+          <td>103W</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0</td>
         </tr>
         <tr>
-          <td>306</td>
-          <td>2074</td>
-          <td>100%</td>
-          <td>$20,680</td>
+          <td>104</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0</td>
         </tr>
         <tr>
-          <td>326</td>
-          <td>2025</td>
-          <td>100%</td>
-          <td>$24,353</td>
+          <td>105</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0</td>
         </tr>
         <tr>
-          <td>331</td>
-          <td>1962</td>
-          <td>100%</td>
-          <td>$9,494</td>
+          <td>106</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0</td>
         </tr>
         <tr>
-          <td>325</td>
-          <td>1923</td>
-          <td>100%</td>
-          <td>$20,407</td>
+          <td>106W</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0</td>
         </tr></tbody>
       </table>
     </div>
   </div>
 
   <div class="footer">
-    Generated by FanXP · Jul 3, 2026
+    Generated by FanXP · Jul 4, 2026
   </div>
 </body>
 </html>

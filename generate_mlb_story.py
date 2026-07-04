@@ -83,6 +83,8 @@ def load_game(slug: str, folder: str) -> dict | None:
     return {"folder": folder, "meta": meta, "pre": pre, "mid": mid, "noshows": ns}
 
 
+CONCESSION_PER_SEAT = 35
+
 def load_games_from_supabase(slug: str) -> list[dict]:
     """Load all game data for a team from Supabase (primary data source)."""
     games_meta = supabase_client.fetch_games_for_team(slug, league="mlb")
@@ -94,6 +96,9 @@ def load_games_from_supabase(slug: str) -> list[dict]:
             continue  # no scrape data yet for this game
         mid_count = supabase_client.count_listings(game_id, "mid_game")
         no_shows  = supabase_client.fetch_no_shows_for_game(game_id)
+        ns_value  = sum(float(r.get("price_usd") or 0) for r in no_shows)
+        ns_count  = len(no_shows)
+        phantom   = ns_value + ns_count * CONCESSION_PER_SEAT
         games.append({
             "folder":     g.get("game_date", ""),
             "meta": {
@@ -110,6 +115,7 @@ def load_games_from_supabase(slug: str) -> list[dict]:
             "noshows":   no_shows,
             "pre_count": pre_count,
             "mid_count": mid_count,
+            "phantom":   phantom,
         })
     return games
 
@@ -151,6 +157,7 @@ def analyse_games(games: list[dict]) -> dict:
             if r not in ns:
                 sec_totals[sec]["pre"] += 1
 
+        phantom = g.get("phantom", ns_value + ns_count * CONCESSION_PER_SEAT)
         per_game.append({
             "folder":       g["folder"],
             "date":         meta.get("game_date", ""),
@@ -160,6 +167,7 @@ def analyse_games(games: list[dict]) -> dict:
             "mid_count":    mid_count,
             "ns_count":     ns_count,
             "ns_value":     ns_value,
+            "phantom":      phantom,
             "noshow_rate":  noshow_rate,
             "has_mid":      mid_count > 0,
         })
@@ -202,13 +210,16 @@ def generate_html(slug: str) -> str:
     name    = fmt_name(slug)
     per_game = sorted(stats["per_game"], key=lambda g: g["date"], reverse=True)
 
+    total_phantom = sum(g["phantom"] for g in per_game if g["has_mid"])
+    best_game     = max((g for g in per_game if g["has_mid"] and g["phantom"] > 0), key=lambda g: g["phantom"], default=None)
+
     # Build per-game rows
     rows_html = ""
     for g in per_game:
-        rate_str  = f"{g['noshow_rate']*100:.0f}%" if g["has_mid"] else "—"
-        val_str   = f"${g['ns_value']:,.0f}" if g["has_mid"] else "—"
-        ns_str    = str(g["ns_count"]) if g["has_mid"] else "—"
-        date_fmt  = g["date"]
+        rate_str    = f"{g['noshow_rate']*100:.0f}%" if g["has_mid"] else "—"
+        phantom_str = f"${g['phantom']:,.0f}" if g["has_mid"] else "—"
+        ns_str      = str(g["ns_count"]) if g["has_mid"] else "—"
+        date_fmt    = g["date"]
         try:
             date_fmt = datetime.strptime(g["date"], "%Y-%m-%d").strftime("%b %-d, %Y")
         except Exception:
@@ -222,7 +233,7 @@ def generate_html(slug: str) -> str:
           <td>{g['mid_count'] if g['has_mid'] else '—'}</td>
           <td class="hl">{ns_str}</td>
           <td class="hl">{rate_str}</td>
-          <td>{val_str}</td>
+          <td class="hl">{phantom_str}</td>
         </tr>"""
 
     # Build top-sections rows
@@ -309,6 +320,8 @@ def generate_html(slug: str) -> str:
     td.hl {{ color: var(--accent); font-weight: 700; }}
     .tbl-wrap {{ background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }}
     .footer {{ margin-top: 60px; font-size: 12px; color: var(--muted); text-align: center; }}
+    .phantom-alert {{ background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.12); border-left: 3px solid var(--accent); border-radius: 12px; padding: 16px 20px; margin-bottom: 40px; font-size: 14px; color: var(--muted); line-height: 1.6; }}
+    .phantom-alert strong {{ color: var(--white); }}
   </style>
 </head>
 <body>
@@ -326,22 +339,23 @@ def generate_html(slug: str) -> str:
       <div class="kpi-label">Games tracked</div>
     </div>
     <div class="kpi">
-      <div class="kpi-val">{tracked_games}</div>
-      <div class="kpi-label">With mid-game data</div>
+      <div class="kpi-val">{stats['total_ns']:,}</div>
+      <div class="kpi-label">Total no-show seats</div>
     </div>
     <div class="kpi">
       <div class="kpi-val">{stats['avg_rate']*100:.0f}%</div>
       <div class="kpi-label">Avg no-show rate</div>
     </div>
-    <div class="kpi">
-      <div class="kpi-val">${stats['avg_value']:,.0f}</div>
-      <div class="kpi-label">Avg no-show value/game</div>
+    <div class="kpi" style="border-color:rgba(255,255,255,.18)">
+      <div class="kpi-val" style="color:{color}">${total_phantom:,.0f}</div>
+      <div class="kpi-label">Total phantom revenue</div>
     </div>
-    <div class="kpi">
-      <div class="kpi-val">{stats['total_ns']:,}</div>
-      <div class="kpi-label">Total no-show seats</div>
+    <div class="kpi" style="border-color:rgba(255,255,255,.18)">
+      <div class="kpi-val" style="color:{color}">${stats['avg_value'] + 35 * (stats['total_ns'] / max(tracked_games, 1)):,.0f}</div>
+      <div class="kpi-label">Avg phantom / game</div>
     </div>
   </div>
+  {'<div class="phantom-alert">Your stadium lost <strong>$' + f"{best_game['phantom']:,.0f}" + '</strong> in phantom revenue — <strong>' + str(best_game['ns_count']) + ' no-shows × seat price + $35 concession spend</strong> — during the ' + (datetime.strptime(best_game["date"], "%Y-%m-%d").strftime("%b %-d") if best_game else "") + ' game vs ' + (fmt_name(best_game["opponent"]) if best_game else "") + '.</div>' if best_game else ""}
 
   <div class="section">
     <h2>Game Log</h2>
@@ -350,7 +364,7 @@ def generate_html(slug: str) -> str:
         <thead>
           <tr>
             <th>Date</th><th>Opponent</th><th>Pre-game</th><th>Mid-game</th>
-            <th>No-shows</th><th>Rate</th><th>Value</th>
+            <th>No-shows</th><th>Rate</th><th>Phantom Revenue</th>
           </tr>
         </thead>
         <tbody>{rows_html}</tbody>

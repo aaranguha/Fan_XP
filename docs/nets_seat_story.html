@@ -194,7 +194,7 @@ circle.red:hover{ fill:#fff; }
     <div class="stat"><span class="sv" id="sv-pre">—</span><span class="sl">Secondary mkt seats</span></div>
     <div class="stat"><span class="sv rd" id="sv-ns">—</span><span class="sl">Empty at halftime</span></div>
     <div class="stat"><span class="sv rd" id="sv-rt">—</span><span class="sl">No-show rate</span></div>
-    <div class="stat"><span class="sv rd" id="sv-dv">—</span><span class="sl">Dead inventory</span></div>
+    <div class="stat"><span class="sv rd" id="sv-dv">—</span><span class="sl">Phantom Revenue</span></div>
   </div>
   <div class="scroll-hint">
     <span>scroll</span>
@@ -224,11 +224,11 @@ circle.red:hover{ fill:#fff; }
   <div class="chart-title">All tracked Nets games</div>
   <table class="comp-table">
     <thead>
-      <tr><th>Game</th><th>Opponent</th><th>Pre-game seats</th><th>Empty at halftime</th><th>Est. dead $</th></tr>
+      <tr><th>Game</th><th>Opponent</th><th>Pre-game seats</th><th>Empty at halftime</th><th>Phantom Revenue</th></tr>
     </thead>
     <tbody>
       <tr style="background:rgba(255,255,255,.03)">
-        <td>Mar 31</td><td><span class="dot-chip"></span>Charlotte Hornets Hbcu Homecoming</td><td>278</td><td class="hi">8 (3%)</td><td class="hi">$2,296</td>
+        <td>Mar 31</td><td><span class="dot-chip"></span>Charlotte Hornets Hbcu Homecoming</td><td>278</td><td class="hi">8 (3%)</td><td class="hi">$2,576</td>
       </tr>
     </tbody>
   </table>
@@ -240,7 +240,7 @@ circle.red:hover{ fill:#fff; }
 </div><!-- #story-wrap -->
 <script>
 const STORY_DATA = [
-  {headlineSpan:"8",headlineRest:"seats went empty at halftime.",sub:"Every glowing dot is a seat listed on the secondary market before tip-off \u2014 and gone by halftime. At an average of $287/seat, that's $2,296 in dead inventory in a single game. Even at <strong>half their listed price</strong>, that's <strong>$22,512</strong> in potential revenue from a single game.",chartNote:"Every listed seat in these sections was empty by halftime.",chartTitle:"Top sections by no-shows \u00b7 3/31 \u00b7 Homecoming",kicker:"Barclays Center \u00b7 vs. Charlotte Hornets Hbcu Homecoming \u00b7 Mar 31, 2026",topSecs:[{sec:"9",count:2,pct:100},{sec:"23",count:2,pct:100},{sec:"VIP23",count:2,pct:100},{sec:"16WC",count:2,pct:100}]}
+  {headlineSpan:"$2,576",headlineRest:"in phantom revenue.",sub:"8 seats listed pre-game were gone by halftime \u2014 <strong>$2,296</strong> in dead seat value (avg $287/seat) plus <strong>$280</strong> in estimated concession spend ($35/seat). That's <strong>$2,576 in phantom revenue</strong> from a single game.",chartNote:"Every listed seat in these sections was empty by halftime.",chartTitle:"Top sections by no-shows \u00b7 3/31 \u00b7 Homecoming",kicker:"Barclays Center \u00b7 vs. Charlotte Hornets Hbcu Homecoming \u00b7 Mar 31, 2026",topSecs:[{sec:"23",count:2,pct:100},{sec:"16WC",count:2,pct:100},{sec:"VIP23",count:2,pct:100},{sec:"9",count:2,pct:100}]}
 ];
 </script>
 
@@ -265,7 +265,7 @@ const SCALE_X = 0.0937500;
 const SCALE_Y = 0.0937500;
 const TEAM_COLOR = '#ffffff';
 const GAMES = [
-  {label:"3/31 \u00b7 Homecoming",pre:278,ns:8,displayNs:8,rate:0.0288,dead:2296,nsKeys:new Set(["9_B_5", "23_1_8", "23_1_9", "9_B_6", "VIP23_DD_17", "16WC_19W_2", "16WC_19W_1", "VIP23_DD_18"]),preKeys:new Set(["126_7_4", "1_18_17", "203_1_10", "29_19_4", "6_6_1", "VIP7_1_2", "12_17_9", "VIP7_5_9", "31_E_10", "31WC_19W_5", "108_5_1", "107_7_2", "3_15_5", "3_15_17", "1_D_1", "VIP7_5_15", "6_12_2", "1_18_14", "9_5_11", "102_4_2", "228_6_4", "126_5_3", "111_7_13", "8WC_19W_1", "VIP24_3_10", "28_13_1", "126_7_5", "BN2-R_1_4", "218_2_9", "6_12_6", "7_7_17", "4_16_9", "6_6_5", "105_6_16", "12_16_1", "217_1_1", "4_15_4", "226_3_11", "29_6_9", "R7_B_1", "108_5_5", "120_8_17", "28_13_2", "31_17_12", "1_D_5", "4_16_11", "VIP25_5_3", "VIP7_5_7", "VIP24_CC_10", "VIP7_5_8", "217_1_2", "210_2_10", "VIP7_2_14", "8WC_19W_5", "204_1_2", "230_1_11", "8_11_9", "31WC_19W_3", "3_15_3", "1_19_4", "214_1_10", "205_15_20", "220_3_14", "8_10_12", "218_2_8", "24_9_17", "107_7_3", "24_13_18", "VIP23_DD_18", "19_C_4", "20_17_6", "102_4_3", "24_7_2", "8_7_10", "3_15_2", "28_17_10", "23_1_9", "108_5_3", "9_2_1", "31_17_11", "220_4_17", "31WC_19W_6", "120_8_1", "9_4_15", "3_15_6", "8WC_19W_3", "VIP25_2_7", "7_15_9", "VIP25_2_8", "28_17_12", "6_6_2", "BN2-R_1_3", "VIP7_4_13", "1_C_4", "107_7_10", "210_2_25", "108_5_2", "8_6_10", "29_10_3", "BN2-R_1_1", "1_D_2", "217_1_25", "29_19_5", "120_4_9", "3_11_18", "19_E_10", "8WC_19W_2", "108_5_6", "23_1_8", "223_1_18", "BN2-R_1_2", "VIP24_3_16", "1_2_9", "9_4_8", "12_16_2", "9_4_16", "205_15_22", "8WC_19W_6", "R7_B_2", "120_8_14", "108_5_12", "118_4_4", "24_14_12", "1_19_1", "203_1_9", "220_4_1", "4_15_5", "VIP24_1_10", "28_17_11", "31_E_9", "8WC_19W_12", "19_5_4", "1_E_7", "3_15_18", "1_E_8", "VIP24_DD_10", "1_19_2", "220_4_2", "31_E_11", "28_18_9", "29_19_3", "107_7_9", "VIP24_1_12", "VIP24_3_9", "22_15_1", "105_6_17", "7_7_18", "VIP24_3_15", "16WC_19W_1", "VIP25_1_16", "VIP25_4_12", "VIP24_DD_12", "228_6_3", "222_1_12", "126_5_4", "22_15_2", "1_18_16", "VIP7_5_10", "105_9_1", "9_2_2", "1_C_1", "108_5_11", "19_C_5", "210_1_22", "24_14_11", "203_2_7", "210_2_9", "111_7_14", "120_8_2", "203_2_8", "220_3_15", "3_15_16", "31_E_7", "31_E_8", "17_8_1", "VIP7_2_13", "29_19_6", "8_10_11", "8WC_19W_11", "VIP25_5_4", "28_18_8", "214_1_9", "29_13_10", "19_5_7", "19_5_8", "24_9_18", "9_4_7", "220_3_13", "118_4_3", "31WC_19W_4", "1_C_5", "VIP25_1_15", "1_19_3", "1_D_8", "9_B_5", "VIP23_CC_5", "VIP25_4_11", "28_17_9", "29_13_12", "VIP24_DD_11", "VIP7_1_1", "VIP24_CC_7", "1_18_15", "210_2_26", "222_1_11", "6_11_1", "220_4_18", "220_3_16", "8_11_10", "VIP24_CC_8", "6_12_1", "120_7_4", "217_1_26", "230_1_12", "6_6_4", "3_15_15", "6_11_2", "108_5_4", "8_7_9", "1_D_4", "205_15_21", "24_13_17", "VIP23_DD_17", "8_6_9", "VIP24_DD_7", "VIP24_DD_8", "8WC_19W_4", "19_E_9", "6_12_5", "1_D_9", "120_7_5", "120_8_18", "19_5_5", "12_17_10", "120_4_1", "29_10_4", "16WC_19W_2", "10_19_3", "204_1_1", "29_13_15", "VIP7_4_14", "29_13_11", "VIP24_CC_9", "7_15_10", "106_7_7", "106_7_8", "120_4_2", "105_9_2", "9_5_12", "VIP7_5_16", "1_C_2", "120_8_13", "VIP24_1_9", "29_13_13", "4_16_10", "120_4_10", "10_19_2", "3_11_17", "228_2_1", "17_8_2", "29_6_10", "VIP24_1_11", "VIP24_DD_9", "24_7_1", "205_15_23", "223_1_17", "210_1_21", "1_2_10", "3_15_4", "9_B_6", "226_3_12", "VIP23_CC_6", "29_13_16", "4_16_12", "228_2_2", "20_17_5", "8WC_19W_7", "8WC_19W_8"]),secPre:{"126": 4, "1": 22, "203": 4, "29": 14, "6": 10, "VIP7": 12, "12": 4, "31": 7, "31WC": 4, "108": 8, "107": 4, "3": 11, "9": 10, "102": 2, "228": 4, "111": 2, "8WC": 10, "VIP24": 18, "28": 8, "BN2-R": 4, "218": 2, "7": 4, "4": 6, "105": 4, "217": 4, "226": 2, "R7": 2, "120": 12, "VIP25": 8, "210": 6, "204": 2, "230": 2, "8": 8, "214": 2, "205": 4, "220": 8, "24": 8, "VIP23": 4, "19": 8, "20": 2, "23": 2, "223": 2, "118": 2, "22": 2, "16WC": 2, "222": 2, "17": 2, "10": 2, "106": 2},secNs:{"9": 2, "23": 2, "VIP23": 2, "16WC": 2}}
+  {label:"3/31 \u00b7 Homecoming",pre:278,ns:8,displayNs:8,rate:0.0288,dead:2296,phantom:2576,nsKeys:new Set(["23_1_9", "16WC_19W_1", "VIP23_DD_18", "9_B_6", "16WC_19W_2", "23_1_8", "VIP23_DD_17", "9_B_5"]),preKeys:new Set(["17_8_2", "19_5_5", "7_15_9", "230_1_11", "16WC_19W_1", "214_1_10", "4_16_12", "217_1_1", "16WC_19W_2", "29_6_9", "220_3_14", "3_15_3", "118_4_4", "4_16_11", "217_1_2", "118_4_3", "6_6_5", "8WC_19W_3", "102_4_2", "3_11_18", "220_4_17", "31_17_12", "4_15_5", "1_19_2", "20_17_5", "203_2_7", "210_2_10", "108_5_5", "31_17_11", "1_2_9", "3_11_17", "8_6_9", "VIP25_1_15", "120_4_2", "8WC_19W_6", "24_7_1", "VIP23_CC_6", "3_15_18", "1_18_17", "8_7_10", "VIP24_1_10", "VIP24_3_16", "19_5_8", "24_7_2", "29_13_16", "28_17_10", "205_15_20", "VIP24_3_9", "VIP7_5_16", "7_7_17", "6_12_6", "20_17_6", "1_18_16", "19_E_9", "BN2-R_1_1", "VIP7_5_8", "1_D_8", "120_4_9", "24_14_12", "3_15_16", "BN2-R_1_2", "R7_B_1", "3_15_6", "17_8_1", "10_19_3", "4_15_4", "VIP25_5_4", "228_6_3", "1_2_10", "24_14_11", "R7_B_2", "VIP25_5_3", "108_5_4", "8WC_19W_12", "9_4_8", "108_5_3", "9_B_6", "4_16_10", "22_15_1", "220_4_1", "8WC_19W_1", "220_4_18", "29_13_12", "8WC_19W_11", "19_5_7", "217_1_25", "223_1_18", "22_15_2", "220_4_2", "8WC_19W_2", "120_4_10", "1_19_1", "1_C_4", "29_13_11", "107_7_3", "24_9_18", "6_12_1", "VIP25_2_8", "1_18_14", "223_1_17", "VIP7_5_7", "8WC_19W_7", "VIP7_4_14", "120_4_1", "31_E_8", "VIP24_DD_8", "6_12_2", "205_15_22", "7_15_10", "111_7_14", "205_15_23", "210_1_21", "24_9_17", "120_8_18", "8_11_9", "1_D_9", "VIP7_5_9", "7_7_18", "VIP24_CC_8", "210_2_25", "9_4_7", "3_15_2", "VIP24_DD_12", "29_6_10", "102_4_3", "120_8_17", "203_1_9", "1_C_5", "VIP7_1_1", "9_4_16", "1_E_8", "108_5_6", "105_9_1", "VIP7_1_2", "105_9_2", "VIP25_2_7", "8_6_10", "8WC_19W_8", "9_5_12", "31_E_7", "VIP24_DD_7", "107_7_9", "9_5_11", "106_7_8", "VIP23_DD_17", "1_D_1", "VIP24_3_10", "31_E_9", "VIP24_CC_7", "VIP24_DD_9", "120_7_4", "228_2_1", "BN2-R_1_4", "VIP24_DD_10", "19_E_10", "1_D_2", "8_10_12", "6_6_1", "204_1_1", "31WC_19W_4", "220_3_13", "108_5_12", "228_2_2", "VIP24_CC_9", "VIP25_1_16", "10_19_2", "204_1_2", "23_1_8", "6_11_2", "6_6_2", "108_5_11", "24_13_18", "VIP24_1_12", "120_8_14", "214_1_9", "9_2_1", "VIP7_2_14", "28_17_12", "120_8_1", "108_5_2", "218_2_8", "126_7_4", "220_3_15", "217_1_26", "9_2_2", "VIP24_1_11", "24_13_17", "29_19_4", "VIP24_3_15", "120_8_2", "126_5_4", "VIP25_4_12", "120_7_5", "12_17_9", "106_7_7", "1_19_4", "222_1_12", "31WC_19W_5", "230_1_12", "VIP25_4_11", "1_19_3", "107_7_2", "210_2_9", "31_E_11", "VIP24_DD_11", "19_C_5", "222_1_11", "3_15_15", "226_3_12", "28_18_8", "8_7_9", "VIP24_1_9", "126_7_5", "210_2_26", "3_15_4", "1_D_5", "8_11_10", "28_17_9", "VIP23_DD_18", "29_19_5", "226_3_11", "31WC_19W_6", "8WC_19W_5", "VIP23_CC_5", "VIP7_5_10", "23_1_9", "210_1_22", "12_17_10", "29_13_10", "203_1_10", "6_12_5", "218_2_9", "BN2-R_1_3", "6_11_1", "105_6_17", "31WC_19W_3", "29_19_6", "1_E_7", "29_13_13", "8_10_11", "19_C_4", "19_5_4", "220_3_16", "29_10_4", "3_15_5", "108_5_1", "VIP7_5_15", "28_13_1", "29_10_3", "105_6_16", "4_16_9", "VIP7_4_13", "107_7_10", "28_13_2", "3_15_17", "120_8_13", "1_D_4", "111_7_13", "9_B_5", "VIP7_2_13", "29_13_15", "8WC_19W_4", "28_17_11", "12_16_1", "28_18_9", "126_5_3", "29_19_3", "203_2_8", "205_15_21", "31_E_10", "1_C_1", "6_6_4", "228_6_4", "1_18_15", "9_4_15", "12_16_2", "VIP24_CC_10", "1_C_2"]),secPre:{"17": 2, "19": 8, "7": 4, "230": 2, "16WC": 2, "214": 2, "4": 6, "217": 4, "29": 14, "220": 8, "3": 11, "118": 2, "6": 10, "8WC": 10, "102": 2, "31": 7, "1": 22, "20": 2, "203": 4, "210": 6, "108": 8, "8": 8, "VIP25": 8, "120": 12, "24": 8, "VIP23": 4, "VIP24": 18, "28": 8, "205": 4, "VIP7": 12, "BN2-R": 4, "R7": 2, "10": 2, "228": 4, "9": 10, "22": 2, "223": 2, "107": 4, "111": 2, "105": 4, "106": 2, "204": 2, "31WC": 4, "23": 2, "218": 2, "126": 4, "12": 4, "222": 2, "226": 2},secNs:{"23": 2, "16WC": 2, "VIP23": 2, "9": 2}}
 ];
 let currentGame = 0;
 
@@ -417,7 +417,7 @@ function updateStats() {
   document.getElementById('sv-pre').textContent = cg.pre.toLocaleString();
   document.getElementById('sv-ns').textContent  = cg.displayNs.toLocaleString();
   document.getElementById('sv-rt').textContent  = cg.ns > 0 ? (cg.rate*100).toFixed(1)+'%' : '—';
-  document.getElementById('sv-dv').textContent  = cg.dead > 0 ? '$'+Math.round(cg.dead).toLocaleString() : '—';
+  document.getElementById('sv-dv').textContent  = cg.phantom > 0 ? '$'+Math.round(cg.phantom).toLocaleString() : '—';
 }
 
 function renderStory(idx) {
@@ -522,10 +522,11 @@ function zoomToSection(sec) {
     ? `${sNs} empty · ${sPre} tracked · ${sPre ? (sNs/sPre*100).toFixed(0) : 0}% no-show`
     : `${sPre} tracked seats`;
   document.getElementById('sec-sub').classList.add('show');
+  const secPhantom = cg.secNs[sec] ? cg.secNs[sec] * 35 : 0;
   document.getElementById('sv-pre').textContent = sPre.toLocaleString();
   document.getElementById('sv-ns').textContent  = sNs.toLocaleString();
   document.getElementById('sv-rt').textContent  = sPre ? (sNs/sPre*100).toFixed(0)+'%' : '—';
-  document.getElementById('sv-dv').textContent  = '—';
+  document.getElementById('sv-dv').textContent  = secPhantom > 0 ? '$'+Math.round(secPhantom).toLocaleString() : '—';
 }
 
 function resetView() {

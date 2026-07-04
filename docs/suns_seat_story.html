@@ -195,7 +195,7 @@ circle.red:hover{ fill:#fff; }
     <div class="stat"><span class="sv" id="sv-pre">—</span><span class="sl">Secondary mkt seats</span></div>
     <div class="stat"><span class="sv rd" id="sv-ns">—</span><span class="sl">Empty at halftime</span></div>
     <div class="stat"><span class="sv rd" id="sv-rt">—</span><span class="sl">No-show rate</span></div>
-    <div class="stat"><span class="sv rd" id="sv-dv">—</span><span class="sl">Dead inventory</span></div>
+    <div class="stat"><span class="sv rd" id="sv-dv">—</span><span class="sl">Phantom Revenue</span></div>
   </div>
   <div class="scroll-hint">
     <span>scroll</span>
@@ -225,14 +225,14 @@ circle.red:hover{ fill:#fff; }
   <div class="chart-title">All tracked Suns games</div>
   <table class="comp-table">
     <thead>
-      <tr><th>Game</th><th>Opponent</th><th>Pre-game seats</th><th>Empty at halftime</th><th>Est. dead $</th></tr>
+      <tr><th>Game</th><th>Opponent</th><th>Pre-game seats</th><th>Empty at halftime</th><th>Phantom Revenue</th></tr>
     </thead>
     <tbody>
       <tr style="background:rgba(255,255,255,.03)">
-        <td>Apr 7</td><td><span class="dot-chip"></span>Houston Rockets</td><td>136</td><td class="hi">26 (19%)</td><td class="hi">$7,750</td>
+        <td>Apr 7</td><td><span class="dot-chip"></span>Houston Rockets</td><td>136</td><td class="hi">26 (19%)</td><td class="hi">$8,660</td>
       </tr>
       <tr style="background:rgba(255,255,255,.03)">
-        <td>Apr 8</td><td><span class="dot-chip"></span>Dallas Mavericks</td><td>74</td><td class="hi">10 (14%)</td><td class="hi">$4,022</td>
+        <td>Apr 8</td><td><span class="dot-chip"></span>Dallas Mavericks</td><td>74</td><td class="hi">10 (14%)</td><td class="hi">$4,372</td>
       </tr>
     </tbody>
   </table>
@@ -244,8 +244,8 @@ circle.red:hover{ fill:#fff; }
 </div><!-- #story-wrap -->
 <script>
 const STORY_DATA = [
-  {headlineSpan:"26",headlineRest:"seats went empty at halftime.",sub:"Every glowing dot is a seat listed on the secondary market before tip-off \u2014 and gone by halftime. At an average of $298/seat, that's $7,750 in dead inventory in a single game. Even at <strong>half their listed price</strong>, that's <strong>$12,875</strong> in potential revenue from a single game.",chartNote:"Every listed seat in these sections was empty by halftime.",chartTitle:"Top sections by no-shows \u00b7 4/7 \u00b7 Rockets",kicker:"Footprint Center \u00b7 vs. Houston Rockets \u00b7 Apr 7, 2026",topSecs:[{sec:"114",count:4,pct:100},{sec:"109",count:4,pct:100},{sec:"102",count:2,pct:50},{sec:"101",count:2,pct:50},{sec:"108F",count:2,pct:50},{sec:"227W",count:2,pct:50},{sec:"105",count:2,pct:50}]},
-  {headlineSpan:"10",headlineRest:"seats went empty at halftime.",sub:"Every glowing dot is a seat listed on the secondary market before tip-off \u2014 and gone by halftime. At an average of $402/seat, that's $4,022 in dead inventory in a single game. Even at <strong>half their listed price</strong>, that's <strong>$10,785</strong> in potential revenue from a single game.",chartNote:"Every listed seat in these sections was empty by halftime.",chartTitle:"Top sections by no-shows \u00b7 4/8 \u00b7 Mavericks",kicker:"Footprint Center \u00b7 vs. Dallas Mavericks \u00b7 Apr 8, 2026",topSecs:[{sec:"232",count:4,pct:100},{sec:"102",count:2,pct:50},{sec:"117F",count:2,pct:50},{sec:"104",count:2,pct:50}]}
+  {headlineSpan:"$8,660",headlineRest:"in phantom revenue.",sub:"26 seats listed pre-game were gone by halftime \u2014 <strong>$7,750</strong> in dead seat value (avg $298/seat) plus <strong>$910</strong> in estimated concession spend ($35/seat). That's <strong>$8,660 in phantom revenue</strong> from a single game.",chartNote:"Every listed seat in these sections was empty by halftime.",chartTitle:"Top sections by no-shows \u00b7 4/7 \u00b7 Rockets",kicker:"Footprint Center \u00b7 vs. Houston Rockets \u00b7 Apr 7, 2026",topSecs:[{sec:"114",count:4,pct:100},{sec:"109",count:4,pct:100},{sec:"101",count:2,pct:50},{sec:"119",count:2,pct:50},{sec:"113",count:2,pct:50},{sec:"116",count:2,pct:50},{sec:"103",count:2,pct:50}]},
+  {headlineSpan:"$4,372",headlineRest:"in phantom revenue.",sub:"10 seats listed pre-game were gone by halftime \u2014 <strong>$4,022</strong> in dead seat value (avg $402/seat) plus <strong>$350</strong> in estimated concession spend ($35/seat). That's <strong>$4,372 in phantom revenue</strong> from a single game.",chartNote:"Every listed seat in these sections was empty by halftime.",chartTitle:"Top sections by no-shows \u00b7 4/8 \u00b7 Mavericks",kicker:"Footprint Center \u00b7 vs. Dallas Mavericks \u00b7 Apr 8, 2026",topSecs:[{sec:"232",count:4,pct:100},{sec:"104",count:2,pct:50},{sec:"117F",count:2,pct:50},{sec:"102",count:2,pct:50}]}
 ];
 </script>
 
@@ -270,8 +270,8 @@ const SCALE_X = 0.0937500;
 const SCALE_Y = 0.0937500;
 const TEAM_COLOR = '#1d1160';
 const GAMES = [
-  {label:"4/7 \u00b7 Rockets",pre:136,ns:26,displayNs:26,rate:0.1912,dead:7750,nsKeys:new Set(["114_19_4", "109_8_1", "102_5_18", "101_15_11", "108F_D_8", "109_8_2", "227W_1_1", "109_14_2", "102_5_17", "105_27_3", "105_27_4", "113_10_9", "227W_1_2", "101_15_12", "114_13_18", "116_4_5", "116_4_6", "113_10_10", "108F_D_9", "114_13_17", "103_9_5", "103_9_6", "119_27C_5", "119_27C_6", "109_14_3", "114_19_3"]),preKeys:new Set(["109_8_1", "211_6_4", "114_1_10", "119_12_2", "213_6_5", "108F_D_8", "209_11_11", "215_2_14", "110_17_13", "109_8_2", "112_24_15", "231_6_20", "227W_1_1", "211_9_7", "102_5_17", "211_9_8", "228_11_2", "105_27_4", "211_7_17", "115_11_3", "232_7_3", "118_16_4", "216_13_16", "114_13_18", "107_17_2", "230_7_16", "108F_D_9", "111_18_10", "121_10_2", "232_7_2", "111_18_6", "213_7_1", "108_7_4", "114_10_9", "102_10_22", "108F_C_18", "215_7_16", "119_27C_5", "223_10_21", "102_9_5", "114_19_4", "120_14_12", "211_6_3", "216_13_15", "108_19_17", "116_8_4", "230_13_4", "230_5_19", "211W_1_1", "213_6_6", "225_12_17", "230_7_15", "231_5_23", "211W_1_2", "118_16_3", "103_11_4", "215_7_15", "212_8_19", "227W_1_2", "120_14_11", "108F_C_19", "116_4_5", "102_3_10", "212_8_20", "220_13_5", "106_28_15", "114_1_9", "119_27C_6", "102_9_6", "213_7_2", "211_9_10", "102_5_18", "230_13_1", "216_13_17", "102_10_21", "120_10_1", "107_11_16", "110_17_14", "105_27_3", "106_28_16", "114_1_7", "230_5_20", "114_1_8", "115_11_4", "232_7_4", "101_15_12", "211_10_5", "223_10_20", "111_18_11", "116_4_6", "113_10_10", "108_7_3", "114_13_17", "118_1_1", "103_9_5", "108_19_18", "215_2_15", "220_13_6", "108_7_18", "107_11_17", "109_14_3", "118_1_2", "114_19_3", "225_12_18", "111_18_7", "114_10_10", "111_24_16", "116_8_3", "228_11_1", "230_13_3", "101_15_11", "231_6_19", "211_7_18", "109_14_2", "230_13_2", "103_11_3", "107_17_1", "113_10_9", "102_3_9", "121_10_1", "232_7_1", "120_10_2", "209_11_12", "211_10_6", "108_19_19", "112_24_16", "108_7_19", "111_24_17", "211_9_9", "231_5_24", "227W_1_7", "103_9_6", "108_19_20", "227W_1_8", "216_13_18", "119_12_1"]),secPre:{"109": 4, "211": 10, "114": 10, "119": 4, "213": 4, "108F": 4, "209": 2, "215": 4, "110": 2, "112": 2, "231": 4, "227W": 4, "102": 8, "228": 2, "105": 2, "115": 2, "232": 4, "118": 4, "216": 4, "107": 4, "230": 8, "111": 6, "121": 2, "108": 8, "223": 2, "120": 4, "116": 4, "211W": 2, "225": 2, "103": 4, "212": 2, "220": 2, "106": 2, "101": 2, "113": 2},secNs:{"114": 4, "109": 4, "102": 2, "101": 2, "108F": 2, "227W": 2, "105": 2, "113": 2, "116": 2, "103": 2, "119": 2}},
-  {label:"4/8 \u00b7 Mavericks",pre:74,ns:10,displayNs:10,rate:0.1351,dead:4022,nsKeys:new Set(["232_7_2", "232_7_1", "102_5_17", "117F_C_3", "117F_C_4", "102_5_18", "104_9_2", "104_9_1", "232_7_3", "232_7_4"]),preKeys:new Set(["212_7_12", "204_2_7", "222_12_7", "222_12_8", "213_13_2", "226_6_12", "102_5_18", "114F_B_1", "222_13_7", "209_11_2", "222_13_8", "231_6_19", "231_6_20", "209_11_5", "217_10_3", "217_10_4", "219_12_12", "209_11_6", "102_5_17", "114F_B_2", "104_13_1", "104_9_1", "221_6_6", "226_9_11", "232_7_3", "232_7_4", "212_8_19", "217_10_9", "222_13_3", "222_13_4", "211_8_11", "229_8_9", "232_7_1", "209_11_7", "102_15_7", "123_4_7", "102_15_8", "123_4_8", "209_11_8", "219_12_11", "222_12_9", "226_9_10", "229_8_11", "104_13_2", "104_9_2", "212_7_11", "221_6_7", "118_12_5", "217_10_5", "217_10_10", "211_8_13", "226_6_11", "229_8_10", "217_10_6", "212_8_20", "232_7_2", "222_12_10", "118_12_6", "213_13_3", "204_2_6", "213_13_4", "117F_C_3", "117F_C_4", "211_8_14", "213_13_1", "222_13_5", "211_8_12", "209_11_3", "209_11_4", "217_10_7", "217_10_8", "222_13_6", "209_11_1", "229_8_12"]),secPre:{"212": 4, "204": 2, "222": 10, "213": 4, "226": 4, "102": 4, "114F": 2, "209": 8, "231": 2, "217": 8, "219": 2, "104": 4, "221": 2, "232": 4, "211": 4, "229": 4, "123": 2, "118": 2, "117F": 2},secNs:{"232": 4, "102": 2, "117F": 2, "104": 2}}
+  {label:"4/7 \u00b7 Rockets",pre:136,ns:26,displayNs:26,rate:0.1912,dead:7750,phantom:8660,nsKeys:new Set(["101_15_11", "114_13_18", "119_27C_5", "113_10_9", "109_14_2", "114_13_17", "114_19_4", "116_4_6", "114_19_3", "103_9_6", "109_8_1", "109_8_2", "119_27C_6", "227W_1_1", "227W_1_2", "102_5_18", "109_14_3", "113_10_10", "108F_D_9", "102_5_17", "105_27_4", "116_4_5", "105_27_3", "101_15_12", "108F_D_8", "103_9_5"]),preKeys:new Set(["114_13_18", "119_12_1", "120_14_12", "211_9_8", "109_14_2", "119_12_2", "212_8_20", "216_13_17", "114_19_4", "112_24_16", "211_10_5", "114_19_3", "114_1_8", "232_7_4", "108_7_19", "216_13_16", "232_7_3", "106_28_16", "102_10_22", "227W_1_2", "111_18_11", "220_13_5", "230_7_15", "230_5_19", "113_10_10", "227W_1_7", "108F_D_9", "108_7_3", "223_10_21", "111_18_7", "211_9_9", "116_4_5", "101_15_12", "114_1_7", "212_8_19", "121_10_2", "230_5_20", "103_11_4", "101_15_11", "225_12_17", "114_1_9", "119_27C_5", "216_13_18", "108_7_18", "108F_C_19", "120_14_11", "102_3_9", "230_13_1", "108_19_20", "111_18_10", "109_8_2", "227W_1_1", "230_13_2", "215_7_15", "211_10_6", "223_10_20", "211_9_7", "215_2_14", "118_1_2", "121_10_1", "114_10_9", "225_12_18", "231_6_20", "103_9_5", "220_13_6", "115_11_4", "108_19_17", "103_11_3", "211W_1_1", "108_19_19", "213_6_5", "118_16_4", "107_17_1", "102_9_5", "116_4_6", "211W_1_2", "107_17_2", "211_9_10", "120_10_1", "109_8_1", "211_6_4", "119_27C_6", "107_11_17", "215_7_16", "120_10_2", "228_11_2", "211_6_3", "230_7_16", "102_5_18", "110_17_14", "231_5_23", "109_14_3", "114_1_10", "231_6_19", "107_11_16", "102_5_17", "211_7_17", "116_8_4", "209_11_12", "102_3_10", "105_27_4", "213_7_1", "102_10_21", "116_8_3", "118_1_1", "230_13_4", "232_7_1", "213_7_2", "108_19_18", "108F_C_18", "232_7_2", "227W_1_8", "111_24_17", "113_10_9", "231_5_24", "115_11_3", "114_13_17", "111_24_16", "215_2_15", "118_16_3", "103_9_6", "112_24_15", "228_11_1", "114_10_10", "216_13_15", "106_28_15", "213_6_6", "102_9_6", "108_7_4", "211_7_18", "110_17_13", "111_18_6", "105_27_3", "108F_D_8", "230_13_3", "209_11_11"]),secPre:{"114": 10, "119": 4, "120": 4, "211": 10, "109": 4, "212": 2, "216": 4, "112": 2, "232": 4, "108": 8, "106": 2, "102": 8, "227W": 4, "111": 6, "220": 2, "230": 8, "113": 2, "108F": 4, "223": 2, "116": 4, "101": 2, "121": 2, "103": 4, "225": 2, "215": 4, "118": 4, "231": 4, "115": 2, "211W": 2, "213": 4, "107": 4, "228": 2, "110": 2, "209": 2, "105": 2},secNs:{"101": 2, "114": 4, "119": 2, "113": 2, "109": 4, "116": 2, "103": 2, "227W": 2, "102": 2, "108F": 2, "105": 2}},
+  {label:"4/8 \u00b7 Mavericks",pre:74,ns:10,displayNs:10,rate:0.1351,dead:4022,phantom:4372,nsKeys:new Set(["232_7_2", "104_9_2", "117F_C_3", "102_5_18", "232_7_4", "232_7_1", "104_9_1", "232_7_3", "117F_C_4", "102_5_17"]),preKeys:new Set(["232_7_2", "222_12_9", "222_13_7", "226_6_11", "209_11_2", "222_12_7", "209_11_7", "231_6_20", "217_10_7", "117F_C_4", "212_8_20", "204_2_7", "222_12_8", "117F_C_3", "222_13_5", "209_11_6", "213_13_4", "204_2_6", "217_10_6", "229_8_12", "211_8_12", "217_10_9", "232_7_4", "217_10_5", "104_9_1", "229_8_10", "213_13_3", "221_6_7", "118_12_5", "123_4_7", "232_7_3", "211_8_11", "114F_B_1", "104_9_2", "211_8_14", "221_6_6", "209_11_4", "226_9_10", "114F_B_2", "229_8_11", "217_10_4", "102_5_18", "209_11_3", "209_11_8", "212_7_12", "219_12_12", "217_10_3", "217_10_8", "222_12_10", "211_8_13", "102_15_7", "222_13_6", "226_9_11", "231_6_19", "102_5_17", "104_13_1", "212_7_11", "219_12_11", "104_13_2", "118_12_6", "123_4_8", "213_13_1", "229_8_9", "222_13_4", "226_6_12", "232_7_1", "222_13_3", "217_10_10", "209_11_5", "222_13_8", "213_13_2", "212_8_19", "102_15_8", "209_11_1"]),secPre:{"232": 4, "222": 10, "226": 4, "209": 8, "231": 2, "217": 8, "117F": 2, "212": 4, "204": 2, "213": 4, "229": 4, "211": 4, "104": 4, "221": 2, "118": 2, "123": 2, "114F": 2, "102": 4, "219": 2},secNs:{"232": 4, "104": 2, "117F": 2, "102": 2}}
 ];
 let currentGame = 1;
 
@@ -423,7 +423,7 @@ function updateStats() {
   document.getElementById('sv-pre').textContent = cg.pre.toLocaleString();
   document.getElementById('sv-ns').textContent  = cg.displayNs.toLocaleString();
   document.getElementById('sv-rt').textContent  = cg.ns > 0 ? (cg.rate*100).toFixed(1)+'%' : '—';
-  document.getElementById('sv-dv').textContent  = cg.dead > 0 ? '$'+Math.round(cg.dead).toLocaleString() : '—';
+  document.getElementById('sv-dv').textContent  = cg.phantom > 0 ? '$'+Math.round(cg.phantom).toLocaleString() : '—';
 }
 
 function renderStory(idx) {
@@ -528,10 +528,11 @@ function zoomToSection(sec) {
     ? `${sNs} empty · ${sPre} tracked · ${sPre ? (sNs/sPre*100).toFixed(0) : 0}% no-show`
     : `${sPre} tracked seats`;
   document.getElementById('sec-sub').classList.add('show');
+  const secPhantom = cg.secNs[sec] ? cg.secNs[sec] * 35 : 0;
   document.getElementById('sv-pre').textContent = sPre.toLocaleString();
   document.getElementById('sv-ns').textContent  = sNs.toLocaleString();
   document.getElementById('sv-rt').textContent  = sPre ? (sNs/sPre*100).toFixed(0)+'%' : '—';
-  document.getElementById('sv-dv').textContent  = '—';
+  document.getElementById('sv-dv').textContent  = secPhantom > 0 ? '$'+Math.round(secPhantom).toLocaleString() : '—';
 }
 
 function resetView() {

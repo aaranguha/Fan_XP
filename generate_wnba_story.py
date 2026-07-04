@@ -200,6 +200,8 @@ def load_game(slug: str, folder: str) -> dict | None:
     return {"folder": folder, "meta": meta, "pre": pre, "mid": mid, "noshows": ns}
 
 
+CONCESSION_PER_SEAT = 35
+
 def load_games_from_supabase(slug: str) -> list[dict]:
     """Load all game data for a team from Supabase (primary data source)."""
     games_meta = supabase_client.fetch_games_for_team(slug, league="wnba")
@@ -211,6 +213,9 @@ def load_games_from_supabase(slug: str) -> list[dict]:
             continue
         mid_count = supabase_client.count_listings(game_id, "halftime")
         no_shows  = supabase_client.fetch_no_shows_for_game(game_id)
+        ns_value  = sum(float(r.get("price_usd") or 0) for r in no_shows)
+        ns_count  = len(no_shows)
+        phantom   = ns_value + ns_count * CONCESSION_PER_SEAT
         games.append({
             "folder":     g.get("game_date", ""),
             "meta": {
@@ -227,6 +232,7 @@ def load_games_from_supabase(slug: str) -> list[dict]:
             "noshows":   no_shows,
             "pre_count": pre_count,
             "mid_count": mid_count,
+            "phantom":   phantom,
         })
     return games
 
@@ -259,6 +265,7 @@ def analyse_games(games: list[dict]) -> dict:
             sec = r.get("section", "Unknown").strip()
             sec_totals[sec]["pre"] += 1
 
+        phantom = g.get("phantom", ns_value + ns_count * CONCESSION_PER_SEAT)
         per_game.append({
             "folder":      g["folder"],
             "date":        meta.get("game_date", ""),
@@ -268,6 +275,7 @@ def analyse_games(games: list[dict]) -> dict:
             "mid_count":   mid_count,
             "ns_count":    ns_count,
             "ns_value":    ns_value,
+            "phantom":     phantom,
             "noshow_rate": noshow_rate,
             "has_mid":     mid_count > 0,
         })
@@ -323,12 +331,15 @@ def generate_html(slug: str) -> str:
     per_game = sorted(stats["per_game"], key=lambda g: g["date"], reverse=True)
     arena_svg_str = _arena_svg(stats.get("sec_totals", {})) if has_data else ""
 
+    total_phantom = sum(g["phantom"] for g in per_game if g["has_mid"])
+    best_game     = max((g for g in per_game if g["has_mid"] and g["phantom"] > 0), key=lambda g: g["phantom"], default=None)
+
     rows_html = ""
     for g in per_game:
-        rate_str = f"{g['noshow_rate']*100:.0f}%" if g["has_mid"] else "—"
-        val_str  = f"${g['ns_value']:,.0f}" if g["has_mid"] else "—"
-        ns_str   = str(g["ns_count"]) if g["has_mid"] else "—"
-        date_fmt = g["date"]
+        rate_str    = f"{g['noshow_rate']*100:.0f}%" if g["has_mid"] else "—"
+        phantom_str = f"${g['phantom']:,.0f}" if g["has_mid"] else "—"
+        ns_str      = str(g["ns_count"]) if g["has_mid"] else "—"
+        date_fmt    = g["date"]
         try:
             date_fmt = datetime.strptime(g["date"], "%Y-%m-%d").strftime("%b %-d, %Y")
         except Exception:
@@ -342,7 +353,7 @@ def generate_html(slug: str) -> str:
           <td>{g['mid_count'] if g['has_mid'] else '—'}</td>
           <td class="hl">{ns_str}</td>
           <td class="hl">{rate_str}</td>
-          <td>{val_str}</td>
+          <td class="hl">{phantom_str}</td>
         </tr>"""
 
     sec_html = ""
@@ -427,6 +438,8 @@ def generate_html(slug: str) -> str:
     td.hl {{ color: var(--accent); font-weight: 700; }}
     .tbl-wrap {{ background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }}
     .footer {{ margin-top: 60px; font-size: 12px; color: var(--muted); text-align: center; }}
+    .phantom-alert {{ background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.12); border-left: 3px solid var(--accent); border-radius: 12px; padding: 16px 20px; margin-bottom: 40px; font-size: 14px; color: var(--muted); line-height: 1.6; }}
+    .phantom-alert strong {{ color: var(--white); }}
     .arena-wrap {{ background: #07090f; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 40px; }}
     .arena-wrap svg {{ width: 100%; height: auto; display: block; }}
     .sec {{ cursor: pointer; transition: filter .08s; }}
@@ -457,11 +470,12 @@ def generate_html(slug: str) -> str:
 
   <div class="kpi-grid">
     <div class="kpi"><div class="kpi-val">{total_games}</div><div class="kpi-label">Games tracked</div></div>
-    <div class="kpi"><div class="kpi-val">{tracked_games}</div><div class="kpi-label">With halftime data</div></div>
-    <div class="kpi"><div class="kpi-val">{stats['avg_rate']*100:.0f}%</div><div class="kpi-label">Avg no-show rate</div></div>
-    <div class="kpi"><div class="kpi-val">${stats['avg_value']:,.0f}</div><div class="kpi-label">Avg value/game</div></div>
     <div class="kpi"><div class="kpi-val">{stats['total_ns']:,}</div><div class="kpi-label">Total no-show seats</div></div>
+    <div class="kpi"><div class="kpi-val">{stats['avg_rate']*100:.0f}%</div><div class="kpi-label">Avg no-show rate</div></div>
+    <div class="kpi" style="border-color:rgba(255,255,255,.18)"><div class="kpi-val" style="color:{color}">${total_phantom:,.0f}</div><div class="kpi-label">Total phantom revenue</div></div>
+    <div class="kpi" style="border-color:rgba(255,255,255,.18)"><div class="kpi-val" style="color:{color}">${stats['avg_value'] + 35 * (stats['total_ns'] / max(tracked_games, 1)):,.0f}</div><div class="kpi-label">Avg phantom / game</div></div>
   </div>
+  {'<div class="phantom-alert">Your arena lost <strong>$' + f"{best_game['phantom']:,.0f}" + '</strong> in phantom revenue — <strong>' + str(best_game['ns_count']) + ' no-shows × seat price + $35 concession spend</strong> — during the ' + (datetime.strptime(best_game["date"], "%Y-%m-%d").strftime("%b %-d") if best_game else "") + ' game vs ' + (best_game["opponent"] if best_game else "") + '.</div>' if best_game else ""}
 
   <div class="arena-wrap">
     <svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg">{arena_svg_str}</svg>
@@ -476,7 +490,7 @@ def generate_html(slug: str) -> str:
     <div class="tbl-wrap">
       <table>
         <thead>
-          <tr><th>Date</th><th>Opponent</th><th>Pre-game</th><th>Halftime</th><th>No-shows</th><th>Rate</th><th>Value</th></tr>
+          <tr><th>Date</th><th>Opponent</th><th>Pre-game</th><th>Halftime</th><th>No-shows</th><th>Rate</th><th>Phantom Revenue</th></tr>
         </thead>
         <tbody>{rows_html if rows_html else '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px">No games yet</td></tr>'}</tbody>
       </table>

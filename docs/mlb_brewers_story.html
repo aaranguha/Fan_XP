@@ -1,193 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FanXP — Brewers Seat Intelligence</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FanXP — Brewers</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg:     #04060f;
-      --card:   #0b1221;
-      --border: rgba(255,255,255,0.08);
-      --accent: #12284B;
-      --white:  #eef2ff;
-      --muted:  rgba(220,228,255,0.5);
-      --font:   'Inter', sans-serif;
-    }
-    body { font-family: var(--font); background: var(--bg); color: var(--white); line-height: 1.6; padding: 40px 20px; }
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .back { font-size: 13px; color: var(--muted); margin-bottom: 32px; display: block; }
-    .hero { margin-bottom: 40px; }
-    .hero-tag { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
-    .hero h1 { font-size: clamp(28px, 5vw, 48px); font-weight: 900; margin-bottom: 6px; }
-    .hero .sub { color: var(--muted); font-size: 15px; }
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 40px; }
-    .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
-    .kpi-val { font-size: 32px; font-weight: 900; color: var(--accent); }
-    .kpi-label { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .section { margin-bottom: 40px; }
-    .section h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; border-left: 3px solid var(--accent); padding-left: 12px; }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--border); }
-    td { padding: 12px; border-bottom: 1px solid var(--border); color: var(--white); }
-    tr:last-child td { border-bottom: none; }
-    td.hl { color: var(--accent); font-weight: 700; }
-    .tbl-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }
-    .footer { margin-top: 60px; font-size: 12px; color: var(--muted); text-align: center; }
+    body { font-family: 'Inter', sans-serif; background: #04060f; color: #eef2ff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 40px; }
+    a { color: #12284B; text-decoration: none; }
+    .back { font-size: 13px; color: rgba(220,228,255,.5); position: absolute; top: 32px; left: 32px; }
+    .emoji { font-size: 64px; margin-bottom: 20px; }
+    h1 { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
+    p { color: rgba(220,228,255,.5); font-size: 15px; max-width: 340px; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #12284B; margin-right: 8px; animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .status { margin-top: 28px; font-size: 13px; font-weight: 600; color: #12284B; }
   </style>
 </head>
 <body>
-  <a class="back" href="/">← Back to FanXP</a>
-
-  <div class="hero">
-    <div class="hero-tag">MLB · Milwaukee · American Family Field</div>
-    <h1>Brewers Seat Intelligence</h1>
-    <p class="sub">Secondary-market no-show tracking: pre-game vs. mid-game listings</p>
-  </div>
-
-  <div class="kpi-grid">
-    <div class="kpi">
-      <div class="kpi-val">3</div>
-      <div class="kpi-label">Games tracked</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-val">2</div>
-      <div class="kpi-label">With mid-game data</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-val">84%</div>
-      <div class="kpi-label">Avg no-show rate</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-val">$0</div>
-      <div class="kpi-label">Avg no-show value/game</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-val">236</div>
-      <div class="kpi-label">Total no-show seats</div>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Game Log</h2>
-    <div class="tbl-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th><th>Opponent</th><th>Pre-game</th><th>Mid-game</th>
-            <th>No-shows</th><th>Rate</th><th>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-        <tr>
-          <td>Jul 1, 2026</td>
-          <td>vs Cincinnati Reds</td>
-          <td>106</td>
-          <td>106</td>
-          <td class="hl">100</td>
-          <td class="hl">94%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>Jun 30, 2026</td>
-          <td>vs Cincinnati Reds</td>
-          <td>186</td>
-          <td>156</td>
-          <td class="hl">136</td>
-          <td class="hl">73%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>Jun 29, 2026</td>
-          <td>vs Cincinnati Reds</td>
-          <td>324</td>
-          <td>—</td>
-          <td class="hl">—</td>
-          <td class="hl">—</td>
-          <td>—</td>
-        </tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Top No-Show Sections</h2>
-    <div class="tbl-wrap">
-      <table>
-        <thead>
-          <tr><th>Section</th><th>No-show seats</th><th>Rate</th><th>Total value</th></tr>
-        </thead>
-        <tbody>
-        <tr>
-          <td>122</td>
-          <td>24</td>
-          <td>100%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>111</td>
-          <td>20</td>
-          <td>100%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>123</td>
-          <td>20</td>
-          <td>100%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>124</td>
-          <td>20</td>
-          <td>100%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>120</td>
-          <td>18</td>
-          <td>100%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>119</td>
-          <td>16</td>
-          <td>100%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>225</td>
-          <td>10</td>
-          <td>100%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>115</td>
-          <td>8</td>
-          <td>100%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>103</td>
-          <td>6</td>
-          <td>100%</td>
-          <td>$0</td>
-        </tr>
-        <tr>
-          <td>125</td>
-          <td>6</td>
-          <td>100%</td>
-          <td>$0</td>
-        </tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="footer">
-    Generated by FanXP · Jul 3, 2026
-  </div>
+  <a class="back" href="mlb.html">← All MLB Teams</a>
+  <div class="emoji">⚾</div>
+  <h1>Brewers</h1>
+  <p>American Family Field · Milwaukee</p>
+  <p style="margin-top:16px">No game data collected yet. The runner checks for home games daily and will populate this page automatically.</p>
+  <div class="status"><span class="dot"></span>Monitoring for next home game</div>
 </body>
 </html>
