@@ -1,27 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FanXP — Mariners</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FanXP — Mariners Seat Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: 'Inter', sans-serif; background: #04060f; color: #eef2ff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 40px; }
-    a { color: #0C2C56; text-decoration: none; }
-    .back { font-size: 13px; color: rgba(220,228,255,.5); position: absolute; top: 32px; left: 32px; }
-    .emoji { font-size: 64px; margin-bottom: 20px; }
-    h1 { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
-    p { color: rgba(220,228,255,.5); font-size: 15px; max-width: 340px; }
-    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #0C2C56; margin-right: 8px; animation: pulse 1.4s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-    .status { margin-top: 28px; font-size: 13px; font-weight: 600; color: #0C2C56; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #04060f;
+      --card:   #0b1221;
+      --border: rgba(255,255,255,0.08);
+      --accent: #0C2C56;
+      --white:  #eef2ff;
+      --muted:  rgba(220,228,255,0.5);
+      --font:   'Inter', sans-serif;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--white); line-height: 1.6; padding: 40px 20px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .back { font-size: 13px; color: var(--muted); margin-bottom: 32px; display: block; }
+    .hero { margin-bottom: 40px; }
+    .hero-tag { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+    .hero h1 { font-size: clamp(28px, 5vw, 48px); font-weight: 900; margin-bottom: 6px; }
+    .hero .sub { color: var(--muted); font-size: 15px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 40px; }
+    .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+    .kpi-val { font-size: 32px; font-weight: 900; color: var(--accent); }
+    .kpi-label { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .section { margin-bottom: 40px; }
+    .section h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; border-left: 3px solid var(--accent); padding-left: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 12px; border-bottom: 1px solid var(--border); color: var(--white); }
+    tr:last-child td { border-bottom: none; }
+    td.hl { color: var(--accent); font-weight: 700; }
+    .tbl-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }
+    .footer { margin-top: 60px; font-size: 12px; color: var(--muted); text-align: center; }
+    .phantom-alert { background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.12); border-left: 3px solid var(--accent); border-radius: 12px; padding: 16px 20px; margin-bottom: 40px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .phantom-alert strong { color: var(--white); }
   </style>
 </head>
 <body>
-  <a class="back" href="mlb.html">← All MLB Teams</a>
-  <div class="emoji">⚾</div>
-  <h1>Mariners</h1>
-  <p>T-Mobile Park · Seattle</p>
-  <p style="margin-top:16px">No game data collected yet. The runner checks for home games daily and will populate this page automatically.</p>
-  <div class="status"><span class="dot"></span>Monitoring for next home game</div>
+  <a class="back" href="/">← Back to FanXP</a>
+
+  <div class="hero">
+    <div class="hero-tag">MLB · Seattle · T-Mobile Park</div>
+    <h1>Mariners Seat Intelligence</h1>
+    <p class="sub">Secondary-market no-show tracking: pre-game vs. mid-game listings</p>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-val">1</div>
+      <div class="kpi-label">Games tracked</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">142</div>
+      <div class="kpi-label">Total no-show seats</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">39%</div>
+      <div class="kpi-label">Avg no-show rate</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">$19,922</div>
+      <div class="kpi-label">Avg seat value / game</div>
+    </div>
+    <div class="kpi" style="border-color:rgba(255,255,255,.18)">
+      <div class="kpi-val" style="color:#0C2C56">$24,892</div>
+      <div class="kpi-label">Total phantom revenue</div>
+    </div>
+    <div class="kpi" style="border-color:rgba(255,255,255,.18)">
+      <div class="kpi-val" style="color:#0C2C56">$24,892</div>
+      <div class="kpi-label">Avg phantom / game</div>
+    </div>
+  </div>
+  <div class="phantom-alert">Your stadium lost <strong>$24,892</strong> in phantom revenue — <strong>142 no-shows × seat price + $35 concession spend</strong> — during the Jul 3 game vs Toronto Blue Jays.</div>
+
+  <div class="section">
+    <h2>Game Log</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Opponent</th><th>Pre-game</th><th>Mid-game</th>
+            <th>No-shows</th><th>Rate</th><th>Seat value</th><th>Phantom Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td>Jul 3, 2026</td>
+          <td>vs Toronto Blue Jays</td>
+          <td>361</td>
+          <td>145</td>
+          <td class="hl">142</td>
+          <td class="hl">39%</td>
+          <td>$19,922</td>
+          <td class="hl">$24,892</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Top No-Show Sections</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Section</th><th>No-show seats</th><th>Rate</th><th>Total value</th></tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td>248</td>
+          <td>34</td>
+          <td>42%</td>
+          <td>$3,928</td>
+        </tr>
+        <tr>
+          <td>249</td>
+          <td>31</td>
+          <td>78%</td>
+          <td>$3,582</td>
+        </tr>
+        <tr>
+          <td>120</td>
+          <td>16</td>
+          <td>44%</td>
+          <td>$2,862</td>
+        </tr>
+        <tr>
+          <td>247</td>
+          <td>14</td>
+          <td>24%</td>
+          <td>$1,618</td>
+        </tr>
+        <tr>
+          <td>140</td>
+          <td>8</td>
+          <td>19%</td>
+          <td>$1,087</td>
+        </tr>
+        <tr>
+          <td>128</td>
+          <td>5</td>
+          <td>29%</td>
+          <td>$894</td>
+        </tr>
+        <tr>
+          <td>139</td>
+          <td>3</td>
+          <td>38%</td>
+          <td>$537</td>
+        </tr>
+        <tr>
+          <td>141</td>
+          <td>3</td>
+          <td>20%</td>
+          <td>$408</td>
+        </tr>
+        <tr>
+          <td>122</td>
+          <td>2</td>
+          <td>100%</td>
+          <td>$358</td>
+        </tr>
+        <tr>
+          <td>133</td>
+          <td>2</td>
+          <td>100%</td>
+          <td>$358</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    Generated by FanXP · Jul 4, 2026
+  </div>
 </body>
 </html>

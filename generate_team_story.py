@@ -371,11 +371,13 @@ def gen_story_html(team_slug, games_data, color):
         opp_display = g["opp"].split("(")[0].strip() if g["opp"] else g["folder"].replace("_", " ").title()
         if g["ns"] > 0:
             ns_cell      = f'<td class="hi">{g["ns"]:,} ({g["rate"]:.0%})</td>'
+            dead_cell    = f'<td class="hi">${g["dead"]:,.0f}</td>'
             phantom_cell = f'<td class="hi">${g["phantom"]:,.0f}</td>'
             row_style = ' style="background:rgba(255,255,255,.03)"'
             chip = '<span class="dot-chip"></span>'
         else:
             ns_cell      = '<td style="color:rgba(200,185,185,.3)">—</td>'
+            dead_cell    = '<td style="color:rgba(200,185,185,.3)">—</td>'
             phantom_cell = '<td style="color:rgba(200,185,185,.3)">—</td>'
             row_style = ""
             chip = ""
@@ -384,7 +386,7 @@ def gen_story_html(team_slug, games_data, color):
             date_disp = d.strftime("%b %-d")
         except Exception:
             date_disp = g["date"]
-        table_rows += f'      <tr{row_style}>\n        <td>{date_disp}</td><td>{chip}{opp_display}</td><td>{g["pre"]:,}</td>{ns_cell}{phantom_cell}\n      </tr>\n'
+        table_rows += f'      <tr{row_style}>\n        <td>{date_disp}</td><td>{chip}{opp_display}</td><td>{g["pre"]:,}</td>{ns_cell}{dead_cell}{phantom_cell}\n      </tr>\n'
 
     return f"""
 <!-- ── Story Section ─────────────────────────────────────────────────────── -->
@@ -408,7 +410,7 @@ def gen_story_html(team_slug, games_data, color):
   <div class="chart-title">All tracked {name} games</div>
   <table class="comp-table">
     <thead>
-      <tr><th>Game</th><th>Opponent</th><th>Pre-game seats</th><th>Empty at halftime</th><th>Phantom Revenue</th></tr>
+      <tr><th>Game</th><th>Opponent</th><th>Pre-game seats</th><th>Empty at halftime</th><th>Dead inventory</th><th>Phantom Revenue</th></tr>
     </thead>
     <tbody>
 {table_rows}    </tbody>
@@ -700,7 +702,8 @@ circle.red:hover{{ fill:#fff; }}
     <div class="stat"><span class="sv" id="sv-pre">—</span><span class="sl">Secondary mkt seats</span></div>
     <div class="stat"><span class="sv rd" id="sv-ns">—</span><span class="sl">Empty at halftime</span></div>
     <div class="stat"><span class="sv rd" id="sv-rt">—</span><span class="sl">No-show rate</span></div>
-    <div class="stat"><span class="sv rd" id="sv-dv">—</span><span class="sl">Phantom Revenue</span></div>
+    <div class="stat"><span class="sv rd" id="sv-dv">—</span><span class="sl">Dead inventory</span></div>
+    <div class="stat"><span class="sv rd" id="sv-ph">—</span><span class="sl">Phantom Revenue</span></div>
   </div>
   <div class="scroll-hint">
     <span>scroll</span>
@@ -880,7 +883,8 @@ function updateStats() {{
   document.getElementById('sv-pre').textContent = cg.pre.toLocaleString();
   document.getElementById('sv-ns').textContent  = cg.displayNs.toLocaleString();
   document.getElementById('sv-rt').textContent  = cg.ns > 0 ? (cg.rate*100).toFixed(1)+'%' : '—';
-  document.getElementById('sv-dv').textContent  = cg.phantom > 0 ? '$'+Math.round(cg.phantom).toLocaleString() : '—';
+  document.getElementById('sv-dv').textContent  = cg.dead > 0 ? '$'+Math.round(cg.dead).toLocaleString() : '—';
+  document.getElementById('sv-ph').textContent  = cg.phantom > 0 ? '$'+Math.round(cg.phantom).toLocaleString() : '—';
 }}
 
 function renderStory(idx) {{
@@ -985,11 +989,11 @@ function zoomToSection(sec) {{
     ? `${{sNs}} empty · ${{sPre}} tracked · ${{sPre ? (sNs/sPre*100).toFixed(0) : 0}}% no-show`
     : `${{sPre}} tracked seats`;
   document.getElementById('sec-sub').classList.add('show');
-  const secPhantom = cg.secNs[sec] ? cg.secNs[sec] * 35 : 0;
   document.getElementById('sv-pre').textContent = sPre.toLocaleString();
   document.getElementById('sv-ns').textContent  = sNs.toLocaleString();
   document.getElementById('sv-rt').textContent  = sPre ? (sNs/sPre*100).toFixed(0)+'%' : '—';
-  document.getElementById('sv-dv').textContent  = secPhantom > 0 ? '$'+Math.round(secPhantom).toLocaleString() : '—';
+  document.getElementById('sv-dv').textContent  = '—';
+  document.getElementById('sv-ph').textContent  = sNs > 0 ? '$'+(sNs*35).toLocaleString()+' est.' : '—';
 }}
 
 function resetView() {{

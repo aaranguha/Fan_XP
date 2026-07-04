@@ -217,6 +217,7 @@ def generate_html(slug: str) -> str:
     rows_html = ""
     for g in per_game:
         rate_str    = f"{g['noshow_rate']*100:.0f}%" if g["has_mid"] else "—"
+        val_str     = f"${g['ns_value']:,.0f}" if g["has_mid"] else "—"
         phantom_str = f"${g['phantom']:,.0f}" if g["has_mid"] else "—"
         ns_str      = str(g["ns_count"]) if g["has_mid"] else "—"
         date_fmt    = g["date"]
@@ -233,6 +234,7 @@ def generate_html(slug: str) -> str:
           <td>{g['mid_count'] if g['has_mid'] else '—'}</td>
           <td class="hl">{ns_str}</td>
           <td class="hl">{rate_str}</td>
+          <td>{val_str}</td>
           <td class="hl">{phantom_str}</td>
         </tr>"""
 
@@ -346,6 +348,10 @@ def generate_html(slug: str) -> str:
       <div class="kpi-val">{stats['avg_rate']*100:.0f}%</div>
       <div class="kpi-label">Avg no-show rate</div>
     </div>
+    <div class="kpi">
+      <div class="kpi-val">${stats['avg_value']:,.0f}</div>
+      <div class="kpi-label">Avg seat value / game</div>
+    </div>
     <div class="kpi" style="border-color:rgba(255,255,255,.18)">
       <div class="kpi-val" style="color:{color}">${total_phantom:,.0f}</div>
       <div class="kpi-label">Total phantom revenue</div>
@@ -364,7 +370,7 @@ def generate_html(slug: str) -> str:
         <thead>
           <tr>
             <th>Date</th><th>Opponent</th><th>Pre-game</th><th>Mid-game</th>
-            <th>No-shows</th><th>Rate</th><th>Phantom Revenue</th>
+            <th>No-shows</th><th>Rate</th><th>Seat value</th><th>Phantom Revenue</th>
           </tr>
         </thead>
         <tbody>{rows_html}</tbody>
