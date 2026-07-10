@@ -1,26 +1,300 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FanXP — Phoenix Mercury</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FanXP — Phoenix Mercury Seat Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: 'Inter', sans-serif; background: #04060f; color: #eef2ff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 40px; }
-    .back { font-size: 13px; color: rgba(220,228,255,.5); position: absolute; top: 32px; left: 32px; text-decoration: none; color: rgba(220,228,255,.5); }
-    .emoji { font-size: 64px; margin-bottom: 20px; }
-    h1 { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
-    p { color: rgba(220,228,255,.5); font-size: 15px; max-width: 340px; }
-    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #CB6015; margin-right: 8px; animation: pulse 1.4s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-    .status { margin-top: 28px; font-size: 13px; font-weight: 600; color: #CB6015; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #04060f;
+      --card:   #0b1221;
+      --border: rgba(255,255,255,0.08);
+      --accent: #CB6015;
+      --white:  #eef2ff;
+      --muted:  rgba(220,228,255,0.5);
+      --font:   'Inter', sans-serif;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--white); line-height: 1.6; padding: 40px 20px; max-width: 1100px; margin: 0 auto; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .back { font-size: 13px; color: var(--muted); margin-bottom: 32px; display: block; }
+    .hero { margin-bottom: 40px; }
+    .hero-tag { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+    .hero h1 { font-size: clamp(28px, 5vw, 48px); font-weight: 900; margin-bottom: 6px; }
+    .hero .sub { color: var(--muted); font-size: 15px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 40px; }
+    .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+    .kpi-val { font-size: 32px; font-weight: 900; color: var(--accent); }
+    .kpi-label { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .section { margin-bottom: 40px; }
+    .section h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; border-left: 3px solid var(--accent); padding-left: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 12px; border-bottom: 1px solid var(--border); color: var(--white); }
+    tr:last-child td { border-bottom: none; }
+    td.hl { color: var(--accent); font-weight: 700; }
+    .tbl-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }
+    .footer { margin-top: 60px; font-size: 12px; color: var(--muted); text-align: center; }
+    .phantom-alert { background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.12); border-left: 3px solid var(--accent); border-radius: 12px; padding: 16px 20px; margin-bottom: 40px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .phantom-alert strong { color: var(--white); }
+    .arena-wrap { background: #07090f; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 40px; }
+    .arena-wrap svg { width: 100%; height: auto; display: block; }
+    .sec { cursor: pointer; transition: filter .08s; }
+    .sec:hover, .sec.on { filter: brightness(1.3) drop-shadow(0 0 4px rgba(255,255,255,.3)); stroke: #fff !important; stroke-width: 2px !important; }
+    .arena-legend { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+    .arena-legend .lb { width: 120px; height: 8px; border-radius: 4px; background: linear-gradient(90deg,#16a34a,#d97706,#dc2626); }
+    .arena-legend .lnd { width: 18px; height: 8px; border-radius: 3px; background: #1e293b; }
+    #tt { position: fixed; z-index: 99; pointer-events: none; display: none; min-width: 180px;
+      background: rgba(3,6,16,.97); border: 1px solid rgba(0,245,255,.15); border-radius: 12px;
+      padding: 12px 15px; backdrop-filter: blur(20px); box-shadow: 0 12px 40px rgba(0,0,0,.8); }
+    .th { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .tn { font-size: .78rem; font-weight: 800; color: var(--accent); }
+    .tv { font-size: .95rem; font-weight: 900; }
+    hr.td { border: none; border-top: 1px solid rgba(255,255,255,.06); margin: 0 0 7px; }
+    .tr { display: flex; justify-content: space-between; margin-bottom: 2px; }
+    .tk { font-size: .67rem; color: var(--muted); }
+    .tw { font-size: .73rem; font-weight: 600; }
   </style>
 </head>
 <body>
   <a class="back" href="wnba.html">← All WNBA Teams</a>
-  <div class="emoji">🏀</div>
-  <h1>Phoenix Mercury</h1>
-  <p>Footprint Center · Phoenix</p>
-  <p style="margin-top:16px">No game data yet. The runner checks for home games daily and will populate this page automatically.</p>
-  <div class="status"><span class="dot"></span>Monitoring for next home game</div>
+
+  <div class="hero">
+    <div class="hero-tag">WNBA · Phoenix · Footprint Center</div>
+    <h1>Phoenix Mercury Seat Intelligence</h1>
+    <p class="sub">Secondary-market no-show tracking: pre-game vs. halftime listings</p>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-val">1</div><div class="kpi-label">Games tracked</div></div>
+    <div class="kpi"><div class="kpi-val">134</div><div class="kpi-label">Total no-show seats</div></div>
+    <div class="kpi"><div class="kpi-val">45%</div><div class="kpi-label">Avg no-show rate</div></div>
+    <div class="kpi"><div class="kpi-val">$0</div><div class="kpi-label">Avg seat value / game</div></div>
+    <div class="kpi" style="border-color:rgba(255,255,255,.18)"><div class="kpi-val" style="color:#CB6015">$4,690</div><div class="kpi-label">Total phantom revenue</div></div>
+    <div class="kpi" style="border-color:rgba(255,255,255,.18)"><div class="kpi-val" style="color:#CB6015">$4,690</div><div class="kpi-label">Avg phantom / game</div></div>
+  </div>
+  <div class="phantom-alert">Your arena lost <strong>$4,690</strong> in phantom revenue — <strong>134 no-shows × seat price + $35 concession spend</strong> — during the Jul 9 game vs Indiana Fever.</div>
+
+  <div class="arena-wrap">
+    <svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg"><rect width="900" height="620" fill="#07090f"/>
+<ellipse cx="450" cy="310" rx="288" ry="200" fill="#10182a"/>
+<path d="M236.0,311.3 A214,147 0 0,1 297.4,413.0 L248.9,446.0 A282,194 0 0,0 168.0,311.7Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="202" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<path d="M300.0,414.8 A214,147 0 0,1 448.1,457.0 L447.5,504.0 A282,194 0 0,0 252.3,448.4Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="203" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<path d="M451.9,457.0 A214,147 0 0,1 600.0,414.8 L647.7,448.4 A282,194 0 0,0 452.5,504.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="211" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<path d="M602.6,413.0 A214,147 0 0,1 664.0,311.3 L732.0,311.7 A282,194 0 0,0 651.1,446.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="214" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<path d="M664.0,308.7 A214,147 0 0,1 602.6,207.0 L651.1,174.0 A282,194 0 0,0 732.0,308.3Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="218" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<path d="M600.0,205.2 A214,147 0 0,1 451.9,163.0 L452.5,116.0 A282,194 0 0,0 647.7,171.6Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="221W" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<path d="M448.1,163.0 A214,147 0 0,1 300.0,205.2 L252.3,171.6 A282,194 0 0,0 447.5,116.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="224" data-pre="0" data-ns="4" data-r="N/A" data-v="N/A" class="sec"/>
+<path d="M297.4,207.0 A214,147 0 0,1 236.0,308.7 L168.0,308.3 A282,194 0 0,0 248.9,174.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="228" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<ellipse cx="450" cy="310" rx="214" ry="147" fill="#0c1422"/>
+<ellipse cx="450" cy="310" rx="206" ry="142" fill="#10182a"/>
+<path d="M322.0,311.1 A128,80 0 0,1 325.9,329.6 L250.3,344.8 A206,142 0 0,0 244.0,312.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="101" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="284" y="324" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">101</text>
+<path d="M326.8,331.8 A128,80 0 0,1 338.3,349.0 L270.2,379.3 A206,142 0 0,0 251.8,348.7Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="101F" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="296" y="352" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">101F</text>
+<path d="M340.1,351.0 A128,80 0 0,1 358.2,365.8 L302.3,409.0 A206,142 0 0,0 273.1,382.7Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="102" data-pre="0" data-ns="16" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="318" y="378" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">102</text>
+<path d="M360.8,367.4 A128,80 0 0,1 384.5,378.7 L344.5,432.0 A206,142 0 0,0 306.4,411.8Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="103" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="348" y="398" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">103</text>
+<path d="M387.6,379.8 A128,80 0 0,1 415.1,387.0 L393.9,446.6 A206,142 0 0,0 349.5,434.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="104" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="386" y="413" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">104</text>
+<path d="M418.6,387.6 A128,80 0 0,1 448.2,390.0 L447.1,452.0 A206,142 0 0,0 399.5,447.7Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="105" data-pre="0" data-ns="6" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="428" y="420" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">105</text>
+<path d="M451.8,390.0 A128,80 0 0,1 481.4,387.6 L500.5,447.7 A206,142 0 0,0 452.9,452.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="106" data-pre="0" data-ns="6" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="472" y="420" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">106</text>
+<path d="M484.9,387.0 A128,80 0 0,1 512.4,379.8 L550.5,434.0 A206,142 0 0,0 506.1,446.6Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="107" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="514" y="413" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">107</text>
+<path d="M515.5,378.7 A128,80 0 0,1 539.2,367.4 L593.6,411.8 A206,142 0 0,0 555.5,432.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="108" data-pre="0" data-ns="6" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="552" y="398" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">108</text>
+<path d="M541.8,365.8 A128,80 0 0,1 559.9,351.0 L626.9,382.7 A206,142 0 0,0 597.7,409.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="109" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="582" y="378" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">109</text>
+<path d="M561.7,349.0 A128,80 0 0,1 573.2,331.8 L648.2,348.7 A206,142 0 0,0 629.8,379.3Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="110" data-pre="0" data-ns="4" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="604" y="352" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">110</text>
+<path d="M574.1,329.6 A128,80 0 0,1 578.0,311.1 L656.0,312.0 A206,142 0 0,0 649.7,344.8Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="111" data-pre="0" data-ns="4" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="616" y="324" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">111</text>
+<path d="M578.0,308.9 A128,80 0 0,1 574.1,290.4 L649.7,275.2 A206,142 0 0,0 656.0,308.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="113" data-pre="0" data-ns="12" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="616" y="296" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">113</text>
+<path d="M573.2,288.2 A128,80 0 0,1 561.7,271.0 L629.8,240.7 A206,142 0 0,0 648.2,271.3Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="113F" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="604" y="268" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">113F</text>
+<path d="M559.9,269.0 A128,80 0 0,1 541.8,254.2 L597.7,211.0 A206,142 0 0,0 626.9,237.3Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="114" data-pre="0" data-ns="10" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="582" y="242" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">114</text>
+<path d="M539.2,252.6 A128,80 0 0,1 515.5,241.3 L555.5,188.0 A206,142 0 0,0 593.6,208.2Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="115" data-pre="0" data-ns="14" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="552" y="222" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">115</text>
+<path d="M512.4,240.2 A128,80 0 0,1 484.9,233.0 L506.1,173.4 A206,142 0 0,0 550.5,186.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="115F" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="514" y="207" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">115F</text>
+<path d="M481.4,232.4 A128,80 0 0,1 451.8,230.0 L452.9,168.0 A206,142 0 0,0 500.5,172.3Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="117" data-pre="0" data-ns="8" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="472" y="200" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">117</text>
+<path d="M448.2,230.0 A128,80 0 0,1 418.6,232.4 L399.5,172.3 A206,142 0 0,0 447.1,168.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="118" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="428" y="200" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">118</text>
+<path d="M415.1,233.0 A128,80 0 0,1 387.6,240.2 L349.5,186.0 A206,142 0 0,0 393.9,173.4Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="120" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="386" y="207" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">120</text>
+<path d="M384.5,241.3 A128,80 0 0,1 360.8,252.6 L306.4,208.2 A206,142 0 0,0 344.5,188.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="121" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="348" y="222" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">121</text>
+<path d="M358.2,254.2 A128,80 0 0,1 340.1,269.0 L273.1,237.3 A206,142 0 0,0 302.3,211.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="122" data-pre="0" data-ns="4" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="318" y="242" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">122</text>
+<path d="M338.3,271.0 A128,80 0 0,1 326.8,288.2 L251.8,271.3 A206,142 0 0,0 270.2,240.7Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="123" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="296" y="268" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">123</text>
+<path d="M325.9,290.4 A128,80 0 0,1 322.0,308.9 L244.0,308.0 A206,142 0 0,0 250.3,275.2Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="124" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
+<text x="284" y="296" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">124</text>
+<ellipse cx="450" cy="310" rx="128" ry="80" fill="#0c1828"/>
+<rect x="345" y="254" width="210" height="112" fill="#c8922a" rx="3"/>
+<rect x="345" y="292" width="41" height="36" fill="#b8821f" stroke="rgba(255,255,255,.6)" stroke-width="1"/>
+<rect x="514" y="292" width="41" height="36" fill="#b8821f" stroke="rgba(255,255,255,.6)" stroke-width="1"/>
+<line x1="450" y1="254" x2="450" y2="366" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>
+<circle cx="450" cy="310" r="13" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>
+<path d="M386,297 A13,13 0 0,1 386,323" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="1"/>
+<path d="M386,297 A13,13 0 0,0 386,323" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="1" stroke-dasharray="3,3"/>
+<path d="M514,297 A13,13 0 0,0 514,323" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="1"/>
+<path d="M514,297 A13,13 0 0,1 514,323" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="1" stroke-dasharray="3,3"/>
+<line x1="345" y1="254" x2="345" y2="278.0" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>
+<path d="M345,278.0 A52,52 0 1,1 345,342.0" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>
+<line x1="345" y1="342.0" x2="345" y2="366" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>
+<line x1="555" y1="254" x2="555" y2="278.0" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>
+<path d="M555,278.0 A52,52 0 1,0 555,342.0" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>
+<line x1="555" y1="342.0" x2="555" y2="366" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>
+<circle cx="356" cy="310" r="8" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="1"/>
+<circle cx="356" cy="310" r="4.5" fill="#e87722" stroke="rgba(255,255,255,.8)" stroke-width="1"/>
+<circle cx="544" cy="310" r="8" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="1"/>
+<circle cx="544" cy="310" r="4.5" fill="#e87722" stroke="rgba(255,255,255,.8)" stroke-width="1"/>
+<rect x="345" y="254" width="210" height="112" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="1.5" rx="3"/></svg>
+    <div class="arena-legend">
+      <span>0%</span><div class="lb"></div><span>100% no-show</span>
+      &nbsp;&nbsp;<div class="lnd"></div><span>No data</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Game Log</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Opponent</th><th>Pre-game</th><th>Halftime</th><th>No-shows</th><th>Rate</th><th>Seat value</th><th>Phantom Revenue</th></tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td>Jul 9, 2026</td>
+          <td>vs Indiana Fever</td>
+          <td>298</td>
+          <td>146</td>
+          <td class="hl">134</td>
+          <td class="hl">45%</td>
+          <td>$0</td>
+          <td class="hl">$4,690</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Top No-Show Sections</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Section</th><th>No-show seats</th><th>Rate</th><th>Total value</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>102</td>
+          <td>16</td>
+          <td>0%</td>
+          <td>$0</td>
+        </tr>
+        <tr>
+          <td>115</td>
+          <td>14</td>
+          <td>0%</td>
+          <td>$0</td>
+        </tr>
+        <tr>
+          <td>113</td>
+          <td>12</td>
+          <td>0%</td>
+          <td>$0</td>
+        </tr>
+        <tr>
+          <td>114</td>
+          <td>10</td>
+          <td>0%</td>
+          <td>$0</td>
+        </tr>
+        <tr>
+          <td>117</td>
+          <td>8</td>
+          <td>0%</td>
+          <td>$0</td>
+        </tr>
+        <tr>
+          <td>105</td>
+          <td>6</td>
+          <td>0%</td>
+          <td>$0</td>
+        </tr>
+        <tr>
+          <td>106</td>
+          <td>6</td>
+          <td>0%</td>
+          <td>$0</td>
+        </tr>
+        <tr>
+          <td>108</td>
+          <td>6</td>
+          <td>0%</td>
+          <td>$0</td>
+        </tr>
+        <tr>
+          <td>110</td>
+          <td>4</td>
+          <td>0%</td>
+          <td>$0</td>
+        </tr>
+        <tr>
+          <td>111</td>
+          <td>4</td>
+          <td>0%</td>
+          <td>$0</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">Generated by FanXP · Jul 9, 2026</div>
 </body>
+
+<div id="tt">
+  <div class="th"><span class="tn" id="tn2">—</span><span class="tv" id="tv2">—</span></div>
+  <hr class="td"/>
+  <div class="tr"><span class="tk">Pre-game</span><span class="tw" id="tpre">—</span></div>
+  <div class="tr"><span class="tk">No-shows</span><span class="tw" id="tns">—</span></div>
+  <div class="tr"><span class="tk">Value</span><span class="tw" id="tdv">—</span></div>
+</div>
+<script>
+(function(){
+  var tt=document.getElementById('tt'),hi=null;
+  document.addEventListener('mousemove',function(e){
+    var el=e.target,ok=el&&el.classList.contains('sec');
+    if(ok){
+      var W=tt.offsetWidth||190,H=tt.offsetHeight||120;
+      tt.style.left=(e.clientX+14+W>innerWidth?e.clientX-W-8:e.clientX+14)+'px';
+      tt.style.top=(e.clientY-12+H>innerHeight?e.clientY-H-4:e.clientY-12)+'px';
+      if(el!==hi){
+        if(hi)hi.classList.remove('on');
+        hi=el;hi.classList.add('on');
+        var s=el.dataset.s,r=el.dataset.r,v=el.dataset.v;
+        document.getElementById('tn2').textContent='Section '+s;
+        document.getElementById('tv2').textContent=r;
+        var rv=parseFloat(r)/100;
+        document.getElementById('tv2').style.color=rv<.33?'#22c55e':rv<.66?'#f59e0b':'#ef4444';
+        document.getElementById('tpre').textContent=parseInt(el.dataset.pre).toLocaleString();
+        document.getElementById('tns').textContent=parseInt(el.dataset.ns).toLocaleString();
+        document.getElementById('tdv').textContent=v;
+      }
+      tt.style.display='block';
+    } else {
+      if(hi){hi.classList.remove('on');hi=null;}
+      tt.style.display='none';
+    }
+  });
+})();
+</script>
 </html>
