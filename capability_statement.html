@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 11px;
+    color: #1a1a1a;
+    background: white;
+    padding: 48px 56px;
+    max-width: 780px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #1a1a1a;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+  }
+  .header-left h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .header-left p {
+    font-size: 10px;
+    color: #555;
+    margin-top: 3px;
+  }
+  .header-right {
+    text-align: right;
+    font-size: 10px;
+    color: #555;
+    line-height: 1.7;
+  }
+  .header-right strong {
+    color: #1a1a1a;
+    font-size: 11px;
+  }
+
+  /* Tag line */
+  .tagline {
+    background: #1a1a1a;
+    color: white;
+    padding: 10px 14px;
+    font-size: 11px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+    border-radius: 2px;
+  }
+
+  /* Sections */
+  .section {
+    margin-bottom: 18px;
+  }
+  .section h2 {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #888;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 4px;
+    margin-bottom: 9px;
+  }
+  .section p {
+    font-size: 11px;
+    line-height: 1.65;
+    color: #2a2a2a;
+  }
+
+  /* Two-column layout */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  /* Stats row */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .stat {
+    border: 1px solid #e0e0e0;
+    padding: 10px 12px;
+    border-radius: 2px;
+  }
+  .stat .number {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    color: #1a1a1a;
+  }
+  .stat .label {
+    font-size: 9px;
+    color: #888;
+    margin-top: 3px;
+    line-height: 1.3;
+  }
+
+  /* Bullet list */
+  ul {
+    padding-left: 14px;
+    margin-top: 4px;
+  }
+  ul li {
+    font-size: 11px;
+    line-height: 1.7;
+    color: #2a2a2a;
+  }
+
+  /* Pilot box */
+  .pilot {
+    border: 1.5px solid #1a1a1a;
+    padding: 10px 14px;
+    border-radius: 2px;
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .pilot .pill {
+    background: #1a1a1a;
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .pilot p {
+    font-size: 11px;
+    line-height: 1.5;
+    color: #2a2a2a;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 20px;
+    padding-top: 12px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #888;
+  }
+  .footer a {
+    color: #1a1a1a;
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  @media print {
+    body { padding: 32px 40px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>N2IA Technologies</h1>
+      <p>Capability Statement &nbsp;·&nbsp; Washington Commanders RFI &nbsp;·&nbsp; July 1, 2026</p>
+    </div>
+    <div class="header-right">
+      <strong>Aaran Guha</strong><br>
+      Data Analyst<br>
+      aaranguhaca@gmail.com<br>
+      n2ia-technologies.com
+    </div>
+  </div>
+
+  <!-- Tagline -->
+  <div class="tagline">
+    N2IA Technologies delivers a real-time fan attendance intelligence capability that identifies, at the section level, which sold seats go unoccupied at every home game — with no integration into existing ticketing systems required.
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="number">22</div>
+      <div class="label">NBA teams tracked</div>
+    </div>
+    <div class="stat">
+      <div class="number">75</div>
+      <div class="label">Games with complete data</div>
+    </div>
+    <div class="stat">
+      <div class="number">12,886</div>
+      <div class="label">No-show seats identified</div>
+    </div>
+    <div class="stat">
+      <div class="number">3</div>
+      <div class="label">Leagues: NBA, MLB, WNBA</div>
+    </div>
+  </div>
+
+  <!-- Two column -->
+  <div class="two-col">
+
+    <div>
+      <!-- Problem -->
+      <div class="section">
+        <h2>The Problem</h2>
+        <p>Ticketing platforms tell you who bought a seat. They cannot tell you who sat in it. For a venue like FedEx Field, the gap between tickets sold and fans in seats directly impacts concession revenue, sponsor activation value, atmosphere, and broadcast product quality — yet no existing tool measures this in real time at the section level.</p>
+      </div>
+
+      <!-- How it works -->
+      <div class="section">
+        <h2>How It Works</h2>
+        <p>Our methodology captures live secondary market seat availability at two points per game:</p>
+        <ul style="margin-top:6px">
+          <li><strong>Pre-game</strong> — 60 min before kickoff, baseline by section</li>
+          <li><strong>Mid-game</strong> — halftime, seats back on the market</li>
+        </ul>
+        <p style="margin-top:6px">The delta between these snapshots identifies confirmed no-show seats — mapped by section, price tier, opponent, and day of week. Fully automated. No manual reporting.</p>
+      </div>
+    </div>
+
+    <div>
+      <!-- Deliverables -->
+      <div class="section">
+        <h2>What We Deliver for the Commanders</h2>
+        <ul>
+          <li>Per-section no-show rates every home game</li>
+          <li>Opponent & day-of-week attendance breakdowns</li>
+          <li>Secondary market pricing trends pre- & in-game</li>
+          <li>Live dashboard, auto-updated after every game</li>
+          <li>Season-over-season trend analysis</li>
+        </ul>
+      </div>
+
+      <!-- Why N2IA -->
+      <div class="section">
+        <h2>Why N2IA</h2>
+        <ul>
+          <li>8(a) certified small business, Washington D.C.</li>
+          <li>Data analytics & agentic AI practice</li>
+          <li>Real-time automated data pipeline expertise</li>
+          <li>Local to the Commanders — available in person</li>
+          <li>Live product demo available immediately</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Pilot offer -->
+  <div class="pilot">
+    <div class="pill">Free Pilot</div>
+    <p>We are offering to run our full data collection and reporting pipeline for <strong>one Commanders home game at no cost</strong> — delivering a complete section-level no-show report with no commitment required. Live demo available at <strong>fan-xp.vercel.app</strong></p>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span>N2IA Technologies &nbsp;·&nbsp; 2000 Pennsylvania Ave NW, Suite 7000, Washington D.C.</span>
+    <span><a href="https://www.n2ia-technologies.com">n2ia-technologies.com</a></span>
+  </div>
+
+</body>
+</html>
