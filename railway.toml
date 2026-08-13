@@ -11,12 +11,25 @@ builder = "dockerfile"
 #   Start command:  python mlb_runner.py
 #   Cron schedule:  0 16 * * *   (9 AM PT = 4 PM UTC, MLB games start afternoon/evening)
 #
-# Both services share the same Docker image and env vars.
+# ── Fan XP API service ───────────────────────────────────────────────────────
+# Create a third service named "fanxp-api" with:
+#   Start command:  gunicorn fanxp_api:app --bind 0.0.0.0:$PORT
+#   No cron schedule — this is a persistent web service.
+#
+# After deploying, copy its public Railway URL and:
+#   1. Set it as API_BASE in docs/fanxp_app.html
+#   2. In the Twilio console, set the inbound-SMS webhook for
+#      TWILIO_FROM_NUMBER to  https://<railway-url>/webhooks/twilio/sms
+#
+# All three services share the same Docker image and env vars.
 # Set these environment variables in Railway's Variables tab:
 #
 #   TICKETMASTER_API_KEY   — from developer.ticketmaster.com
 #   SUPABASE_URL           — from Supabase project settings → API
 #   SUPABASE_SERVICE_KEY   — from Supabase project settings → API → service_role key
+#   TWILIO_ACCOUNT_SID     — from twilio.com/console
+#   TWILIO_AUTH_TOKEN      — from twilio.com/console
+#   TWILIO_FROM_NUMBER     — your Twilio number, E.164 format
 #   GIT_USER_NAME          — your GitHub username (for auto-commit push)
 #   GIT_USER_EMAIL         — your GitHub email
 #   GITHUB_TOKEN           — personal access token with repo scope (for git push)

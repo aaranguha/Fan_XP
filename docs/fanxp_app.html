@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Fan XP · Empty Seats</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#05070d;
+  --card:#0d1220;
+  --border:rgba(255,255,255,.08);
+  --orange:#ff6b2b;
+  --dim:rgba(160,185,230,.55);
+  --green:#4ade80;
+  --red:#f87171;
+}
+html,body{font-family:'Inter',sans-serif;background:var(--bg);color:#e8eeff;min-height:100vh;-webkit-font-smoothing:antialiased;}
+#top{
+  position:sticky;top:0;z-index:10;
+  padding:18px 20px 14px;border-bottom:1px solid var(--border);
+  background:rgba(5,7,13,.97);backdrop-filter:blur(6px);
+}
+#brand{font-size:.68rem;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);}
+#gamehead{font-size:1.15rem;font-weight:800;letter-spacing:-.02em;margin-top:4px;}
+#gamesub{font-size:.72rem;color:var(--dim);margin-top:2px;}
+
+#list{max-width:520px;margin:0 auto;padding:16px 16px 60px;display:flex;flex-direction:column;gap:10px;}
+
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:14px 16px;transition:border-color .15s;
+}
+.card-top{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.seat-label{font-size:.95rem;font-weight:700;letter-spacing:-.01em;}
+.seat-price{font-size:.78rem;color:var(--dim);margin-top:2px;}
+.badge{
+  font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:4px 10px;border-radius:999px;white-space:nowrap;
+}
+.badge.available{color:var(--orange);background:rgba(255,107,43,.12);border:1px solid rgba(255,107,43,.35);}
+.badge.pending{color:#facc15;background:rgba(250,204,21,.1);border:1px solid rgba(250,204,21,.3);}
+.badge.sold{color:var(--green);background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);}
+.badge.expired{color:var(--red);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);}
+
+.btn{
+  margin-top:12px;width:100%;padding:11px;border-radius:10px;border:none;
+  background:var(--orange);color:#0b0b0b;font-family:inherit;font-size:.82rem;font-weight:700;
+  cursor:pointer;transition:opacity .15s;
+}
+.btn:hover{opacity:.9;}
+.btn:disabled{opacity:.4;cursor:default;}
+
+.form{margin-top:12px;display:flex;flex-direction:column;gap:8px;}
+.form input{
+  font-family:inherit;font-size:.85rem;padding:10px 12px;border-radius:9px;
+  border:1px solid var(--border);background:#080b14;color:#fff;outline:none;
+}
+.form input:focus{border-color:var(--orange);}
+
+.status-line{margin-top:10px;font-size:.78rem;color:var(--dim);display:flex;align-items:center;gap:8px;}
+.spinner{
+  width:12px;height:12px;border-radius:50%;
+  border:2px solid rgba(250,204,21,.25);border-top-color:#facc15;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.pass{
+  margin-top:10px;padding:10px 12px;border-radius:9px;background:rgba(74,222,128,.08);
+  border:1px solid rgba(74,222,128,.3);font-size:.8rem;
+}
+.pass b{font-family:monospace;font-size:.95rem;color:var(--green);letter-spacing:.04em;}
+
+#empty{text-align:center;padding:60px 20px;color:var(--dim);font-size:.85rem;}
+</style>
+</head>
+<body>
+
+<div id="top">
+  <div id="brand">Fan XP</div>
+  <div id="gamehead">Loading…</div>
+  <div id="gamesub">Find an empty seat, reach out to its owner.</div>
+</div>
+
+<div id="list"></div>
+
+<script>
+const API_BASE = "http://localhost:5000"; // TODO: point at the deployed Railway API URL
+
+const listEl = document.getElementById('list');
+const pollers = {};
+
+function statusLabel(status) {
+  switch (status) {
+    case 'available':  return 'Empty';
+    case 'detected':
+    case 'sth_pinged': return 'Waiting on owner';
+    case 'released':   return 'Confirming';
+    case 'sold':       return 'Claimed';
+    case 'expired':     return 'Not available';
+    default:            return status;
+  }
+}
+
+function badgeClass(status) {
+  if (status === 'available') return 'available';
+  if (status === 'sold') return 'sold';
+  if (status === 'expired') return 'expired';
+  return 'pending';
+}
+
+function renderCard(seat) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = `seat-${seat.seat_id}`;
+
+  const priceStr = seat.price ? `$${Number(seat.price).toFixed(0)}` : 'price unknown';
+
+  card.innerHTML = `
+    <div class="card-top">
+      <div>
+        <div class="seat-label">Sec ${seat.section} · Row ${seat.row} · Seat ${seat.seat}</div>
+        <div class="seat-price">${priceStr}</div>
+      </div>
+      <div class="badge ${badgeClass(seat.status)}" data-role="badge">${statusLabel(seat.status)}</div>
+    </div>
+    <div data-role="body"></div>
+  `;
+
+  renderCardBody(card, seat);
+  return card;
+}
+
+function renderCardBody(card, seat) {
+  const body = card.querySelector('[data-role="body"]');
+  body.innerHTML = '';
+
+  if (seat.status === 'available') {
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.textContent = 'Request this seat';
+    btn.onclick = () => showForm(card, seat);
+    body.appendChild(btn);
+  } else if (seat.status === 'detected' || seat.status === 'sth_pinged' || seat.status === 'released') {
+    const line = document.createElement('div');
+    line.className = 'status-line';
+    line.innerHTML = `<span class="spinner"></span> Waiting for the owner to respond…`;
+    body.appendChild(line);
+    if (seat.surrender_id) startPolling(card, seat.surrender_id);
+  } else if (seat.status === 'sold') {
+    const line = document.createElement('div');
+    line.className = 'status-line';
+    line.textContent = 'This seat has been claimed.';
+    body.appendChild(line);
+    if (seat.pass_code) {
+      const pass = document.createElement('div');
+      pass.className = 'pass';
+      pass.innerHTML = `Gate pass code: <b>${seat.pass_code}</b>`;
+      body.appendChild(pass);
+    }
+  } else if (seat.status === 'expired') {
+    const line = document.createElement('div');
+    line.className = 'status-line';
+    line.textContent = 'Owner declined — seat not available.';
+    body.appendChild(line);
+  }
+}
+
+function showForm(card, seat) {
+  const body = card.querySelector('[data-role="body"]');
+  body.innerHTML = `
+    <div class="form">
+      <input type="text" data-role="name" placeholder="Your name" />
+      <input type="tel" data-role="phone" placeholder="Your phone (+1XXXXXXXXXX)" />
+      <button class="btn" data-role="submit">Send request</button>
+    </div>
+  `;
+  body.querySelector('[data-role="submit"]').onclick = () => submitRequest(card, seat);
+}
+
+async function submitRequest(card, seat) {
+  const body = card.querySelector('[data-role="body"]');
+  const name  = body.querySelector('[data-role="name"]').value.trim();
+  const phone = body.querySelector('[data-role="phone"]').value.trim();
+  if (!name || !phone) return;
+
+  const btn = body.querySelector('[data-role="submit"]');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/seats/${seat.seat_id}/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fan_name: name, fan_phone: phone }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'request failed');
+
+    seat.status = data.status;
+    seat.surrender_id = data.surrender_id;
+    card.querySelector('[data-role="badge"]').textContent = statusLabel(seat.status);
+    card.querySelector('[data-role="badge"]').className = `badge ${badgeClass(seat.status)}`;
+    renderCardBody(card, seat);
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Send request';
+    alert('Something went wrong — try again.');
+  }
+}
+
+function startPolling(card, surrenderId) {
+  if (pollers[surrenderId]) return;
+  pollers[surrenderId] = setInterval(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/requests/${surrenderId}`);
+      const data = await res.json();
+      if (!res.ok) return;
+
+      if (data.status !== 'sth_pinged' && data.status !== 'detected') {
+        clearInterval(pollers[surrenderId]);
+        delete pollers[surrenderId];
+      }
+
+      const seat = { status: data.status, pass_code: data.pass_code, surrender_id: surrenderId };
+      card.querySelector('[data-role="badge"]').textContent = statusLabel(seat.status);
+      card.querySelector('[data-role="badge"]').className = `badge ${badgeClass(seat.status)}`;
+      renderCardBody(card, seat);
+    } catch (err) { /* keep polling */ }
+  }, 4000);
+}
+
+async function load() {
+  try {
+    const res = await fetch(`${API_BASE}/api/empty-seats`);
+    const data = await res.json();
+
+    if (!data.game) {
+      document.getElementById('gamehead').textContent = 'No demo game seeded';
+      listEl.innerHTML = '<div id="empty">Run seed_mock_game.py first.</div>';
+      return;
+    }
+
+    document.getElementById('gamehead').textContent = `vs ${data.game.opponent}`;
+    document.getElementById('gamesub').textContent = `${data.game.arena} · ${data.game.game_date}`;
+
+    if (!data.seats.length) {
+      listEl.innerHTML = '<div id="empty">No seats found for this game.</div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    data.seats.forEach(seat => listEl.appendChild(renderCard(seat)));
+  } catch (err) {
+    document.getElementById('gamehead').textContent = 'Could not reach Fan XP';
+    listEl.innerHTML = `<div id="empty">Check that the API is running at ${API_BASE}.</div>`;
+  }
+}
+
+load();
+</script>
+</body>
+</html>

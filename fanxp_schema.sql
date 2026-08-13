@@ -84,10 +84,14 @@ CREATE TABLE IF NOT EXISTS seat_surrenders (
   game_id     BIGINT           NOT NULL REFERENCES games(id)                 ON DELETE CASCADE,
   seat_id     BIGINT           NOT NULL REFERENCES seats(id)                 ON DELETE CASCADE,
   sth_id      BIGINT           NOT NULL REFERENCES season_ticket_holders(id) ON DELETE CASCADE,
+  fan_id      BIGINT           REFERENCES fans(id),   -- fan who requested this seat (NULL until requested)
   status      surrender_status NOT NULL DEFAULT 'detected',
   message_sid TEXT,            -- Twilio MessageSid for outbound SMS
   updated_at  TIMESTAMPTZ      NOT NULL DEFAULT NOW()
 );
+
+-- Safe to re-run against an already-created DB (table existed before fan_id was added)
+ALTER TABLE seat_surrenders ADD COLUMN IF NOT EXISTS fan_id BIGINT REFERENCES fans(id);
 
 -- ── auctions ─────────────────────────────────────────────────
 --  Live 10-minute bidding window for a surrendered seat.

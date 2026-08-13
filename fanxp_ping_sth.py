@@ -15,31 +15,8 @@ The STH should reply YES to trigger Phase 3 (open the auction).
 import argparse
 import os
 import sys
-from dotenv import load_dotenv
 
-load_dotenv()
-
-CREDIT_OFFER = 25  # stadium credit offered per seat
-
-
-def get_supabase():
-    from supabase import create_client
-    url = os.getenv("SUPABASE_URL", "").strip()
-    key = os.getenv("SUPABASE_SERVICE_KEY", "").strip()
-    if not url or not key:
-        print("ERROR: SUPABASE_URL / SUPABASE_SERVICE_KEY not set in .env")
-        sys.exit(1)
-    return create_client(url, key)
-
-
-def get_twilio():
-    from twilio.rest import Client
-    sid   = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
-    token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
-    if not sid or not token:
-        print("ERROR: TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN not set in .env")
-        sys.exit(1)
-    return Client(sid, token)
+from fanxp_common import CREDIT_OFFER, get_supabase, get_twilio, send_surrender_sms
 
 
 def main():
@@ -48,9 +25,12 @@ def main():
     parser.add_argument("--game_id", type=int, required=True)
     args = parser.parse_args()
 
-    sb     = get_supabase()
-    twilio = get_twilio()
-    from_number = os.getenv("TWILIO_FROM_NUMBER", "").strip()
+    try:
+        sb     = get_supabase()
+        twilio = get_twilio()
+    except RuntimeError as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
 
     # ── Load STH ─────────────────────────────────────────────
     sth = (
@@ -116,21 +96,8 @@ def main():
         surrender_id = surrender["id"]
         print(f"    ✓ surrender_id={surrender_id}  status=detected")
 
-        # ── Build SMS message ─────────────────────────────────
-        sms_body = (
-            f"Hi {sth['name'].split()[0]}! 👋 This is Fan XP at {game.get('arena', 'the stadium')}.\n\n"
-            f"We noticed Sec {sec} · Row {row} · Seat {num} may be empty for tonight's game.\n\n"
-            f"Reply YES to surrender it for ${CREDIT_OFFER} in stadium credit.\n"
-            f"Reply NO to keep it.\n\n"
-            f"Offer expires in 30 minutes."
-        )
-
         # ── Send Twilio SMS ───────────────────────────────────
-        message = twilio.messages.create(
-            body=sms_body,
-            from_=from_number,
-            to=sth["phone"],
-        )
+        message = send_surrender_sms(twilio, sth, seat, game, CREDIT_OFFER)
         print(f"    ✓ SMS sent  message_sid={message.sid}")
 
         # ── Update status → sth_pinged ────────────────────────
