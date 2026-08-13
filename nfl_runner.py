@@ -16,28 +16,77 @@ Cron (via GitHub Actions — see .github/workflows/nfl.yml):
     Thursdays  23:00 UTC (6 PM ET)
 """
 
+import json
 import os
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import requests
 
-from nfl_teams import NFL_TRICODE_TO_SLUG
+from nfl_teams import NFL_TEAMS, NFL_TRICODE_TO_SLUG
 
 PYTHON = sys.executable
 
 
-def get_home_teams_espn(today: str) -> list[str]:
-    """Fetch today's NFL home teams from ESPN scoreboard API."""
-    date_str = today.replace("-", "")
-    url = f"https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates={date_str}"
+def espn_get_json(url: str, curl_attempts: int = 3) -> dict:
+    """
+    GET a JSON URL via curl.
+
+    ESPN's CDN mostly returns 403 to requests/urllib (a TLS-fingerprint bot
+    check, not a headers issue — verified requests/urllib fail while curl
+    succeeds on the same request most of the time). curl isn't 100% reliable
+    either (some edge nodes still 403 it occasionally), so we retry a few
+    times before falling back to requests as a last resort.
+    """
+    last_err = None
+    for attempt in range(curl_attempts):
+        try:
+            out = subprocess.run(
+                ["curl", "-sS", "-A", "Mozilla/5.0", url],
+                capture_output=True, text=True, timeout=15, check=True,
+            )
+            return json.loads(out.stdout)
+        except Exception as e:
+            last_err = e
+            if attempt < curl_attempts - 1:
+                time.sleep(2)
+
+    print(f"  [espn_get_json] curl failed after {curl_attempts} attempts ({last_err}), falling back to requests...")
     resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
     resp.raise_for_status()
+    return resp.json()
+
+
+def get_home_teams_espn(today: str) -> list[str]:
+    """
+    Fetch today's NFL home teams from ESPN's scoreboard API.
+
+    ESPN's `dates=` param buckets games by UTC date, but evening ET kickoffs
+    (e.g. Sunday/Thursday Night Football, 8:15-8:20 PM ET) land after midnight
+    UTC — i.e. under *tomorrow's* UTC bucket even though they're still
+    "today" in US Eastern time. So we query both today's and tomorrow's UTC
+    date and keep only the events whose kickoff falls on `today` in ET.
+    """
+    tomorrow = (datetime.strptime(today, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+    eastern = ZoneInfo("America/New_York")
+
+    events_by_id = {}
+    for d in (today, tomorrow):
+        date_str = d.replace("-", "")
+        url = f"https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates={date_str}"
+        data = espn_get_json(url)
+        for event in data.get("events", []):
+            events_by_id[event["id"]] = event
 
     slugs = []
-    for event in resp.json().get("events", []):
+    for event in events_by_id.values():
+        kickoff_utc = datetime.strptime(event["date"], "%Y-%m-%dT%H:%MZ").replace(tzinfo=timezone.utc)
+        local_date = kickoff_utc.astimezone(eastern).strftime("%Y-%m-%d")
+        if local_date != today:
+            continue
         comps = event["competitions"][0]
         home = next((t for t in comps["competitors"] if t["homeAway"] == "home"), None)
         away = next((t for t in comps["competitors"] if t["homeAway"] == "away"), None)
@@ -111,6 +160,17 @@ def main():
             print(f"  [{slug}] FAILED (exit {proc.returncode})")
 
     if succeeded:
+        # Regenerate HTML story pages for ALL teams (reads from Supabase, so
+        # any team with prior data will also get refreshed pages)
+        print("\nRegenerating NFL story pages...")
+        all_slugs = list(NFL_TEAMS.keys()) if len(succeeded) > 1 else succeeded
+        for slug in all_slugs:
+            try:
+                subprocess.run([PYTHON, "generate_nfl_story.py", slug], check=True)
+                print(f"  [{slug}] HTML regenerated")
+            except Exception as e:
+                print(f"  [{slug}] HTML generation failed: {e}")
+
         print(f"\nCommitting and pushing to GitHub...")
         date_str  = datetime.now().strftime("%Y-%m-%d")
         teams_str = ", ".join(succeeded)
@@ -122,7 +182,7 @@ def main():
             subprocess.run(["git", "config", "user.email", git_email], check=True)
             subprocess.run(["git", "config", "user.name",  git_name],  check=True)
 
-        subprocess.run(["git", "add", "data/nfl/"], check=True)
+        subprocess.run(["git", "add", "data/nfl/", "docs/"], check=True)
         subprocess.run(["git", "commit", "-m", f"NFL auto-update {date_str}: {teams_str}"], check=True)
         result = subprocess.run(["git", "push"])
         print("  Pushed." if result.returncode == 0 else "  git push failed.")

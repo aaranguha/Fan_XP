@@ -1,6 +1,10 @@
 requests
 python-dotenv
-playwright
+playwright==1.59.0
 playwright-stealth
 nba_api
 supabase>=2.0.0
+flask
+flask-cors
+twilio
+gunicorn
