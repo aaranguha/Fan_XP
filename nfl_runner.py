@@ -21,6 +21,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import requests
 from dotenv import load_dotenv
@@ -28,6 +29,8 @@ from dotenv import load_dotenv
 from nfl_teams import NFL_TEAMS
 
 load_dotenv()
+
+EASTERN = ZoneInfo("America/New_York")
 
 PYTHON = sys.executable
 
@@ -113,7 +116,7 @@ def launch_team(slug: str, today: str) -> tuple:
 
 
 def main():
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(EASTERN).strftime("%Y-%m-%d")
     print(f"[{today}] Checking today's NFL schedule...")
 
     try:
