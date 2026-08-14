@@ -149,6 +149,16 @@ def main():
             print(f"  [{slug}] FAILED (Bot Detection)")
         else:
             print(f"  [{slug}] FAILED (exit {proc.returncode})")
+            log_path = f"data/nfl/{slug}/game.log"
+            try:
+                with open(log_path) as f:
+                    tail = f.readlines()[-30:]
+                print(f"    --- tail of {log_path} ---")
+                for line in tail:
+                    print(f"    {line.rstrip()}")
+                print(f"    --- end tail ---")
+            except OSError as e:
+                print(f"    (could not read {log_path}: {e})")
 
     if succeeded:
         # Regenerate HTML story pages for ALL teams (reads from Supabase, so

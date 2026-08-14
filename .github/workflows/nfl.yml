@@ -56,3 +56,11 @@ jobs:
 
       - name: Run NFL daily runner
         run: python nfl_runner.py
+
+      - name: Upload game logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-game-logs
+          path: data/nfl/**/game.log
+          if-no-files-found: ignore
