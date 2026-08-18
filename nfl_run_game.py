@@ -118,13 +118,13 @@ def wait_for_halftime(kickoff: datetime, espn_tricode: str) -> None:
         time.sleep(POLL_INTERVAL_SEC)
 
 
-def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str) -> list[dict]:
+def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str, team_slug: str) -> list[dict]:
     if os.path.isfile(out_csv):
         print(f"\n  [{snapshot}] Already exists — loading {out_csv}")
         return load_csv(out_csv)
     scraped_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"\n[{scraped_at}] Starting {snapshot} scrape...")
-    facets, offer_price_map, places_facets = scrape_listings(url, max_retries=1)
+    facets, offer_price_map, places_facets = scrape_listings(url, max_retries=1, team_slug=team_slug)
     if places_facets:
         rows = parse_seats(facets, places_facets, offer_price_map, scraped_at)
     else:
@@ -226,13 +226,13 @@ def main():
         print(f"  [jitter] Waiting {jitter}s before scrape...")
         time.sleep(jitter)
 
-    pre_rows = run_snapshot(event, url, "pre_game", pg_csv)
+    pre_rows = run_snapshot(event, url, "pre_game", pg_csv, team["slug"])
     supabase_client.insert_listings(game_id, pre_rows, "pre_game", team["slug"], game_dt, league="nfl")
 
     print("\nWaiting for halftime...")
     wait_for_halftime(kickoff, team["espn_tricode"])
 
-    ht_rows = run_snapshot(event, url, "halftime", ht_csv)
+    ht_rows = run_snapshot(event, url, "halftime", ht_csv, team["slug"])
     supabase_client.insert_listings(game_id, ht_rows, "halftime", team["slug"], game_dt, league="nfl")
 
     print("\nComparing snapshots...")
