@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   run-nba:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 360   # 6-hour hard cap
 
     env:
@@ -22,7 +22,8 @@ jobs:
       GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
       GIT_USER_NAME:        "github-actions[bot]"
       GIT_USER_EMAIL:       "github-actions[bot]@users.noreply.github.com"
-      HEADLESS_BROWSER:     "1"
+      HEADLESS_BROWSER:     "0"
+      PYTHONUNBUFFERED:     "1"
 
     steps:
       - name: Checkout repo
@@ -30,19 +31,13 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -r requirements.txt
 
       - name: Install Playwright + Chromium
-        run: |
-          playwright install chromium
-          playwright install-deps chromium
+        run: .venv/bin/python -m playwright install chromium
 
       - name: Configure git
         run: |
@@ -50,4 +45,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run NBA daily runner
-        run: python daily_runner.py
+        run: .venv/bin/python daily_runner.py
