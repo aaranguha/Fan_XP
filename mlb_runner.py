@@ -18,37 +18,68 @@ import time
 from datetime import datetime, timezone, timedelta
 
 import requests
+from dotenv import load_dotenv
 
-from mlb_teams import MLB_TRICODE_TO_SLUG, MLB_TEAMS
+from mlb_teams import MLB_TEAMS
+
+load_dotenv()
 
 PYTHON = sys.executable
 
 
-def get_home_teams_espn(today: str) -> list[tuple[str, str]]:
+def get_home_teams_tm(today: str) -> list[tuple[str, str]]:
     """
-    Fetch today's MLB home teams from ESPN scoreboard API.
-    Returns list of (slug, game_time_utc) tuples.
+    Fetch today's MLB home teams via the Ticketmaster Discovery API.
+
+    Replaces the old ESPN scoreboard lookup, which started 403ing (confirmed
+    live, even from this self-hosted residential IP — not just GitHub-hosted
+    runners). TM's classification+date query also returns minor-league/college
+    baseball, but requiring BOTH team names in an event to match one of our
+    30 real MLB_TEAMS filters that out for free — no separate blocklist
+    needed. A team's own keyword can also turn up in their AWAY games, so we
+    take the leftmost-mentioned team as home rather than trusting the search
+    keyword itself.
+
+    Returns list of (slug, game_time_utc_iso) tuples, same shape the old
+    ESPN-based function returned, so the rest of main() is unchanged.
     """
-    date_str = today.replace("-", "")
-    url = f"https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates={date_str}"
-    resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+    tm_api_key = os.getenv("TICKETMASTER_API_KEY", "").strip()
+    if not tm_api_key:
+        raise RuntimeError("TICKETMASTER_API_KEY not set in .env")
+
+    resp = requests.get(
+        "https://app.ticketmaster.com/discovery/v2/events.json",
+        params={
+            "apikey":             tm_api_key,
+            "classificationName": "Baseball",
+            "countryCode":        "US",
+            "localStartDateTime": f"{today}T00:00:00,{today}T23:59:59",
+            "sort":               "date,asc",
+            "size":               200,
+        },
+        timeout=15,
+    )
     resp.raise_for_status()
+    events = resp.json().get("_embedded", {}).get("events", [])
 
     results = []
-    for event in resp.json().get("events", []):
-        comps = event["competitions"][0]
-        home = next((t for t in comps["competitors"] if t["homeAway"] == "home"), None)
-        away = next((t for t in comps["competitors"] if t["homeAway"] == "away"), None)
-        if not home:
-            continue
-        tricode = home["team"]["abbreviation"]
-        slug = MLB_TRICODE_TO_SLUG.get(tricode)
-        if slug:
-            game_time = event.get("date", "")
-            home_name = home["team"]["displayName"]
-            away_name = away["team"]["displayName"] if away else "?"
-            print(f"  Home game found: {away_name} at {home_name}  →  slug: {slug}  time: {game_time}")
-            results.append((slug, game_time))
+    for event in events:
+        name = event.get("name", "")
+        name_lower = name.lower()
+
+        matches = []  # (index, slug)
+        for slug, team in MLB_TEAMS.items():
+            idx = name_lower.find(team["tm_keyword"].lower())
+            if idx >= 0:
+                matches.append((idx, slug))
+        if len(matches) != 2:
+            continue  # not a real MLB-vs-MLB matchup (minor league, tours, etc.)
+
+        matches.sort()
+        home_slug = matches[0][1]
+        game_time = event.get("dates", {}).get("start", {}).get("dateTime", "")
+        print(f"  Home game found: {name}  →  slug: {home_slug}  time: {game_time}")
+        results.append((home_slug, game_time))
     return results
 
 
@@ -80,7 +111,7 @@ def main():
     print(f"[{today}] Checking today's MLB schedule...")
 
     try:
-        games = get_home_teams_espn(today)
+        games = get_home_teams_tm(today)
     except Exception as e:
         print(f"Error fetching MLB schedule: {e}")
         sys.exit(1)
