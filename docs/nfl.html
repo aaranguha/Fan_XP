@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fan XP — NFL Teams</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #04060f;
+      --bg-2:      #080d1a;
+      --bg-card:   #0b1221;
+      --cyan:      #00f5ff;
+      --cyan-dim:  rgba(0,245,255,0.08);
+      --cyan-glow: rgba(0,245,255,0.35);
+      --gold:      #ffd700;
+      --white:     #eef2ff;
+      --muted:     rgba(220,228,255,0.5);
+      --border:    rgba(0,245,255,0.14);
+      --font:      'Inter', sans-serif;
+      --ease:      cubic-bezier(0.4,0,0.2,1);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--white);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { text-decoration: none; color: inherit; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: rgba(0,245,255,0.3); border-radius: 5px; }
+
+    .container { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+    /* ── Navbar ── */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+      padding: 20px 0;
+      background: rgba(4,6,15,0.3);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid transparent;
+      transition: all 0.3s var(--ease);
+    }
+    .navbar.scrolled {
+      padding: 13px 0;
+      background: rgba(4,6,15,0.9);
+      border-bottom-color: var(--border);
+    }
+    .navbar-inner { display: flex; align-items: center; justify-content: space-between; }
+    .logo {
+      font-size: 1.5rem; font-weight: 900; letter-spacing: -0.04em;
+      display: flex; align-items: center; gap: 1px;
+    }
+    .logo-fan { color: var(--white); }
+    .logo-xp { color: var(--cyan); text-shadow: 0 0 14px var(--cyan), 0 0 28px rgba(0,245,255,.35); }
+
+    .nav-links { display: flex; align-items: center; gap: 36px; list-style: none; }
+    .nav-links a { font-size: .875rem; font-weight: 500; color: var(--muted); transition: color .2s; }
+    .nav-links a:hover { color: var(--white); }
+
+    .nav-dropdown { position: relative; }
+    .nav-dropdown > a {
+      display: flex; align-items: center; gap: 5px;
+      font-size: .875rem; font-weight: 500; color: var(--muted);
+      transition: color .2s; cursor: pointer;
+    }
+    .nav-dropdown > a:hover { color: var(--white); }
+    .nav-dropdown > a svg { transition: transform .2s; }
+    .nav-dropdown:hover > a svg { transform: rotate(180deg); }
+    .dropdown-menu {
+      position: absolute; top: calc(100% + 14px); left: 50%;
+      transform: translateX(-50%);
+      background: rgba(8,13,26,0.97);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 8px; min-width: 150px;
+      backdrop-filter: blur(20px);
+      opacity: 0; pointer-events: none;
+      transition: opacity .2s, transform .2s;
+      transform: translateX(-50%) translateY(-6px);
+      z-index: 100;
+    }
+    .nav-dropdown:hover .dropdown-menu {
+      opacity: 1; pointer-events: all;
+      transform: translateX(-50%) translateY(0);
+      transition-delay: 0s;
+    }
+    .dropdown-menu { transition-delay: 0.15s; }
+    .dropdown-menu a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; border-radius: 8px;
+      font-size: .85rem; font-weight: 600; color: var(--muted);
+      transition: background .15s, color .15s; white-space: nowrap;
+    }
+    .dropdown-menu a:hover { background: var(--cyan-dim); color: var(--white); }
+    .dropdown-menu a.active { color: var(--cyan); }
+    .dropdown-menu a.coming-soon { opacity: .4; cursor: default; pointer-events: none; }
+    .league-tag {
+      font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+      background: var(--cyan-dim); color: var(--cyan);
+      border-radius: 4px; padding: 2px 6px;
+    }
+    .dropdown-menu a.coming-soon .league-tag {
+      background: rgba(220,228,255,.06); color: var(--muted);
+    }
+
+    .nav-cta {
+      background: var(--cyan); color: var(--bg) !important;
+      font-weight: 800 !important; padding: 9px 22px;
+      border-radius: 999px; font-size: .875rem !important;
+      box-shadow: 0 0 18px rgba(0,245,255,.3);
+      transition: box-shadow .2s, transform .2s !important;
+    }
+    .nav-cta:hover { box-shadow: 0 0 28px rgba(0,245,255,.55); transform: translateY(-1px); }
+
+    /* ── Page ── */
+    .page-header {
+      padding: 140px 0 60px;
+      text-align: center;
+      position: relative;
+    }
+    .page-header::before {
+      content: '';
+      position: absolute; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(0,245,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,245,255,.03) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 40%, black 20%, transparent 75%);
+    }
+    .page-header .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,245,255,.08); border: 1px solid rgba(0,245,255,.28);
+      border-radius: 999px; padding: 7px 16px;
+      font-size: .74rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--cyan);
+      margin-bottom: 20px; position: relative; z-index: 1;
+    }
+    .page-header h1 {
+      font-size: clamp(2.2rem, 4vw, 3.4rem);
+      font-weight: 900; letter-spacing: -.03em;
+      position: relative; z-index: 1;
+    }
+    .page-header h1 span { color: var(--cyan); text-shadow: 0 0 28px rgba(0,245,255,.5); }
+    .page-header p {
+      color: var(--muted); font-size: 1rem; margin-top: 14px;
+      position: relative; z-index: 1;
+    }
+
+    /* ── Conference sections ── */
+    .conferences { padding: 20px 0 100px; }
+    .conf-section { margin-bottom: 64px; }
+    .conf-title {
+      font-size: .75rem; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--cyan);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 14px; margin-bottom: 32px;
+    }
+    .division-label {
+      font-size: .7rem; font-weight: 600; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 16px; margin-top: 28px;
+    }
+
+    /* ── Team grid ── */
+    .teams-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .team-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 16px 18px;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, transform .2s, box-shadow .2s;
+      position: relative; overflow: hidden;
+    }
+    .team-card::before {
+      content: ''; position: absolute; inset: 0; border-radius: 16px;
+      background: var(--cyan-dim); opacity: 0; transition: opacity .2s;
+    }
+    .team-card:hover { border-color: rgba(0,245,255,.4); transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,.4); }
+    .team-card:hover::before { opacity: 1; }
+    .team-logo {
+      width: 72px; height: 72px; object-fit: contain;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,.5));
+      transition: transform .2s;
+      position: relative; z-index: 1;
+    }
+    .team-card:hover .team-logo { transform: scale(1.08); }
+    .team-name {
+      font-size: .78rem; font-weight: 700; text-align: center;
+      color: var(--white); letter-spacing: .01em;
+      position: relative; z-index: 1;
+    }
+    .team-city {
+      font-size: .68rem; color: var(--muted); text-align: center;
+      position: relative; z-index: 1; margin-top: -8px;
+    }
+    .team-badge {
+      font-size: .62rem; font-weight: 700; letter-spacing: .06em;
+      background: rgba(0,245,255,.12); color: var(--cyan);
+      border-radius: 4px; padding: 2px 7px;
+      position: relative; z-index: 1;
+    }
+
+    /* ── Search bar ── */
+    .search-wrap {
+      max-width: 400px; margin: 0 auto 52px;
+      position: relative;
+    }
+    .search-wrap svg {
+      position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); pointer-events: none;
+    }
+    .search-input {
+      width: 100%; padding: 13px 16px 13px 44px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 999px; color: var(--white);
+      font-family: var(--font); font-size: .9rem;
+      outline: none; transition: border-color .2s;
+    }
+    .search-input::placeholder { color: var(--muted); }
+    .search-input:focus { border-color: rgba(0,245,255,.4); }
+
+    @media (max-width: 900px) {
+      .teams-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .teams-grid { grid-template-columns: repeat(3, 1fr); }
+      .nav-links { display: none; }
+    }
+    @media (max-width: 420px) {
+      .teams-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <div class="navbar-inner">
+        <a href="index.html" class="logo"><span class="logo-fan">Fan</span><span class="logo-xp"> XP</span></a>
+        <ul class="nav-links">
+          <li><a href="index.html#how-it-works">How It Works</a></li>
+          <li><a href="index.html#features">For Fans</a></li>
+          <li><a href="index.html#for-teams">For Teams</a></li>
+          <li class="nav-dropdown">
+            <a href="#">Sports <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 4l3.5 3.5L9 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+            <div class="dropdown-menu">
+              <a href="nba.html"><span class="league-tag">NBA</span> Basketball</a>
+              <a href="wnba.html"><span class="league-tag">WNBA</span> Basketball</a>
+              <a href="mlb.html"><span class="league-tag">MLB</span> Baseball</a>
+              <a href="nfl.html" class="active"><span class="league-tag">NFL</span> Football</a>
+            </div>
+          </li>
+          <li><a href="index.html#waitlist" class="nav-cta">Sign Up</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <div class="container">
+      <div class="badge">🏈 National Football League</div>
+      <h1>All <span>32 NFL</span> Teams</h1>
+      <p>Select a team to explore seat intelligence and no-show data.</p>
+    </div>
+  </div>
+
+  <div class="conferences">
+    <div class="container">
+
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input class="search-input" type="text" id="search" placeholder="Search teams…" oninput="filterTeams(this.value)" />
+      </div>
+
+      <!-- AFC -->
+      <div class="conf-section" id="afc">
+        <div class="conf-title">American Football Conference</div>
+
+        <div class="division-label">AFC East</div>
+        <div class="teams-grid" id="afc-east">
+          <div class="team-card" data-team="Buffalo Bills" data-slug="bills"></div>
+          <div class="team-card" data-team="Miami Dolphins" data-slug="dolphins"></div>
+          <div class="team-card" data-team="New England Patriots" data-slug="patriots"></div>
+          <div class="team-card" data-team="New York Jets" data-slug="jets"></div>
+        </div>
+
+        <div class="division-label">AFC North</div>
+        <div class="teams-grid" id="afc-north">
+          <div class="team-card" data-team="Baltimore Ravens" data-slug="ravens"></div>
+          <div class="team-card" data-team="Cincinnati Bengals" data-slug="bengals"></div>
+          <div class="team-card" data-team="Cleveland Browns" data-slug="browns"></div>
+          <div class="team-card" data-team="Pittsburgh Steelers" data-slug="steelers"></div>
+        </div>
+
+        <div class="division-label">AFC South</div>
+        <div class="teams-grid" id="afc-south">
+          <div class="team-card" data-team="Houston Texans" data-slug="texans"></div>
+          <div class="team-card" data-team="Indianapolis Colts" data-slug="colts"></div>
+          <div class="team-card" data-team="Jacksonville Jaguars" data-slug="jaguars"></div>
+          <div class="team-card" data-team="Tennessee Titans" data-slug="titans"></div>
+        </div>
+
+        <div class="division-label">AFC West</div>
+        <div class="teams-grid" id="afc-west">
+          <div class="team-card" data-team="Denver Broncos" data-slug="broncos"></div>
+          <div class="team-card" data-team="Kansas City Chiefs" data-slug="chiefs"></div>
+          <div class="team-card" data-team="Las Vegas Raiders" data-slug="raiders"></div>
+          <div class="team-card" data-team="Los Angeles Chargers" data-slug="chargers"></div>
+        </div>
+      </div>
+
+      <!-- NFC -->
+      <div class="conf-section" id="nfc">
+        <div class="conf-title">National Football Conference</div>
+
+        <div class="division-label">NFC East</div>
+        <div class="teams-grid" id="nfc-east">
+          <div class="team-card" data-team="Dallas Cowboys" data-slug="cowboys"></div>
+          <div class="team-card" data-team="New York Giants" data-slug="giants"></div>
+          <div class="team-card" data-team="Philadelphia Eagles" data-slug="eagles"></div>
+          <div class="team-card" data-team="Washington Commanders" data-slug="commanders"></div>
+        </div>
+
+        <div class="division-label">NFC North</div>
+        <div class="teams-grid" id="nfc-north">
+          <div class="team-card" data-team="Chicago Bears" data-slug="bears"></div>
+          <div class="team-card" data-team="Detroit Lions" data-slug="lions"></div>
+          <div class="team-card" data-team="Green Bay Packers" data-slug="packers"></div>
+          <div class="team-card" data-team="Minnesota Vikings" data-slug="vikings"></div>
+        </div>
+
+        <div class="division-label">NFC South</div>
+        <div class="teams-grid" id="nfc-south">
+          <div class="team-card" data-team="Atlanta Falcons" data-slug="falcons"></div>
+          <div class="team-card" data-team="Carolina Panthers" data-slug="panthers"></div>
+          <div class="team-card" data-team="New Orleans Saints" data-slug="saints"></div>
+          <div class="team-card" data-team="Tampa Bay Buccaneers" data-slug="buccaneers"></div>
+        </div>
+
+        <div class="division-label">NFC West</div>
+        <div class="teams-grid" id="nfc-west">
+          <div class="team-card" data-team="Arizona Cardinals" data-slug="cardinals"></div>
+          <div class="team-card" data-team="Los Angeles Rams" data-slug="rams"></div>
+          <div class="team-card" data-team="San Francisco 49ers" data-slug="49ers"></div>
+          <div class="team-card" data-team="Seattle Seahawks" data-slug="seahawks"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Navbar scroll effect
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+      navbar.classList.toggle('scrolled', window.scrollY > 20);
+    });
+
+    const NFL_META = {
+      bills:      { city: 'Orchard Park',    color: '#00338D', espn: 'buf' },
+      dolphins:   { city: 'Miami Gardens',   color: '#008E97', espn: 'mia' },
+      patriots:   { city: 'Foxborough',      color: '#002244', espn: 'ne'  },
+      jets:       { city: 'East Rutherford', color: '#125740', espn: 'nyj' },
+      ravens:     { city: 'Baltimore',       color: '#241773', espn: 'bal' },
+      bengals:    { city: 'Cincinnati',      color: '#FB4F14', espn: 'cin' },
+      browns:     { city: 'Cleveland',       color: '#311D00', espn: 'cle' },
+      steelers:   { city: 'Pittsburgh',      color: '#FFB612', espn: 'pit' },
+      texans:     { city: 'Houston',         color: '#03202F', espn: 'hou' },
+      colts:      { city: 'Indianapolis',    color: '#002C5F', espn: 'ind' },
+      jaguars:    { city: 'Jacksonville',    color: '#101820', espn: 'jax' },
+      titans:     { city: 'Nashville',       color: '#0C2340', espn: 'ten' },
+      broncos:    { city: 'Denver',          color: '#FB4F14', espn: 'den' },
+      chiefs:     { city: 'Kansas City',     color: '#E31837', espn: 'kc'  },
+      raiders:    { city: 'Las Vegas',       color: '#000000', espn: 'lv'  },
+      chargers:   { city: 'Inglewood',       color: '#0080C6', espn: 'lac' },
+      cowboys:    { city: 'Arlington',       color: '#041E42', espn: 'dal' },
+      giants:     { city: 'East Rutherford', color: '#0B2265', espn: 'nyg' },
+      eagles:     { city: 'Philadelphia',    color: '#004C54', espn: 'phi' },
+      commanders: { city: 'Landover',        color: '#5A1414', espn: 'wsh' },
+      bears:      { city: 'Chicago',         color: '#0B162A', espn: 'chi' },
+      lions:      { city: 'Detroit',         color: '#0076B6', espn: 'det' },
+      packers:    { city: 'Green Bay',       color: '#203731', espn: 'gb'  },
+      vikings:    { city: 'Minneapolis',     color: '#4F2683', espn: 'min' },
+      falcons:    { city: 'Atlanta',         color: '#A71930', espn: 'atl' },
+      panthers:   { city: 'Charlotte',       color: '#0085CA', espn: 'car' },
+      saints:     { city: 'New Orleans',     color: '#D3BC8D', espn: 'no'  },
+      buccaneers: { city: 'Tampa',           color: '#D50A0A', espn: 'tb'  },
+      cardinals:  { city: 'Glendale',        color: '#97233F', espn: 'ari' },
+      rams:       { city: 'Inglewood',       color: '#003594', espn: 'lar' },
+      '49ers':    { city: 'Santa Clara',     color: '#AA0000', espn: 'sf'  },
+      seahawks:   { city: 'Seattle',         color: '#002244', espn: 'sea' },
+    };
+
+    function hexToRgb(hex) {
+      const h = hex.replace('#', '');
+      return [0,2,4].map(i => parseInt(h.slice(i, i + 2), 16));
+    }
+
+    document.querySelectorAll('.team-card').forEach(card => {
+      const slug = card.dataset.slug;
+      const meta = NFL_META[slug];
+      if (!meta) return;
+      const [r, g, b] = hexToRgb(meta.color);
+      card.style.cursor = 'pointer';
+      card.style.borderColor = `rgba(${r},${g},${b},.35)`;
+      card.style.boxShadow = `0 0 18px rgba(${r},${g},${b},.15)`;
+      card.onclick = () => { window.location.href = `nfl_${slug}_seatmap.html`; };
+
+      const img = document.createElement('img');
+      img.className = 'team-logo';
+      img.src = `https://a.espncdn.com/i/teamlogos/nfl/500/${meta.espn}.png`;
+      img.alt = card.dataset.team;
+      card.appendChild(img);
+
+      const name = document.createElement('div');
+      name.className = 'team-name';
+      name.textContent = card.dataset.team.replace(/^(New England|New Orleans|New York|Green Bay|Tampa Bay|Los Angeles|Las Vegas|San Francisco|Kansas City)\s/, '');
+      card.appendChild(name);
+
+      const city = document.createElement('div');
+      city.className = 'team-city';
+      city.textContent = meta.city;
+      card.appendChild(city);
+
+      const badge = document.createElement('div');
+      badge.className = 'team-badge';
+      badge.textContent = 'Live seat map';
+      card.appendChild(badge);
+    });
+
+    // Search / filter
+    function filterTeams(query) {
+      const q = query.toLowerCase();
+      document.querySelectorAll('.team-card').forEach(card => {
+        const name = card.dataset.team.toLowerCase();
+        card.style.display = name.includes(q) ? '' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>

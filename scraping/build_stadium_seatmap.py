@@ -52,6 +52,39 @@ def main():
         separators=(",", ":"),
     )
 
+    # Different venues' seating bowls have genuinely different real-world
+    # proportions (Lambeau Field's bowl is much closer to square/portrait
+    # than Levi's Stadium's), but the page's map area is always a landscape
+    # box — fitting the viewBox tightly to each bowl's own aspect ratio just
+    # makes portrait-shaped venues render as a tall, narrow, letterboxed
+    # shape inside that landscape box. Instead, fit to the content with
+    # padding, then pad the *shorter* axis further so every venue's frame
+    # ends up the same landscape aspect ratio as the page's map area.
+    TARGET_ASPECT = 10240 / 7680  # 1.333 — matches the map area's own box
+
+    xs = [p[0] for dots in extract["secs"].values() for p in dots]
+    ys = [p[1] for dots in extract["secs"].values() for p in dots]
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    pad_x = (max_x - min_x) * 0.16
+    pad_y = (max_y - min_y) * 0.16
+    vb_x, vb_w = min_x - pad_x, (max_x - min_x) + pad_x * 2
+    vb_y, vb_h = min_y - pad_y, (max_y - min_y) + pad_y * 2
+
+    cx, cy = vb_x + vb_w / 2, vb_y + vb_h / 2
+    if vb_w / vb_h < TARGET_ASPECT:
+        vb_w = vb_h * TARGET_ASPECT
+    else:
+        vb_h = vb_w / TARGET_ASPECT
+    vb_x, vb_y = cx - vb_w / 2, cy - vb_h / 2
+
+    full_vb = {
+        "x": round(vb_x, 1), "y": round(vb_y, 1),
+        "w": round(vb_w, 1), "h": round(vb_h, 1),
+    }
+    FULL_VB_JSON = json.dumps(full_vb, separators=(",", ":"))
+    VIEWBOX_ATTR = f"{full_vb['x']} {full_vb['y']} {full_vb['w']} {full_vb['h']}"
+
     arena_raw = open(arena_path, encoding="utf-8").read()
     inner = re.sub(r'^\s*<svg[^>]*>', '', arena_raw)
     inner = re.sub(r'</svg>\s*$', '', inner)
@@ -216,7 +249,7 @@ circle.dot-picked{fill:var(--good) !important;}
     </div>
 
     <div id="mapwrap">
-      <svg id="bowlsvg" viewBox="0 0 10240 7680" xmlns="http://www.w3.org/2000/svg">
+      <svg id="bowlsvg" viewBox="__VIEWBOX_ATTR__" xmlns="http://www.w3.org/2000/svg">
 __ARENA_INNER__
         <g id="labels"></g>
         <g id="badges"></g>
@@ -258,7 +291,7 @@ const badgesG = document.getElementById('badges');
 const labelsG = document.getElementById('labels');
 const dotsGray = document.getElementById('dots-gray');
 const dotsOpen = document.getElementById('dots-open');
-const FULL_VB = {x:0, y:0, w:10240, h:7680};
+const FULL_VB = __FULL_VB_JSON__;
 let curVB = {...FULL_VB};
 let zoomedSec = null;
 let pickedSeat = null;
@@ -451,6 +484,8 @@ setVB(FULL_VB);
     HTML = (HTML
             .replace("__FULL_JSON__", FULL_JSON)
             .replace("__META_JSON__", META_JSON)
+            .replace("__FULL_VB_JSON__", FULL_VB_JSON)
+            .replace("__VIEWBOX_ATTR__", VIEWBOX_ATTR)
             .replace("__ARENA_INNER__", ARENA_INNER)
             .replace("__ARENA_NAME_JSON__", json.dumps(arena_name))
             .replace("__TEAM_COLOR_DARK__", team_color_dark)
