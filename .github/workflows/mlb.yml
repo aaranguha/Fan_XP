@@ -66,11 +66,12 @@ jobs:
 
       - name: Run MLB daily runner
         run: |
+          cd scraping
           if [ -n "${{ github.event.inputs.team }}" ]; then
             NOW_FLAG=${{ github.event.inputs.now == 'true' && '--now' || '' }}
-            .venv/bin/python mlb_run_game.py ${{ github.event.inputs.team }} ${{ github.event.inputs.date }} $NOW_FLAG
+            ../.venv/bin/python mlb_run_game.py ${{ github.event.inputs.team }} ${{ github.event.inputs.date }} $NOW_FLAG
           else
-            .venv/bin/python mlb_runner.py ${{ github.event.inputs.date }}
+            ../.venv/bin/python mlb_runner.py ${{ github.event.inputs.date }}
           fi
 
       - name: Upload failure screenshots
@@ -78,5 +79,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tm-failure-screenshots
-          path: data/mlb/**/tm_failure.png
+          path: scraping/data/mlb/**/tm_failure.png
           if-no-files-found: ignore

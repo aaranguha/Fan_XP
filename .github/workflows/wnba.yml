@@ -54,12 +54,14 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run WNBA daily runner
-        run: .venv/bin/python wnba_runner.py ${{ github.event.inputs.date }}
+        run: |
+          cd scraping
+          ../.venv/bin/python wnba_runner.py ${{ github.event.inputs.date }}
 
       - name: Upload failure screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: wnba-failure-screenshots
-          path: data/wnba/**/tm_failure.png
+          path: scraping/data/wnba/**/tm_failure.png
           if-no-files-found: ignore

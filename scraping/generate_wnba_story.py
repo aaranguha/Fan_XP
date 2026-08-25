@@ -553,11 +553,11 @@ def generate_html(slug: str) -> str:
 
 
 def main():
-    os.makedirs("docs", exist_ok=True)
+    os.makedirs("../docs", exist_ok=True)
     slugs = list(WNBA_TEAMS.keys()) if len(sys.argv) < 2 or sys.argv[1] == "all" else [sys.argv[1].lower()]
     for slug in slugs:
         html = generate_html(slug)
-        out  = f"docs/wnba_{slug}_story.html"
+        out  = f"../docs/wnba_{slug}_story.html"
         with open(out, "w", encoding="utf-8") as f:
             f.write(html)
         print(f"  [{slug}] → {out}")

@@ -186,7 +186,7 @@ def main():
             subprocess.run(["git", "config", "user.email", git_email], check=True)
             subprocess.run(["git", "config", "user.name",  git_name],  check=True)
 
-        subprocess.run(["git", "add", "data/nfl/", "docs/"], check=True)
+        subprocess.run(["git", "add", "data/nfl/", "../docs/"], check=True)
         subprocess.run(["git", "commit", "-m", f"NFL auto-update {date_str}: {teams_str}"], check=True)
         result = subprocess.run(["git", "push"])
         print("  Pushed." if result.returncode == 0 else "  git push failed.")

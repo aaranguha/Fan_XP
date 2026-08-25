@@ -170,7 +170,7 @@ def main():
                 print(f"  [{slug}] story page error: {result.stderr.strip()}")
 
         teams_str = "-".join(sorted(succeeded))
-        subprocess.run(["git", "add", "data/wnba/", "docs/"], check=True)
+        subprocess.run(["git", "add", "data/wnba/", "../docs/"], check=True)
         commit = subprocess.run([
             "git", "commit", "-m", f"WNBA auto-update {today}: {teams_str}"
         ])

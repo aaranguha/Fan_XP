@@ -1212,8 +1212,8 @@ def generate(team_slug):
 
     html = gen_html(team_slug, games_data, sec_paths, geo_sections, bg_inner, court_img)
 
-    os.makedirs("docs", exist_ok=True)
-    out_path = f"docs/{team_slug}_seat_story.html"
+    os.makedirs("../docs", exist_ok=True)
+    out_path = f"../docs/{team_slug}_seat_story.html"
     with open(out_path, "w") as f:
         f.write(html)
     print(f"    → {out_path}")

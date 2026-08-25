@@ -50,12 +50,14 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run NFL daily runner
-        run: .venv/bin/python nfl_runner.py
+        run: |
+          cd scraping
+          ../.venv/bin/python nfl_runner.py
 
       - name: Upload game logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nfl-game-logs
-          path: data/nfl/**/game.log
+          path: scraping/data/nfl/**/game.log
           if-no-files-found: ignore

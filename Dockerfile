@@ -19,8 +19,8 @@ RUN playwright install-deps chromium
 COPY . .
 
 # Create data directories expected by the runners
-RUN mkdir -p data/mlb
+RUN mkdir -p scraping/data/mlb
 
 # Default: run the NBA daily runner.
-# Override in Railway to run mlb_runner.py for the MLB service.
-CMD ["python", "daily_runner.py"]
+# Override in Railway to run scraping/mlb_runner.py for the MLB service.
+CMD ["python", "scraping/daily_runner.py"]

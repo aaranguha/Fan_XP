@@ -399,7 +399,7 @@ def generate_html(slug: str) -> str:
 
 
 def main():
-    os.makedirs("docs", exist_ok=True)
+    os.makedirs("../docs", exist_ok=True)
 
     if len(sys.argv) < 2 or sys.argv[1] == "all":
         slugs = list(MLB_TEAMS.keys())
@@ -410,7 +410,7 @@ def main():
         html = generate_html(slug)
         if not html:
             continue
-        out = f"docs/mlb_{slug}_story.html"
+        out = f"../docs/mlb_{slug}_story.html"
         with open(out, "w", encoding="utf-8") as f:
             f.write(html)
         print(f"  [{slug}] → {out}")

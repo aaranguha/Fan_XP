@@ -219,7 +219,7 @@ def main():
                 auth_url = f"https://{github_token}@github.com/{path}.git"
                 subprocess.run(["git", "remote", "set-url", "origin", auth_url], check=True)
 
-        subprocess.run(["git", "add", "data/mlb/", "docs/"], check=True)
+        subprocess.run(["git", "add", "data/mlb/", "../docs/"], check=True)
         commit = subprocess.run([
             "git", "commit", "-m", f"MLB auto-update {date_str}: {teams_str}"
         ])

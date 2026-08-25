@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 import math, os
 
 W, H = 1200, 630
-OUT = os.path.join(os.path.dirname(__file__), "docs", "og.png")
+OUT = os.path.join(os.path.dirname(__file__), "..", "docs", "og.png")
 
 img = Image.new("RGB", (W, H), (8, 10, 18))
 draw = ImageDraw.Draw(img)
