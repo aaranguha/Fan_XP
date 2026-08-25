@@ -1,0 +1,471 @@
+"""
+build_stadium_seatmap.py
+
+Turns a team's data/{slug}/seatmap_extract.json + arena_full.svg into the
+interactive seat-map page (flat colored section overview, click a section to
+zoom in and see real individual seats, red = confirmed empty right now).
+
+Usage:
+    python3 build_stadium_seatmap.py <team_slug>
+
+Output:
+    docs/nfl_{slug}_seatmap.html
+"""
+
+import json
+import os
+import re
+import sys
+
+from nfl_teams import NFL_TEAMS
+from generate_nfl_story import NFL_COLORS, NFL_ARENAS
+
+
+def darken(hex_color: str, factor: float = 0.55) -> str:
+    hex_color = hex_color.lstrip("#")
+    r, g, b = (int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+    r, g, b = (max(0, int(c * factor)) for c in (r, g, b))
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: python3 build_stadium_seatmap.py <team_slug>")
+        sys.exit(1)
+    slug = sys.argv[1]
+
+    if slug not in NFL_TEAMS:
+        print(f"ERROR: unknown team slug '{slug}'")
+        sys.exit(1)
+
+    extract_path = f"data/{slug}/seatmap_extract.json"
+    arena_path = f"data/{slug}/arena_full.svg"
+    if not os.path.isfile(extract_path) or not os.path.isfile(arena_path):
+        print(f"ERROR: missing {extract_path} or {arena_path}. "
+              f"Run fetch_geometry.py then extract_stadium_geo.py for {slug} first.")
+        sys.exit(1)
+
+    extract = json.load(open(extract_path))
+    FULL_JSON = json.dumps({"secs": extract["secs"]}, separators=(",", ":"))
+    META_JSON = json.dumps(
+        {"tiers": extract["tiers"], "centroids": extract["centroids"]},
+        separators=(",", ":"),
+    )
+
+    arena_raw = open(arena_path, encoding="utf-8").read()
+    inner = re.sub(r'^\s*<svg[^>]*>', '', arena_raw)
+    inner = re.sub(r'</svg>\s*$', '', inner)
+    ARENA_INNER = inner
+
+    # Use the full tm_keyword ("San Francisco 49ers") rather than title-casing
+    # the slug — slug.title() mangles "49ers" into "49Ers".
+    team_name = NFL_TEAMS[slug]["tm_keyword"]
+    arena_name = NFL_ARENAS.get(slug, "")
+    city = NFL_TEAMS[slug].get("city", "")
+    team_color = NFL_COLORS.get(slug, "#aa0000")
+    team_color_dark = darken(team_color)
+
+    HTML = """<title>Second Half Seats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#e8e9ec;
+  --surface:#ffffff;
+  --surface-sunken:#f1f2f5;
+  --border:#dcdfe4;
+  --text:#1c1e22;
+  --muted:#6b7280;
+  --muted-dim:#9aa0ab;
+  --brand:#1454c9;
+  --good:#0f8b6c;
+  --font:'Inter',system-ui,-apple-system,sans-serif;
+  --team:__TEAM_COLOR__;
+  --team-dark:__TEAM_COLOR_DARK__;
+  --gray-dot:#c7cbd3;
+  --sec-standard:#2f66e0;
+  --sec-premium:#a9c0ef;
+}
+html,body{background:var(--bg);color:var(--text);font-family:var(--font);height:100%;-webkit-font-smoothing:antialiased;}
+body{min-height:100vh;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.001ms !important;transition-duration:.001ms !important;}}
+
+#topbar{
+  position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:14px 26px;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);
+}
+#eventinfo h1{font-size:1.05rem;font-weight:800;letter-spacing:-.01em;}
+#eventinfo p{font-size:.76rem;color:var(--muted);margin-top:1px;}
+#livepill{
+  display:flex;align-items:center;gap:6px;flex:none;font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--good);background:#e7f6f1;border:1px solid #bfe7da;padding:5px 11px 5px 9px;border-radius:999px;
+}
+.livedot{width:6px;height:6px;border-radius:50%;background:var(--good);animation:pulse 1.8s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+#shell{display:grid;grid-template-columns:1fr 320px;max-width:1360px;margin:0 auto;}
+@media (max-width:920px){#shell{grid-template-columns:1fr;}}
+
+#stage{padding:22px 26px 60px;min-width:0;}
+#stagehead{margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+#stagehead h2{font-size:1.3rem;font-weight:800;letter-spacing:-.01em;margin-bottom:4px;}
+#stagehead p{font-size:.82rem;color:var(--muted);max-width:60ch;line-height:1.5;}
+#resetbtn{
+  display:none;font-size:.74rem;font-weight:700;color:var(--brand);background:var(--surface);
+  border:1px solid var(--border);padding:7px 14px;border-radius:8px;flex:none;
+}
+#resetbtn.show{display:block;}
+#seclabel{display:none;font-size:.85rem;font-weight:800;margin-top:2px;}
+#seclabel.show{display:block;}
+
+#legend{display:flex;gap:16px;margin:14px 0 16px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted);font-weight:500;}
+.legend-swatch{width:10px;height:10px;border-radius:3px;flex:none;}
+.legend-swatch.dot{border-radius:50%;width:8px;height:8px;}
+
+#mapwrap{
+  position:relative;background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:6px;box-shadow:0 1px 2px rgba(15,20,30,.04);overflow:hidden;
+}
+#bowlsvg{width:100%;height:auto;display:block;border-radius:12px;}
+
+.sec-standard{fill:var(--sec-standard) !important;stroke:#fff !important;stroke-width:6 !important;transition:opacity .12s,fill-opacity .15s;}
+.sec-premium{fill:var(--sec-premium) !important;stroke:#fff !important;stroke-width:6 !important;transition:opacity .12s,fill-opacity .15s;}
+.sec-path.clickable{cursor:pointer;}
+.sec-path.clickable:hover{opacity:.8;}
+.sec-path.faded{fill-opacity:.16 !important;}
+
+.section-label{font-family:var(--font);font-size:92px;font-weight:800;fill:#fff;text-anchor:middle;pointer-events:none;}
+.section-badge{pointer-events:none;}
+.section-badge circle{fill:var(--team);stroke:#fff;stroke-width:8;}
+.section-badge text{font-family:var(--font);font-size:44px;font-weight:800;fill:#fff;text-anchor:middle;}
+
+circle.dot-gray{fill:var(--gray-dot);}
+circle.dot-open{fill:var(--team);cursor:pointer;}
+circle.dot-open:hover{fill:var(--team-dark);}
+circle.dot-picked{fill:var(--good) !important;}
+
+#tip{
+  position:fixed;pointer-events:none;
+  background:rgba(20,22,26,.96);border:1px solid rgba(170,0,0,.35);
+  border-radius:8px;padding:9px 13px;display:none;z-index:40;white-space:nowrap;
+  box-shadow:0 8px 24px rgba(0,0,0,.28);
+}
+#tip.show{display:block;}
+.tip-sec{font-size:.74rem;font-weight:700;color:#fff;margin-bottom:3px;}
+.tip-tag{font-size:.64rem;color:var(--team);font-weight:600;margin-bottom:2px;}
+.tip-price{font-size:.66rem;color:rgba(255,255,255,.6);}
+.tip-price strong{color:#fff;}
+
+#cart{
+  position:sticky;top:65px;align-self:start;padding:24px 22px 26px;border-left:1px solid var(--border);
+  min-height:calc(100vh - 65px);display:flex;flex-direction:column;background:var(--surface);
+}
+@media (max-width:920px){#cart{position:static;border-left:none;border-top:1px solid var(--border);min-height:0;}}
+#cart h4{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:14px;}
+#cart-empty{font-size:.84rem;color:var(--muted);line-height:1.6;padding:20px 0;}
+#cart-item{display:none;background:var(--surface-sunken);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;}
+#cart-item.filled{display:block;}
+#cart-item .seatname{font-weight:800;font-size:.95rem;}
+#cart-item .secname{font-size:.76rem;color:var(--muted);margin-top:2px;}
+#cart-divider{border-top:1px solid var(--border);margin:14px 0;}
+#cart-row{display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted);margin-bottom:6px;}
+#cart-total{display:flex;justify-content:space-between;font-size:1rem;font-weight:800;margin-top:8px;font-variant-numeric:tabular-nums;}
+#claimbtn{width:100%;padding:14px;margin-top:auto;border-radius:10px;background:var(--brand);color:#fff;font-weight:700;font-size:.9rem;transition:background .15s,transform .1s;}
+#claimbtn:disabled{background:var(--surface-sunken);color:var(--muted-dim);cursor:not-allowed;}
+#claimbtn:not(:disabled):hover{background:#0e3f9c;}
+#claimbtn:not(:disabled):active{transform:scale(.98);}
+#cart-note{font-size:.68rem;color:var(--muted-dim);text-align:center;margin-top:12px;line-height:1.5;}
+
+#toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--text);color:#fff;border-radius:10px;padding:13px 20px;font-size:.82rem;font-weight:600;
+  opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:50;box-shadow:0 12px 32px rgba(0,0,0,.25);
+  display:flex;align-items:center;gap:10px;max-width:340px;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast .dot{width:7px;height:7px;border-radius:50%;background:var(--good);flex:none;}
+</style>
+
+<div id="topbar">
+  <div id="eventinfo">
+    <h1>__TEAM_NAME__ — Second Half Seats</h1>
+    <p>__ARENA_NAME__ &middot; __CITY__</p>
+  </div>
+  <div id="livepill"><span class="livedot"></span>2nd Half &middot; Live</div>
+</div>
+
+<div id="shell">
+  <div id="stage">
+    <div id="stagehead">
+      <div>
+        <h2 id="headline">Claim an empty seat</h2>
+        <p id="subline">Sections with a red badge have confirmed empty seats right now. Tap one to zoom in and see the exact open seats.</p>
+        <div id="seclabel"></div>
+      </div>
+      <button id="resetbtn">&larr; All sections</button>
+    </div>
+
+    <div id="legend">
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--sec-standard)"></span>Standard seating</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--sec-premium)"></span>Club &amp; VIP</div>
+      <div class="legend-item"><span class="legend-swatch dot" style="background:var(--team)"></span>Empty &mdash; open now</div>
+    </div>
+
+    <div id="mapwrap">
+      <svg id="bowlsvg" viewBox="0 0 10240 7680" xmlns="http://www.w3.org/2000/svg">
+__ARENA_INNER__
+        <g id="labels"></g>
+        <g id="badges"></g>
+        <g id="dots-gray"></g>
+        <g id="dots-open"></g>
+      </svg>
+      <div id="tip"></div>
+    </div>
+  </div>
+
+  <div id="cart">
+    <h4>Your selection</h4>
+    <div id="cart-empty">Tap a section, then tap a red seat to select it.</div>
+    <div id="cart-item">
+      <div class="seatname" id="cart-seatname">&mdash;</div>
+      <div class="secname" id="cart-secname">&mdash;</div>
+      <div id="cart-divider"></div>
+      <div id="cart-row"><span>Face value</span><span id="cart-face">$0</span></div>
+      <div id="cart-row"><span>Service fee</span><span id="cart-fee">$0</span></div>
+      <div id="cart-total"><span>Total</span><span id="cart-total-amt">$0</span></div>
+    </div>
+    <button id="claimbtn" disabled>Select a seat first</button>
+    <p id="cart-note">Preview built from real __ARENA_NAME__ seat data &mdash; not yet connected to live inventory.</p>
+  </div>
+</div>
+
+<div id="toast"><span class="dot"></span><span id="toast-text"></span></div>
+
+<script>
+const SECS = __FULL_JSON__.secs;      // name -> [[x,y,row,seat,level,isOpen], ...]
+const META = __META_JSON__;           // {tiers, centroids}
+const ARENA_NAME = __ARENA_NAME_JSON__;
+const svgNS = 'http://www.w3.org/2000/svg';
+const PRICE_MAP = {'80':64,'90':78,'140':118,'160':142,'180':168,'200':195,'220':225,'260':275,'300':320};
+function priceFor(level){ return PRICE_MAP[level] || 95; }
+
+const svg = document.getElementById('bowlsvg');
+const badgesG = document.getElementById('badges');
+const labelsG = document.getElementById('labels');
+const dotsGray = document.getElementById('dots-gray');
+const dotsOpen = document.getElementById('dots-open');
+const FULL_VB = {x:0, y:0, w:10240, h:7680};
+let curVB = {...FULL_VB};
+let zoomedSec = null;
+let pickedSeat = null;
+
+// ── Step 1 (default state): flat, tier-colored real TM section paths ──
+Object.keys(SECS).forEach(name => {
+  const el = document.getElementById(name);
+  if (!el) return;
+  const tier = META.tiers[name];
+  el.classList.add((tier === 'club' || tier === 'suite') ? 'sec-premium' : 'sec-standard');
+  el.classList.add('sec-path', 'clickable');
+  el.addEventListener('click', () => zoomToSection(name));
+
+  if (SECS[name].length > 60) {
+    const [lcx, lcy] = META.centroids[name] || [0,0];
+    const label = document.createElementNS(svgNS, 'text');
+    label.setAttribute('x', lcx); label.setAttribute('y', lcy + 15);
+    label.setAttribute('class', 'section-label');
+    label.textContent = name;
+    labelsG.appendChild(label);
+  }
+
+  const openCount = SECS[name].filter(d => d[5]).length;
+  if (openCount > 0) {
+    const [cx, cy] = META.centroids[name] || [0,0];
+    const g = document.createElementNS(svgNS, 'g');
+    g.setAttribute('class', 'section-badge');
+    const c = document.createElementNS(svgNS, 'circle');
+    c.setAttribute('cx', cx); c.setAttribute('cy', cy - 130); c.setAttribute('r', 62);
+    g.appendChild(c);
+    const t = document.createElementNS(svgNS, 'text');
+    t.setAttribute('x', cx); t.setAttribute('y', cy - 130 + 16);
+    t.textContent = openCount;
+    g.appendChild(t);
+    badgesG.appendChild(g);
+  }
+});
+
+const tipEl = document.getElementById('tip');
+function showTip(e, secName, rowLabel, num, price){
+  tipEl.innerHTML =
+    `<div class="tip-sec">Sec ${secName} · Row ${rowLabel} · Seat ${num}</div>` +
+    `<div class="tip-tag">Empty — open now</div>` +
+    `<div class="tip-price">Face value <strong>$${price}</strong></div>`;
+  tipEl.classList.add('show');
+  moveTip(e);
+}
+function moveTip(e){
+  const tw = tipEl.offsetWidth;
+  const left = Math.min(e.clientX + 14, window.innerWidth - tw - 8);
+  tipEl.style.left = left + 'px';
+  tipEl.style.top  = Math.min(e.clientY - 10, window.innerHeight - 90) + 'px';
+}
+function hideTip(){ tipEl.classList.remove('show'); }
+
+function setVB(vb){ svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
+
+let animRaf = null;
+function animVB(from, to, dur, onDone){
+  if (animRaf) cancelAnimationFrame(animRaf);
+  const t0 = performance.now();
+  function frame(now){
+    const t = Math.min((now - t0) / dur, 1);
+    const e = 1 - Math.pow(1 - t, 3);
+    curVB = {
+      x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e,
+      w: from.w + (to.w - from.w) * e, h: from.h + (to.h - from.h) * e,
+    };
+    setVB(curVB);
+    if (t < 1) { animRaf = requestAnimationFrame(frame); }
+    else if (onDone) onDone();
+  }
+  animRaf = requestAnimationFrame(frame);
+}
+
+// ── Step 2: on click, zoom in AND reveal that section's exact seats ──
+function zoomToSection(name){
+  const dots = SECS[name];
+  if (!dots || !dots.length) return;
+  zoomedSec = name;
+
+  document.querySelectorAll('.sec-path').forEach(el => {
+    el.classList.toggle('faded', el.id !== name);
+  });
+  badgesG.style.display = 'none';
+  labelsG.style.display = 'none';
+
+  const xs = dots.map(d => d[0]), ys = dots.map(d => d[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const padX = Math.max((maxX - minX) * 0.35, 60), padY = Math.max((maxY - minY) * 0.35, 60);
+  let w = (maxX - minX) + padX * 2, h = (maxY - minY) + padY * 2;
+  const ar = FULL_VB.w / FULL_VB.h;
+  if (w / h > ar) h = w / ar; else w = h * ar;
+  const tx = (minX + maxX) / 2 - w / 2, ty = (minY + maxY) / 2 - h / 2;
+
+  dotsGray.innerHTML = ''; dotsOpen.innerHTML = '';
+  animVB(curVB, {x: tx, y: ty, w, h}, 380, () => buildDots(name));
+
+  const openCount = dots.filter(d => d[5]).length;
+  document.getElementById('resetbtn').classList.add('show');
+  document.getElementById('headline').textContent = 'Section ' + name;
+  const lbl = document.getElementById('seclabel');
+  lbl.textContent = `${dots.length} seats · ${openCount} open now`;
+  lbl.classList.add('show');
+  document.getElementById('subline').textContent =
+    openCount > 0 ? 'Tap a red seat to select it.' : 'No confirmed openings in this section yet.';
+}
+
+function buildDots(name){
+  SECS[name].forEach(d => {
+    const [x, y, row, num, level, isOpen] = d;
+    const c = document.createElementNS(svgNS, 'circle');
+    c.setAttribute('cx', x); c.setAttribute('cy', y);
+    if (isOpen) {
+      c.setAttribute('r', 5.5);
+      c.setAttribute('class', 'dot-open');
+      c.addEventListener('click', (e) => { e.stopPropagation(); pickSeat(c, name, row, num, priceFor(level)); });
+      c.addEventListener('mouseenter', (e) => showTip(e, name, row, num, priceFor(level)));
+      c.addEventListener('mousemove', moveTip);
+      c.addEventListener('mouseleave', hideTip);
+      dotsOpen.appendChild(c);
+    } else {
+      c.setAttribute('r', 3.2);
+      c.setAttribute('class', 'dot-gray');
+      dotsGray.appendChild(c);
+    }
+  });
+}
+
+function resetView(){
+  zoomedSec = null;
+  dotsGray.innerHTML = ''; dotsOpen.innerHTML = '';
+  document.querySelectorAll('.sec-path').forEach(el => el.classList.remove('faded'));
+  badgesG.style.display = '';
+  labelsG.style.display = '';
+  animVB(curVB, FULL_VB, 360);
+  document.getElementById('resetbtn').classList.remove('show');
+  document.getElementById('seclabel').classList.remove('show');
+  document.getElementById('headline').textContent = 'Claim an empty seat';
+  document.getElementById('subline').textContent = 'Sections with a red badge have confirmed empty seats right now. Tap one to zoom in and see the exact open seats.';
+}
+
+document.getElementById('resetbtn').addEventListener('click', resetView);
+svg.addEventListener('click', (e) => { if (zoomedSec && e.target === svg) resetView(); });
+
+// Trackpad pinch-out / ctrl+scroll-out while zoomed into a section zooms
+// back out to the section overview, matching native map pinch-zoom feel.
+document.getElementById('mapwrap').addEventListener('wheel', (e) => {
+  if (!zoomedSec) return;
+  if (!e.ctrlKey) return;
+  if (e.deltaY <= 0) return;
+  e.preventDefault();
+  resetView();
+}, { passive: false });
+
+function pickSeat(el, secName, rowLabel, num, price){
+  document.querySelectorAll('.dot-picked').forEach(s => { s.classList.remove('dot-picked'); s.classList.add('dot-open'); });
+  el.classList.remove('dot-open'); el.classList.add('dot-picked');
+  pickedSeat = {secName, rowLabel, num, price};
+
+  document.getElementById('cart-empty').style.display = 'none';
+  const item = document.getElementById('cart-item');
+  item.classList.add('filled');
+  document.getElementById('cart-seatname').textContent = `Row ${rowLabel}, Seat ${num}`;
+  document.getElementById('cart-secname').textContent = `Section ${secName} · ${ARENA_NAME}`;
+  const fee = Math.round(price * 0.12);
+  document.getElementById('cart-face').textContent = '$' + price;
+  document.getElementById('cart-fee').textContent = '$' + fee;
+  document.getElementById('cart-total-amt').textContent = '$' + (price + fee);
+
+  const btn = document.getElementById('claimbtn');
+  btn.disabled = false;
+  btn.textContent = 'Claim this seat';
+}
+
+document.getElementById('claimbtn').addEventListener('click', () => {
+  if (!pickedSeat) return;
+  const t = document.getElementById('toast');
+  document.getElementById('toast-text').textContent =
+    `Request sent for Section ${pickedSeat.secName}, Row ${pickedSeat.rowLabel} Seat ${pickedSeat.num} — preview only, nothing was actually sent.`;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3800);
+});
+
+setVB(FULL_VB);
+</script>
+"""
+
+    HTML = (HTML
+            .replace("__FULL_JSON__", FULL_JSON)
+            .replace("__META_JSON__", META_JSON)
+            .replace("__ARENA_INNER__", ARENA_INNER)
+            .replace("__ARENA_NAME_JSON__", json.dumps(arena_name))
+            .replace("__TEAM_COLOR_DARK__", team_color_dark)
+            .replace("__TEAM_COLOR__", team_color)
+            .replace("__TEAM_NAME__", team_name)
+            .replace("__ARENA_NAME__", arena_name)
+            .replace("__CITY__", city))
+
+    os.makedirs("../docs", exist_ok=True)
+    out_path = f"../docs/nfl_{slug}_seatmap.html"
+    with open(out_path, "w") as f:
+        f.write(HTML)
+
+    print(f"[{slug}] -> {out_path} ({os.path.getsize(out_path)/1024/1024:.2f} MB)")
+
+
+if __name__ == "__main__":
+    main()
