@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   run-wnba:
-    runs-on: self-hosted
+    runs-on: [self-hosted, shared-runner]
     timeout-minutes: 360
 
     env:
