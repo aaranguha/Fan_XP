@@ -353,6 +353,10 @@ def request_nfl_seat(slug):
     session = stripe.checkout.Session.create(
         mode="payment",
         payment_intent_data={"capture_method": "manual"},
+        # Managed Payments (Stripe Tax) is on by default for new accounts
+        # and requires a tax_code per product we don't need for this
+        # marketplace-credit flow — turn it off for this session.
+        managed_payments={"enabled": False},
         line_items=[{
             "price_data": {
                 "currency": "usd",
