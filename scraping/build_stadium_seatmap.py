@@ -616,7 +616,7 @@ setVB(FULL_VB);
             .replace("__ARENA_INNER__", ARENA_INNER)
             .replace("__ARENA_NAME_JSON__", json.dumps(arena_name))
             .replace("__TEAM_SLUG_JSON__", json.dumps(slug))
-            .replace("__API_BASE_JSON__", json.dumps("http://localhost:5000"))
+            .replace("__API_BASE_JSON__", json.dumps("https://fanxp-api.onrender.com"))
             .replace("__TEAM_COLOR_DARK__", team_color_dark)
             .replace("__TEAM_COLOR__", team_color)
             .replace("__TEAM_NAME__", team_name)
