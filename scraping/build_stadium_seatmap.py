@@ -52,6 +52,22 @@ def main():
         separators=(",", ":"),
     )
 
+    using_real_data = extract.get("data_source") == "real"
+    if using_real_data:
+        subline = (
+            f"Confirmed empty seats from the {extract.get('game_date', 'most recent')} game. "
+            f"Tap a red section to zoom in and see the exact open seats."
+        )
+        cart_note = "Built from real confirmed no-shows — claiming a seat sends a real request."
+        legend_dot_label = "Empty &mdash; confirmed no-show"
+    else:
+        subline = (
+            "This team hasn't had a home game yet, so these are illustrative open seats, "
+            "not confirmed no-shows. Tap a red section to zoom in."
+        )
+        cart_note = "Built from real seat data, but availability shown is a preview — claiming a seat still sends a real request."
+        legend_dot_label = "Empty &mdash; preview only"
+
     # Different venues' seating bowls have genuinely different real-world
     # proportions (Lambeau Field's bowl is much closer to square/portrait
     # than Levi's Stadium's), but the page's map area is always a landscape
@@ -248,7 +264,7 @@ circle.dot-picked{fill:var(--good) !important;}
     <div id="stagehead">
       <div>
         <h2 id="headline">Claim an empty seat</h2>
-        <p id="subline">Sections with a red badge have confirmed empty seats right now. Tap one to zoom in and see the exact open seats.</p>
+        <p id="subline">__SUBLINE__</p>
         <div id="seclabel"></div>
       </div>
       <button id="resetbtn">&larr; All sections</button>
@@ -257,7 +273,7 @@ circle.dot-picked{fill:var(--good) !important;}
     <div id="legend">
       <div class="legend-item"><span class="legend-swatch" style="background:var(--sec-standard)"></span>Standard seating</div>
       <div class="legend-item"><span class="legend-swatch" style="background:var(--sec-premium)"></span>Club &amp; VIP</div>
-      <div class="legend-item"><span class="legend-swatch dot" style="background:var(--team)"></span>Empty &mdash; open now</div>
+      <div class="legend-item"><span class="legend-swatch dot" style="background:var(--team)"></span>__LEGEND_DOT_LABEL__</div>
     </div>
 
     <div id="mapwrap">
@@ -289,7 +305,7 @@ __ARENA_INNER__
     </div>
     <button id="claimbtn" disabled>Select a seat first</button>
     <div id="request-status"></div>
-    <p id="cart-note">Built from real __ARENA_NAME__ seat data. Availability is simulated for this preview, but claiming a seat sends a real request.</p>
+    <p id="cart-note">__CART_NOTE__</p>
   </div>
 </div>
 
@@ -299,6 +315,7 @@ __ARENA_INNER__
 const SECS = __FULL_JSON__.secs;      // name -> [[x,y,row,seat,level,isOpen], ...]
 const META = __META_JSON__;           // {tiers, centroids}
 const ARENA_NAME = __ARENA_NAME_JSON__;
+const DEFAULT_SUBLINE = document.getElementById('subline').textContent;
 const TEAM_SLUG = __TEAM_SLUG_JSON__;
 const API_BASE = __API_BASE_JSON__; // TODO: point at the deployed Railway API URL
 const svgNS = 'http://www.w3.org/2000/svg';
@@ -451,7 +468,7 @@ function resetView(){
   document.getElementById('resetbtn').classList.remove('show');
   document.getElementById('seclabel').classList.remove('show');
   document.getElementById('headline').textContent = 'Claim an empty seat';
-  document.getElementById('subline').textContent = 'Sections with a red badge have confirmed empty seats right now. Tap one to zoom in and see the exact open seats.';
+  document.getElementById('subline').textContent = DEFAULT_SUBLINE;
 }
 
 document.getElementById('resetbtn').addEventListener('click', resetView);
@@ -604,7 +621,10 @@ setVB(FULL_VB);
             .replace("__TEAM_COLOR__", team_color)
             .replace("__TEAM_NAME__", team_name)
             .replace("__ARENA_NAME__", arena_name)
-            .replace("__CITY__", city))
+            .replace("__CITY__", city)
+            .replace("__SUBLINE__", subline)
+            .replace("__CART_NOTE__", cart_note)
+            .replace("__LEGEND_DOT_LABEL__", legend_dot_label))
 
     os.makedirs("../docs", exist_ok=True)
     out_path = f"../docs/nfl_{slug}_seatmap.html"
