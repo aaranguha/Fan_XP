@@ -226,6 +226,39 @@ def request_status(surrender_id):
     return jsonify(resp)
 
 
+@app.route("/api/nfl/<slug>/request", methods=["POST"])
+def request_nfl_seat(slug):
+    body = request.get_json(force=True) or {}
+    section   = str(body.get("section") or "").strip()
+    row_label = str(body.get("row") or "").strip()
+    seat_num  = str(body.get("seat") or "").strip()
+    price     = body.get("price")
+    fan_name  = (body.get("fan_name") or "").strip()
+    fan_phone = (body.get("fan_phone") or "").strip()
+
+    if not section or not row_label or not seat_num or price is None:
+        return jsonify({"error": "section, row, seat, and price are required"}), 400
+    if not fan_name or not fan_phone:
+        return jsonify({"error": "fan_name and fan_phone are required"}), 400
+
+    sb = get_supabase()
+    row = (
+        sb.table("nfl_seat_requests")
+          .insert({
+              "team_slug": slug,
+              "section":   section,
+              "row_label": row_label,
+              "seat_num":  seat_num,
+              "price_usd": price,
+              "fan_name":  fan_name,
+              "fan_phone": fan_phone,
+          })
+          .execute()
+    ).data[0]
+
+    return jsonify({"request_id": row["id"], "status": row["status"]})
+
+
 @app.route("/webhooks/twilio/sms", methods=["POST"])
 def twilio_sms_webhook():
     from_phone = (request.form.get("From") or "").strip()

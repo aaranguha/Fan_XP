@@ -149,3 +149,25 @@ CREATE INDEX IF NOT EXISTS idx_assignments_sth     ON sth_seat_assignments(sth_i
 ALTER PUBLICATION supabase_realtime ADD TABLE auctions;
 ALTER PUBLICATION supabase_realtime ADD TABLE bids;
 ALTER PUBLICATION supabase_realtime ADD TABLE seat_surrenders;
+
+-- ── nfl_seat_requests ─────────────────────────────────────────
+--  A fan claiming an open seat from one of the 32 static NFL
+--  stadium seat maps (docs/nfl_{slug}_seatmap.html). These seats
+--  come from Ticketmaster section/row/seat geometry, not from a
+--  pre-seeded `seats`/`venues`/STH game — so this table stands
+--  alone rather than joining into the surrender/auction flow above.
+CREATE TABLE IF NOT EXISTS nfl_seat_requests (
+  id           BIGSERIAL    PRIMARY KEY,
+  team_slug    TEXT         NOT NULL,
+  section      TEXT         NOT NULL,
+  row_label    TEXT         NOT NULL,
+  seat_num     TEXT         NOT NULL,
+  price_usd    NUMERIC(10,2) NOT NULL,
+  fan_name     TEXT         NOT NULL,
+  fan_phone    TEXT         NOT NULL,
+  status       TEXT         NOT NULL DEFAULT 'requested'
+                            CHECK (status IN ('requested','confirmed','cancelled')),
+  created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_nfl_requests_team ON nfl_seat_requests(team_slug);

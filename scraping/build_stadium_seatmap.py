@@ -212,6 +212,10 @@ circle.dot-picked{fill:var(--good) !important;}
 #claimbtn:not(:disabled):hover{background:#0e3f9c;}
 #claimbtn:not(:disabled):active{transform:scale(.98);}
 #cart-note{font-size:.68rem;color:var(--muted-dim);text-align:center;margin-top:12px;line-height:1.5;}
+#fan-fields{display:none;flex-direction:column;gap:8px;margin-bottom:12px;}
+#fan-fields.show{display:flex;}
+#fan-fields input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.84rem;}
+#fan-fields input:focus{outline:none;border-color:var(--brand);}
 
 #toast{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
@@ -271,8 +275,12 @@ __ARENA_INNER__
       <div id="cart-row"><span>Service fee</span><span id="cart-fee">$0</span></div>
       <div id="cart-total"><span>Total</span><span id="cart-total-amt">$0</span></div>
     </div>
+    <div id="fan-fields">
+      <input type="text" id="fan-name" placeholder="Full name" autocomplete="name">
+      <input type="tel" id="fan-phone" placeholder="Phone (+1XXXXXXXXXX)" autocomplete="tel">
+    </div>
     <button id="claimbtn" disabled>Select a seat first</button>
-    <p id="cart-note">Preview built from real __ARENA_NAME__ seat data &mdash; not yet connected to live inventory.</p>
+    <p id="cart-note">Built from real __ARENA_NAME__ seat data. Availability is simulated for this preview, but claiming a seat sends a real request.</p>
   </div>
 </div>
 
@@ -282,6 +290,8 @@ __ARENA_INNER__
 const SECS = __FULL_JSON__.secs;      // name -> [[x,y,row,seat,level,isOpen], ...]
 const META = __META_JSON__;           // {tiers, centroids}
 const ARENA_NAME = __ARENA_NAME_JSON__;
+const TEAM_SLUG = __TEAM_SLUG_JSON__;
+const API_BASE = __API_BASE_JSON__; // TODO: point at the deployed Railway API URL
 const svgNS = 'http://www.w3.org/2000/svg';
 const PRICE_MAP = {'80':64,'90':78,'140':118,'160':142,'180':168,'200':195,'220':225,'260':275,'300':320};
 function priceFor(level){ return PRICE_MAP[level] || 95; }
@@ -463,18 +473,55 @@ function pickSeat(el, secName, rowLabel, num, price){
   document.getElementById('cart-fee').textContent = '$' + fee;
   document.getElementById('cart-total-amt').textContent = '$' + (price + fee);
 
+  document.getElementById('fan-fields').classList.add('show');
   const btn = document.getElementById('claimbtn');
   btn.disabled = false;
   btn.textContent = 'Claim this seat';
 }
 
-document.getElementById('claimbtn').addEventListener('click', () => {
-  if (!pickedSeat) return;
+function showToast(msg, isError){
   const t = document.getElementById('toast');
-  document.getElementById('toast-text').textContent =
-    `Request sent for Section ${pickedSeat.secName}, Row ${pickedSeat.rowLabel} Seat ${pickedSeat.num} — preview only, nothing was actually sent.`;
+  document.getElementById('toast-text').textContent = msg;
+  t.querySelector('.dot').style.background = isError ? 'var(--bad, #d33)' : 'var(--good)';
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3800);
+}
+
+document.getElementById('claimbtn').addEventListener('click', async () => {
+  if (!pickedSeat) return;
+  const fanName = document.getElementById('fan-name').value.trim();
+  const fanPhone = document.getElementById('fan-phone').value.trim();
+  if (!fanName || !fanPhone) {
+    showToast('Enter your name and phone number to claim this seat.', true);
+    return;
+  }
+
+  const btn = document.getElementById('claimbtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/nfl/${TEAM_SLUG}/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        section: pickedSeat.secName,
+        row: pickedSeat.rowLabel,
+        seat: pickedSeat.num,
+        price: pickedSeat.price,
+        fan_name: fanName,
+        fan_phone: fanPhone,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    showToast(`Request #${data.request_id} sent for Section ${pickedSeat.secName}, Row ${pickedSeat.rowLabel} Seat ${pickedSeat.num}.`, false);
+  } catch (err) {
+    showToast(`Couldn't send request — is the API running at ${API_BASE}?`, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Claim this seat';
+  }
 });
 
 setVB(FULL_VB);
@@ -488,6 +535,8 @@ setVB(FULL_VB);
             .replace("__VIEWBOX_ATTR__", VIEWBOX_ATTR)
             .replace("__ARENA_INNER__", ARENA_INNER)
             .replace("__ARENA_NAME_JSON__", json.dumps(arena_name))
+            .replace("__TEAM_SLUG_JSON__", json.dumps(slug))
+            .replace("__API_BASE_JSON__", json.dumps("http://localhost:5000"))
             .replace("__TEAM_COLOR_DARK__", team_color_dark)
             .replace("__TEAM_COLOR__", team_color)
             .replace("__TEAM_NAME__", team_name)
