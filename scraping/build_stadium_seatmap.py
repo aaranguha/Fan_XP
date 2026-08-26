@@ -58,14 +58,14 @@ def main():
             f"Confirmed empty seats from the {extract.get('game_date', 'most recent')} game. "
             f"Tap a red section to zoom in and see the exact open seats."
         )
-        cart_note = "Built from real confirmed no-shows — claiming a seat sends a real request."
+        cart_note = "Bidding stays open for 60s after your bid — a higher bid releases your hold and you'll be notified, no charge made."
         legend_dot_label = "Empty &mdash; confirmed no-show"
     else:
         subline = (
             "This team hasn't had a home game yet, so these are illustrative open seats, "
             "not confirmed no-shows. Tap a red section to zoom in."
         )
-        cart_note = "Built from real seat data, but availability shown is a preview — claiming a seat still sends a real request."
+        cart_note = "Bidding stays open for 60s after your bid — a higher bid releases your hold and you'll be notified, no charge made."
         legend_dot_label = "Empty &mdash; preview only"
 
     # Different venues' seating bowls have genuinely different real-world
@@ -220,6 +220,11 @@ circle.dot-picked{fill:var(--good) !important;}
 #cart-item.filled{display:block;}
 #cart-item .seatname{font-weight:800;font-size:.95rem;}
 #cart-item .secname{font-size:.76rem;color:var(--muted);margin-top:2px;}
+#bid-note{display:none;font-size:.76rem;color:#b3261e;background:#fbe9e9;border-radius:8px;padding:8px 10px;margin-top:10px;}
+#bid-note.show{display:block;}
+#bid-label{display:block;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:12px;}
+#bid-amount{display:block;width:100%;margin-top:6px;padding:9px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.92rem;font-weight:700;font-variant-numeric:tabular-nums;}
+#bid-amount:focus{outline:none;border-color:var(--brand);}
 #cart-divider{border-top:1px solid var(--border);margin:14px 0;}
 #cart-row{display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted);margin-bottom:6px;}
 #cart-total{display:flex;justify-content:space-between;font-size:1rem;font-weight:800;margin-top:8px;font-variant-numeric:tabular-nums;}
@@ -294,8 +299,10 @@ __ARENA_INNER__
     <div id="cart-item">
       <div class="seatname" id="cart-seatname">&mdash;</div>
       <div class="secname" id="cart-secname">&mdash;</div>
+      <div id="bid-note"></div>
+      <label id="bid-label">Your bid<input type="number" id="bid-amount" step="1"></label>
       <div id="cart-divider"></div>
-      <div id="cart-row"><span>Face value</span><span id="cart-face">$0</span></div>
+      <div id="cart-row"><span>Bid</span><span id="cart-face">$0</span></div>
       <div id="cart-row"><span>Service fee</span><span id="cart-fee">$0</span></div>
       <div id="cart-total"><span>Total</span><span id="cart-total-amt">$0</span></div>
     </div>
@@ -484,28 +491,40 @@ document.getElementById('mapwrap').addEventListener('wheel', (e) => {
   resetView();
 }, { passive: false });
 
-function fillCart(secName, rowLabel, num, price){
+function updateBidTotals(){
+  const bid = Math.max(0, Math.round(Number(document.getElementById('bid-amount').value) || 0));
+  const fee = Math.round(bid * 0.12);
+  document.getElementById('cart-face').textContent = '$' + bid;
+  document.getElementById('cart-fee').textContent = '$' + fee;
+  document.getElementById('cart-total-amt').textContent = '$' + (bid + fee);
+  return bid;
+}
+
+function fillCart(secName, rowLabel, num, minBid, prefillBid){
   document.getElementById('cart-empty').style.display = 'none';
   const item = document.getElementById('cart-item');
   item.classList.add('filled');
   document.getElementById('cart-seatname').textContent = `Row ${rowLabel}, Seat ${num}`;
   document.getElementById('cart-secname').textContent = `Section ${secName} · ${ARENA_NAME}`;
-  const fee = Math.round(price * 0.12);
-  document.getElementById('cart-face').textContent = '$' + price;
-  document.getElementById('cart-fee').textContent = '$' + fee;
-  document.getElementById('cart-total-amt').textContent = '$' + (price + fee);
+  const bidInput = document.getElementById('bid-amount');
+  bidInput.min = minBid;
+  bidInput.value = prefillBid != null ? prefillBid : minBid;
+  updateBidTotals();
 }
+
+document.getElementById('bid-amount').addEventListener('input', updateBidTotals);
 
 function pickSeat(el, secName, rowLabel, num, price){
   document.querySelectorAll('.dot-picked').forEach(s => { s.classList.remove('dot-picked'); s.classList.add('dot-open'); });
   el.classList.remove('dot-open'); el.classList.add('dot-picked');
-  pickedSeat = {secName, rowLabel, num, price};
-  fillCart(secName, rowLabel, num, price);
+  pickedSeat = {secName, rowLabel, num, minBid: price};
+  document.getElementById('bid-note').classList.remove('show');
+  fillCart(secName, rowLabel, num, price, price);
 
   document.getElementById('fan-fields').classList.add('show');
   const btn = document.getElementById('claimbtn');
   btn.disabled = false;
-  btn.textContent = 'Claim this seat';
+  btn.textContent = 'Place bid';
 }
 
 function showToast(msg, isError){
@@ -547,7 +566,13 @@ function pollRequestStatus(requestId){
       const res = await fetch(`${API_BASE}/api/nfl/requests/${requestId}`);
       const data = await res.json();
       if (!res.ok) return;
-      if (data.status === 'confirmed') {
+      if (data.status === 'requested') {
+        const endsAt = new Date(data.auction_ends_at).getTime();
+        const secsLeft = Math.max(0, Math.round((endsAt - Date.now()) / 1000));
+        setRequestStatus('pending', `<span class="spin"></span>You're the highest bidder ($${Math.round(data.price)}) — bidding closes in ${secsLeft}s. Someone can still outbid you until then.`);
+      } else if (data.status === 'seller_pinged') {
+        setRequestStatus('pending', `<span class="spin"></span>Bidding closed at $${Math.round(data.price)} — texting the seat owner for Section ${data.section}, Row ${data.row} Seat ${data.seat}.`);
+      } else if (data.status === 'confirmed') {
         clearInterval(pollTimer);
         setRequestStatus('confirmed', `You're in! Gate pass code: <span class="code">${data.pass_code}</span>`);
         btn.textContent = 'Seat claimed';
@@ -555,14 +580,15 @@ function pollRequestStatus(requestId){
         clearInterval(pollTimer);
         setRequestStatus('declined', `The seat owner kept their seat. Try another seat.`);
         btn.textContent = 'Pick another seat';
+      } else if (data.status === 'outbid') {
+        clearInterval(pollTimer);
+        setRequestStatus('declined', `You were outbid — someone bid higher before the window closed. Your card hold was released, no charge was made.`);
+        btn.textContent = 'Pick another seat';
       } else if (data.status === 'expired') {
         clearInterval(pollTimer);
         setRequestStatus('declined', `This offer expired without a response. Try another seat.`);
         btn.textContent = 'Pick another seat';
-      } else if (elapsed > SLOW_POLL_AFTER_MS) {
-        setRequestStatus('pending', `<span class="spin"></span>Still waiting on the seat owner — this can take a little while. Feel free to keep browsing.`);
       }
-      // status === 'seller_pinged' and still under SLOW_POLL_AFTER_MS -> keep waiting, poll again next tick
     } catch (err) {
       // transient network hiccup — keep polling
     }
@@ -577,7 +603,14 @@ document.getElementById('claimbtn').addEventListener('click', async () => {
     showToast('Enter your name and phone number to claim this seat.', true);
     return;
   }
+  const bidAmount = updateBidTotals();
+  if (bidAmount < pickedSeat.minBid) {
+    showToast(`Your bid must be at least $${pickedSeat.minBid}.`, true);
+    return;
+  }
 
+  const bidNote = document.getElementById('bid-note');
+  bidNote.classList.remove('show');
   const btn = document.getElementById('claimbtn');
   btn.disabled = true;
   btn.textContent = 'Sending…';
@@ -591,20 +624,32 @@ document.getElementById('claimbtn').addEventListener('click', async () => {
         section: pickedSeat.secName,
         row: pickedSeat.rowLabel,
         seat: pickedSeat.num,
-        price: pickedSeat.price,
+        price: bidAmount,
         fan_name: fanName,
         fan_phone: fanPhone,
         return_to_url: returnToUrl,
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request failed');
+    if (!res.ok) {
+      if (data.current_bid != null) {
+        const suggested = Math.ceil(data.current_bid) + 1;
+        document.getElementById('bid-amount').value = suggested;
+        updateBidTotals();
+        bidNote.textContent = data.error;
+        bidNote.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'Place bid';
+        return;
+      }
+      throw new Error(data.error || 'Request failed');
+    }
     btn.textContent = 'Redirecting to payment…';
     window.location.href = data.checkout_url;
   } catch (err) {
     showToast(`Couldn't send request — is the API running at ${API_BASE}?`, true);
     btn.disabled = false;
-    btn.textContent = 'Claim this seat';
+    btn.textContent = 'Place bid';
   }
 });
 
@@ -625,10 +670,10 @@ async function resumeFromCheckoutReturn(){
     const res = await fetch(`${API_BASE}/api/nfl/requests/${requestId}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'not found');
-    fillCart(data.section, data.row, data.seat, data.price);
-    document.getElementById('claimbtn').textContent = 'Waiting for seller…';
+    fillCart(data.section, data.row, data.seat, data.price, data.price);
+    document.getElementById('claimbtn').textContent = 'Bidding…';
     document.getElementById('claimbtn').disabled = true;
-    setRequestStatus('pending', `<span class="spin"></span>Payment authorized — texting the seat owner for Section ${data.section}, Row ${data.row} Seat ${data.seat}.`);
+    setRequestStatus('pending', `<span class="spin"></span>Payment authorized — your bid is open to being outbid for a short window.`);
     pollRequestStatus(requestId);
   } catch (err) {
     showToast(`Couldn't load your request — is the API running at ${API_BASE}?`, true);

@@ -22,6 +22,7 @@ from flask_cors import CORS
 
 from fanxp_common import (
     CREDIT_OFFER,
+    NFL_AUCTION_WINDOW_SECONDS,
     NFL_OFFER_WINDOW_MINUTES,
     SERVICE_FEE_RATE,
     get_stripe,
@@ -266,47 +267,173 @@ def get_or_create_nfl_seller(sb, slug, section):
     ).data[0]
 
 
+def _parse_ts(s):
+    return datetime.fromisoformat(s.replace("Z", "+00:00"))
+
+
 def expire_if_stale(sb, req):
     """
-    Requests never got a background sweep, so expiry is checked lazily
-    wherever a request is read or acted on: if it's still 'requested'
-    (checkout abandoned) or 'seller_pinged' past NFL_OFFER_WINDOW_MINUTES
-    after creation, flip it to 'expired', release any payment hold, and
-    return the updated row. Otherwise returns `req` unchanged.
+    Requests never got a background sweep, so every state transition past
+    a deadline is checked lazily wherever a request is read or acted on:
+
+      - 'requested' with no payment_intent (checkout abandoned): expires
+        after NFL_OFFER_WINDOW_MINUTES from creation.
+      - 'requested' with a payment_intent (an active, authorized bid):
+        once auction_ends_at passes, this is the winning bid (any lower
+        bids on the same seat were already outbid as they came in — see
+        settle_auction) — the seller gets texted and it becomes
+        'seller_pinged'.
+      - 'seller_pinged': expires (and releases the hold) after
+        NFL_OFFER_WINDOW_MINUTES from when the seller was actually
+        pinged (updated_at), not from creation.
+
+    Returns the possibly-updated row; unchanged if nothing applied.
     """
-    if req["status"] not in ("requested", "seller_pinged"):
-        return req
-    created_at = datetime.fromisoformat(req["created_at"].replace("Z", "+00:00"))
-    if datetime.now(timezone.utc) - created_at <= timedelta(minutes=NFL_OFFER_WINDOW_MINUTES):
-        return req
+    now = datetime.now(timezone.utc)
 
-    if req.get("stripe_payment_intent_id"):
-        try:
-            get_stripe().PaymentIntent.cancel(req["stripe_payment_intent_id"])
-        except Exception:
-            pass  # already captured/cancelled/expired on Stripe's side — fine
+    if req["status"] == "requested":
+        if req.get("stripe_payment_intent_id"):
+            ends_at = _parse_ts(req["auction_ends_at"])
+            if now < ends_at:
+                return req  # auction still open to outbidding
+            return ping_nfl_seller(sb, req)
 
+        created_at = _parse_ts(req["created_at"])
+        if now - created_at <= timedelta(minutes=NFL_OFFER_WINDOW_MINUTES):
+            return req
+        return (
+            sb.table("nfl_seat_requests")
+              .update({"status": "expired", "updated_at": "now()"})
+              .eq("id", req["id"])
+              .execute()
+        ).data[0]
+
+    if req["status"] == "seller_pinged":
+        pinged_at = _parse_ts(req["updated_at"])
+        if now - pinged_at <= timedelta(minutes=NFL_OFFER_WINDOW_MINUTES):
+            return req
+        if req.get("stripe_payment_intent_id"):
+            try:
+                get_stripe().PaymentIntent.cancel(req["stripe_payment_intent_id"])
+            except Exception:
+                pass  # already captured/cancelled/expired on Stripe's side — fine
+        return (
+            sb.table("nfl_seat_requests")
+              .update({"status": "expired", "updated_at": "now()"})
+              .eq("id", req["id"])
+              .execute()
+        ).data[0]
+
+    return req
+
+
+def ping_nfl_seller(sb, req):
+    """Texts the seller with the winning bid and flips the request to
+    'seller_pinged'. Called once a seat's auction window has closed."""
+    seller = (
+        sb.table("nfl_sellers").select("*").eq("id", req["seller_id"]).single().execute()
+    ).data
+    twilio = get_twilio()
+    api_base = os.getenv("API_PUBLIC_URL", "") or (request.url_root if request else "")
+    message = send_nfl_seller_sms(twilio, seller, req, api_base, CREDIT_OFFER)
     return (
         sb.table("nfl_seat_requests")
-          .update({"status": "expired", "updated_at": "now()"})
+          .update({
+              "status":      "seller_pinged",
+              "message_sid": message.sid,
+              "updated_at":  "now()",
+          })
           .eq("id", req["id"])
           .execute()
     ).data[0]
 
 
-def ping_nfl_seller(sb, req):
-    """Texts the seller and flips the request to 'seller_pinged'. Called
-    from the Stripe webhook once the card hold is authorized."""
-    seller = (
-        sb.table("nfl_sellers").select("*").eq("id", req["seller_id"]).single().execute()
+def get_active_bid(sb, slug, section, row_label, seat_num):
+    """
+    Returns the current winning bid for a seat (a 'requested' row with an
+    authorized payment_intent whose auction window hasn't closed), or
+    None if the seat has no open auction. Lazily resolves any bids whose
+    window already ended (via expire_if_stale) before deciding, so a
+    closed-but-unpolled auction doesn't look falsely available.
+    """
+    rows = (
+        sb.table("nfl_seat_requests")
+          .select("*")
+          .eq("team_slug", slug)
+          .eq("section", section)
+          .eq("row_label", row_label)
+          .eq("seat_num", seat_num)
+          .eq("status", "requested")
+          .not_.is_("stripe_payment_intent_id", "null")
+          .execute()
     ).data
-    twilio = get_twilio()
-    message = send_nfl_seller_sms(twilio, seller, req, os.getenv("API_PUBLIC_URL", request.url_root), CREDIT_OFFER)
-    sb.table("nfl_seat_requests").update({
-        "status":      "seller_pinged",
-        "message_sid": message.sid,
-        "updated_at":  "now()",
-    }).eq("id", req["id"]).execute()
+    active = [r for r in (expire_if_stale(sb, r) for r in rows) if r["status"] == "requested"]
+    if not active:
+        return None
+    return max(active, key=lambda r: float(r["price_usd"]))
+
+
+def seat_auction_closed(sb, slug, section, row_label, seat_num):
+    """True if this seat has an unresolved 'seller_pinged'/'confirmed'
+    request — i.e. its auction already closed and it's not biddable."""
+    rows = (
+        sb.table("nfl_seat_requests")
+          .select("*")
+          .eq("team_slug", slug)
+          .eq("section", section)
+          .eq("row_label", row_label)
+          .eq("seat_num", seat_num)
+          .in_("status", ["seller_pinged", "confirmed"])
+          .execute()
+    ).data
+    for r in rows:
+        r = expire_if_stale(sb, r)
+        if r["status"] in ("seller_pinged", "confirmed"):
+            return True
+    return False
+
+
+def settle_auction(sb, new_req):
+    """
+    After a bid's payment is authorized, keep only the highest authorized
+    bid for this seat active — any others (there should be at most one,
+    the previous highest, but this is written defensively) get outbid:
+    their hold is released, status set to 'outbid', and the fan is
+    notified. Works regardless of arrival order, so a race between two
+    near-simultaneous authorizations still resolves correctly.
+    """
+    competitors = (
+        sb.table("nfl_seat_requests")
+          .select("*")
+          .eq("team_slug", new_req["team_slug"])
+          .eq("section", new_req["section"])
+          .eq("row_label", new_req["row_label"])
+          .eq("seat_num", new_req["seat_num"])
+          .eq("status", "requested")
+          .not_.is_("stripe_payment_intent_id", "null")
+          .execute()
+    ).data
+    if len(competitors) <= 1:
+        return
+
+    highest = max(competitors, key=lambda r: float(r["price_usd"]))
+    for r in competitors:
+        if r["id"] == highest["id"]:
+            continue
+        try:
+            get_stripe().PaymentIntent.cancel(r["stripe_payment_intent_id"])
+        except Exception:
+            pass
+        sb.table("nfl_seat_requests").update({
+            "status":     "outbid",
+            "updated_at": "now()",
+        }).eq("id", r["id"]).execute()
+        send_or_log_sms(
+            get_twilio(),
+            r["fan_phone"],
+            f"You've been outbid on Sec {r['section']} · Row {r['row_label']} · Seat {r['seat_num']} "
+            f"— someone bid higher. Your card hold has been released, no charge was made.",
+        )
 
 
 @app.route("/api/nfl/<slug>/request", methods=["POST"])
@@ -328,10 +455,26 @@ def request_nfl_seat(slug):
         return jsonify({"error": "return_to_url is required"}), 400
 
     price = float(price)
+
+    sb = get_supabase()
+
+    if seat_auction_closed(sb, slug, section, row_label, seat_num):
+        return jsonify({"error": "This seat's auction has already closed and is awaiting the seat owner."}), 409
+
+    active_bid = get_active_bid(sb, slug, section, row_label, seat_num)
+    if active_bid:
+        if price <= float(active_bid["price_usd"]):
+            return jsonify({
+                "error": f"Current bid is ${active_bid['price_usd']:.0f} — you must bid higher.",
+                "current_bid": float(active_bid["price_usd"]),
+            }), 409
+        auction_ends_at = active_bid["auction_ends_at"]
+    else:
+        auction_ends_at = (datetime.now(timezone.utc) + timedelta(seconds=NFL_AUCTION_WINDOW_SECONDS)).isoformat()
+
     fee = round(price * SERVICE_FEE_RATE, 2)
     total_cents = round((price + fee) * 100)
 
-    sb = get_supabase()
     seller = get_or_create_nfl_seller(sb, slug, section)
 
     row = (
@@ -345,6 +488,7 @@ def request_nfl_seat(slug):
               "fan_name":  fan_name,
               "fan_phone": fan_phone,
               "seller_id": seller["id"],
+              "auction_ends_at": auction_ends_at,
           })
           .execute()
     ).data[0]
@@ -382,7 +526,11 @@ def request_nfl_seat(slug):
         "updated_at":        "now()",
     }).eq("id", row["id"]).execute()
 
-    return jsonify({"request_id": row["id"], "checkout_url": session.url})
+    return jsonify({
+        "request_id":      row["id"],
+        "checkout_url":    session.url,
+        "auction_ends_at": auction_ends_at,
+    })
 
 
 @app.route("/webhooks/stripe", methods=["POST"])
@@ -412,7 +560,10 @@ def stripe_webhook():
                 "updated_at":               "now()",
             }).eq("id", request_id).execute()
             req["stripe_payment_intent_id"] = payment_intent_id
-            ping_nfl_seller(sb, req)
+            # Outbid any lower authorized bid still active on this seat.
+            # The seller isn't pinged here — that happens lazily once the
+            # auction window closes (see expire_if_stale).
+            settle_auction(sb, req)
 
     return jsonify({"received": True})
 
@@ -428,12 +579,13 @@ def nfl_request_status(request_id):
     row = expire_if_stale(sb, row)
 
     resp = {
-        "request_id": request_id,
-        "status":     row["status"],
-        "section":    row["section"],
-        "row":        row["row_label"],
-        "seat":       row["seat_num"],
-        "price":      float(row["price_usd"]),
+        "request_id":      request_id,
+        "status":          row["status"],
+        "section":         row["section"],
+        "row":             row["row_label"],
+        "seat":            row["seat_num"],
+        "price":           float(row["price_usd"]),
+        "auction_ends_at": row.get("auction_ends_at"),
     }
     if row["status"] == "confirmed" and row.get("pass_code"):
         resp["pass_code"] = row["pass_code"]

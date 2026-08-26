@@ -215,3 +215,19 @@ ALTER TABLE nfl_seat_requests ADD COLUMN IF NOT EXISTS stripe_session_id        
 ALTER TABLE nfl_seat_requests ADD COLUMN IF NOT EXISTS stripe_payment_intent_id  TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_nfl_requests_stripe_session ON nfl_seat_requests(stripe_session_id);
+
+-- Auction: instead of the first claim on a seat blocking every other fan
+-- from even trying, the first authorized bid opens a 60-second window
+-- (auction_ends_at) during which anyone can place a higher bid. Each
+-- higher bid authorizes its own Stripe hold and immediately releases the
+-- previous bidder's hold ('outbid'), so at most one 'requested' row with
+-- a payment_intent is ever active per seat at a time. The seller is only
+-- texted once the window closes, with the winning bid.
+ALTER TABLE nfl_seat_requests ADD COLUMN IF NOT EXISTS auction_ends_at TIMESTAMPTZ;
+
+ALTER TABLE nfl_seat_requests DROP CONSTRAINT IF EXISTS nfl_seat_requests_status_check;
+ALTER TABLE nfl_seat_requests ADD CONSTRAINT nfl_seat_requests_status_check
+  CHECK (status IN ('requested','seller_pinged','confirmed','declined','expired','outbid'));
+
+CREATE INDEX IF NOT EXISTS idx_nfl_requests_seat
+  ON nfl_seat_requests(team_slug, section, row_label, seat_num);
