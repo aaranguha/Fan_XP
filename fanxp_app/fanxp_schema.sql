@@ -171,3 +171,35 @@ CREATE TABLE IF NOT EXISTS nfl_seat_requests (
 );
 
 CREATE INDEX IF NOT EXISTS idx_nfl_requests_team ON nfl_seat_requests(team_slug);
+
+-- ── nfl_sellers ──────────────────────────────────────────────
+--  One simulated "seller" (season ticket holder) per team+section.
+--  We don't have real STH contact data for these 32 teams, so a
+--  seller record is created the first time any seat in that
+--  section is claimed, and (for the demo) always uses STH_PHONE
+--  from .env — a real phone a developer can reply YES/NO from —
+--  rather than a fabricated number nobody can actually text.
+CREATE TABLE IF NOT EXISTS nfl_sellers (
+  id             BIGSERIAL      PRIMARY KEY,
+  team_slug      TEXT           NOT NULL,
+  section        TEXT           NOT NULL,
+  name           TEXT           NOT NULL,
+  phone          TEXT           NOT NULL,
+  credit_balance NUMERIC(10,2)  NOT NULL DEFAULT 0.00,
+  created_at     TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+  UNIQUE (team_slug, section)
+);
+
+-- nfl_seat_requests gains the fields needed to run the full
+-- notify-seller -> seller replies -> confirm-buyer loop.
+ALTER TABLE nfl_seat_requests ADD COLUMN IF NOT EXISTS seller_id   BIGINT REFERENCES nfl_sellers(id);
+ALTER TABLE nfl_seat_requests ADD COLUMN IF NOT EXISTS message_sid TEXT;
+ALTER TABLE nfl_seat_requests ADD COLUMN IF NOT EXISTS pass_code   TEXT;
+ALTER TABLE nfl_seat_requests ADD COLUMN IF NOT EXISTS updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE nfl_seat_requests DROP CONSTRAINT IF EXISTS nfl_seat_requests_status_check;
+ALTER TABLE nfl_seat_requests ADD CONSTRAINT nfl_seat_requests_status_check
+  CHECK (status IN ('requested','seller_pinged','confirmed','declined','expired'));
+
+CREATE INDEX IF NOT EXISTS idx_nfl_requests_seller ON nfl_seat_requests(seller_id);
+CREATE INDEX IF NOT EXISTS idx_nfl_sellers_phone    ON nfl_sellers(phone);

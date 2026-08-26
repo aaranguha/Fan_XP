@@ -116,6 +116,14 @@ circle.dot-picked{fill:var(--good) !important;}
 #fan-fields.show{display:flex;}
 #fan-fields input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.84rem;}
 #fan-fields input:focus{outline:none;border-color:var(--brand);}
+#request-status{display:none;margin-top:12px;padding:14px;border-radius:10px;font-size:.82rem;line-height:1.5;}
+#request-status.show{display:block;}
+#request-status.pending{background:var(--surface-sunken);color:var(--muted);}
+#request-status.confirmed{background:#e7f6f1;color:var(--good);}
+#request-status.declined{background:#fbe9e9;color:#b3261e;}
+#request-status .spin{display:inline-block;width:9px;height:9px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite;margin-right:6px;vertical-align:-1px;}
+#request-status .code{font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.04em;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
 #toast{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
@@ -180,6 +188,7 @@ circle.dot-picked{fill:var(--good) !important;}
       <input type="tel" id="fan-phone" placeholder="Phone (+1XXXXXXXXXX)" autocomplete="tel">
     </div>
     <button id="claimbtn" disabled>Select a seat first</button>
+    <div id="request-status"></div>
     <p id="cart-note">Built from real Lincoln Financial Field seat data. Availability is simulated for this preview, but claiming a seat sends a real request.</p>
   </div>
 </div>
@@ -387,6 +396,47 @@ function showToast(msg, isError){
   setTimeout(() => t.classList.remove('show'), 3800);
 }
 
+let pollTimer = null;
+
+function setRequestStatus(kind, html){
+  const el = document.getElementById('request-status');
+  el.className = 'show ' + kind;
+  el.innerHTML = html;
+}
+
+function pollRequestStatus(requestId){
+  if (pollTimer) clearInterval(pollTimer);
+  const startedAt = Date.now();
+  const TIMEOUT_MS = 2 * 60 * 1000;
+
+  pollTimer = setInterval(async () => {
+    const btn = document.getElementById('claimbtn');
+    if (Date.now() - startedAt > TIMEOUT_MS) {
+      clearInterval(pollTimer);
+      setRequestStatus('declined', `No response from the seat owner in time. Try another seat.`);
+      btn.textContent = 'Pick another seat';
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/nfl/requests/${requestId}`);
+      const data = await res.json();
+      if (!res.ok) return;
+      if (data.status === 'confirmed') {
+        clearInterval(pollTimer);
+        setRequestStatus('confirmed', `You're in! Gate pass code: <span class="code">${data.pass_code}</span>`);
+        btn.textContent = 'Seat claimed';
+      } else if (data.status === 'declined') {
+        clearInterval(pollTimer);
+        setRequestStatus('declined', `The seat owner kept their seat. Try another seat.`);
+        btn.textContent = 'Pick another seat';
+      }
+      // status === 'seller_pinged' -> keep waiting, poll again next tick
+    } catch (err) {
+      // transient network hiccup — keep polling
+    }
+  }, 4000);
+}
+
 document.getElementById('claimbtn').addEventListener('click', async () => {
   if (!pickedSeat) return;
   const fanName = document.getElementById('fan-name').value.trim();
@@ -415,10 +465,11 @@ document.getElementById('claimbtn').addEventListener('click', async () => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Request failed');
-    showToast(`Request #${data.request_id} sent for Section ${pickedSeat.secName}, Row ${pickedSeat.rowLabel} Seat ${pickedSeat.num}.`, false);
+    setRequestStatus('pending', `<span class="spin"></span>Texted the seat owner for Section ${pickedSeat.secName}, Row ${pickedSeat.rowLabel} Seat ${pickedSeat.num} — waiting for them to reply.`);
+    pollRequestStatus(data.request_id);
+    btn.textContent = 'Waiting for seller…';
   } catch (err) {
     showToast(`Couldn't send request — is the API running at ${API_BASE}?`, true);
-  } finally {
     btn.disabled = false;
     btn.textContent = 'Claim this seat';
   }

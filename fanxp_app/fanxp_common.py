@@ -12,6 +12,30 @@ load_dotenv()
 
 CREDIT_OFFER = 25  # stadium credit offered per surrendered seat
 
+TWILIO_DRY_RUN = os.getenv("TWILIO_DRY_RUN", "").strip().lower() in ("1", "true", "yes")
+
+
+class _DryRunMessage:
+    """Stand-in for a Twilio Message when TWILIO_DRY_RUN is on."""
+    def __init__(self):
+        import secrets
+        self.sid = f"DRYRUN-{secrets.token_hex(8)}"
+
+
+def send_or_log_sms(twilio, to_phone, body):
+    """
+    Sends via Twilio normally, or — when TWILIO_DRY_RUN is set — just logs
+    the message and returns a fake Message-like object with a `.sid`. Used
+    while real delivery is blocked (e.g. A2P 10DLC unregistered on a trial
+    account) so the rest of the request/response loop can still be tested.
+    """
+    if TWILIO_DRY_RUN:
+        print(f"[TWILIO_DRY_RUN] to={to_phone}\n{body}\n")
+        return _DryRunMessage()
+
+    from_number = os.getenv("TWILIO_FROM_NUMBER", "").strip()
+    return twilio.messages.create(body=body, from_=from_number, to=to_phone)
+
 
 def get_supabase():
     from supabase import create_client
@@ -53,3 +77,21 @@ def send_surrender_sms(twilio, sth, seat, game, credit_offer=CREDIT_OFFER):
         from_=from_number,
         to=sth["phone"],
     )
+
+
+def send_nfl_seller_sms(twilio, seller, req, credit_offer=CREDIT_OFFER):
+    """
+    Texts a simulated NFL seat seller asking them to confirm the release.
+    `seller` needs name/phone, `req` needs id/team_slug/section/row_label/
+    seat_num. Returns the Twilio Message object.
+    """
+    sms_body = (
+        f"Hi {seller['name'].split()[0]}! \U0001F44B This is Fan XP.\n\n"
+        f"A fan wants your empty seat for the 2nd half: "
+        f"Sec {req['section']} · Row {req['row_label']} · Seat {req['seat_num']}.\n\n"
+        f"Reply YES {req['id']} to release it for ${credit_offer} in stadium credit.\n"
+        f"Reply NO {req['id']} to keep it.\n\n"
+        f"Offer expires in 30 minutes."
+    )
+
+    return send_or_log_sms(twilio, seller["phone"], sms_body)
