@@ -296,7 +296,7 @@ def request_nfl_seat(slug):
     ).data[0]
 
     twilio = get_twilio()
-    message = send_nfl_seller_sms(twilio, seller, row, CREDIT_OFFER)
+    message = send_nfl_seller_sms(twilio, seller, row, request.url_root, CREDIT_OFFER)
 
     row = (
         sb.table("nfl_seat_requests")
@@ -409,34 +409,85 @@ def handle_nfl_sms_reply(sb, from_phone, body_text):
     return True
 
 
-@app.route("/api/nfl/requests/<int:request_id>/respond", methods=["POST"])
-def respond_nfl_request(request_id):
+def apply_nfl_response(request_id, decision):
     """
-    Lets a seller confirm/decline a request without texting back — used to
-    simulate the seller's reply when real SMS delivery is unavailable
-    (TWILIO_DRY_RUN), and doubles as what a "tap to confirm" link in the
-    real SMS could hit later.
+    Shared by the JSON /respond endpoint and the tap-to-confirm SMS link.
+    Returns (new_status_or_None, error_message_or_None).
     """
-    body = request.get_json(force=True) or {}
-    decision = (body.get("decision") or "").strip().upper()
     if decision not in ("YES", "NO"):
-        return jsonify({"error": "decision must be YES or NO"}), 400
+        return None, "decision must be YES or NO"
 
     sb = get_supabase()
     req = (
         sb.table("nfl_seat_requests").select("*").eq("id", request_id).single().execute()
     ).data
     if not req:
-        return jsonify({"error": "not found"}), 404
+        return None, "not found"
     if req["status"] != "seller_pinged":
-        return jsonify({"error": f"request is '{req['status']}', not awaiting a response"}), 409
+        return None, f"request is '{req['status']}', not awaiting a response"
 
     seller = (
         sb.table("nfl_sellers").select("*").eq("id", req["seller_id"]).single().execute()
     ).data
 
-    new_status = resolve_nfl_seat_request(sb, req, seller, decision)
+    return resolve_nfl_seat_request(sb, req, seller, decision), None
+
+
+@app.route("/api/nfl/requests/<int:request_id>/respond", methods=["POST"])
+def respond_nfl_request(request_id):
+    """
+    Lets a seller confirm/decline a request without texting back — used to
+    simulate the seller's reply when real SMS delivery is unavailable
+    (TWILIO_DRY_RUN), and as the JSON form of the tap-to-confirm SMS link
+    below.
+    """
+    body = request.get_json(force=True) or {}
+    decision = (body.get("decision") or "").strip().upper()
+    new_status, error = apply_nfl_response(request_id, decision)
+    if error:
+        status_code = 404 if error == "not found" else 409 if "awaiting" in error else 400
+        return jsonify({"error": error}), status_code
     return jsonify({"request_id": request_id, "status": new_status})
+
+
+NFL_RESPOND_PAGE = """<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fan XP</title>
+<style>
+  body{{font-family:-apple-system,system-ui,sans-serif;background:#f4f6fb;color:#14181f;
+       display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px;}}
+  .card{{max-width:380px;background:#fff;border-radius:16px;padding:32px 28px;text-align:center;
+        box-shadow:0 12px 32px rgba(0,0,0,.08);}}
+  .icon{{font-size:2.4rem;margin-bottom:12px;}}
+  h1{{font-size:1.1rem;margin:0 0 8px;}}
+  p{{color:#5b6472;font-size:.9rem;line-height:1.5;margin:0;}}
+  .code{{display:inline-block;margin-top:14px;font-weight:800;font-size:1.05rem;
+        letter-spacing:.04em;background:#f4f6fb;border-radius:8px;padding:8px 14px;}}
+</style></head>
+<body><div class="card">
+  <div class="icon">{icon}</div>
+  <h1>{heading}</h1>
+  <p>{body}</p>
+</div></body></html>"""
+
+
+@app.route("/nfl/respond/<int:request_id>")
+def nfl_respond_link(request_id):
+    decision = (request.args.get("decision") or "").strip().upper()
+    new_status, error = apply_nfl_response(request_id, decision)
+
+    if error == "not found":
+        return NFL_RESPOND_PAGE.format(icon="\U0001F937", heading="Request not found",
+                                        body="This link doesn't match a Fan XP request."), 404
+    if error:
+        return NFL_RESPOND_PAGE.format(icon="✅", heading="Already handled",
+                                        body="This request was already responded to.")
+
+    if new_status == "confirmed":
+        return NFL_RESPOND_PAGE.format(icon="\U0001F389", heading="Seat released — thanks!",
+                                        body="The fan has been sent their gate pass. Your stadium credit has been added.")
+    return NFL_RESPOND_PAGE.format(icon="\U0001F44D", heading="Got it, seat kept",
+                                    body="We let the fan know it's not available.")
 
 
 @app.route("/webhooks/twilio/sms", methods=["POST"])

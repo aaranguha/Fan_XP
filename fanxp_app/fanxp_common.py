@@ -79,18 +79,24 @@ def send_surrender_sms(twilio, sth, seat, game, credit_offer=CREDIT_OFFER):
     )
 
 
-def send_nfl_seller_sms(twilio, seller, req, credit_offer=CREDIT_OFFER):
+def send_nfl_seller_sms(twilio, seller, req, api_base_url, credit_offer=CREDIT_OFFER):
     """
-    Texts a simulated NFL seat seller asking them to confirm the release.
-    `seller` needs name/phone, `req` needs id/team_slug/section/row_label/
-    seat_num. Returns the Twilio Message object.
+    Texts a simulated NFL seat seller asking them to confirm the release,
+    with tap-to-confirm links (no reply needed). `seller` needs name/phone,
+    `req` needs id/team_slug/section/row_label/seat_num. `api_base_url` is
+    the public URL the API is reachable at (e.g. from request.url_root),
+    used to build the /nfl/respond links. Returns the Twilio Message object.
     """
+    base = api_base_url.rstrip("/")
+    yes_link = f"{base}/nfl/respond/{req['id']}?decision=YES"
+    no_link  = f"{base}/nfl/respond/{req['id']}?decision=NO"
+
     sms_body = (
         f"Hi {seller['name'].split()[0]}! \U0001F44B This is Fan XP.\n\n"
         f"A fan wants your empty seat for the 2nd half: "
         f"Sec {req['section']} · Row {req['row_label']} · Seat {req['seat_num']}.\n\n"
-        f"Reply YES {req['id']} to release it for ${credit_offer} in stadium credit.\n"
-        f"Reply NO {req['id']} to keep it.\n\n"
+        f"Tap to release it for ${credit_offer} in stadium credit:\n{yes_link}\n\n"
+        f"Tap to keep it:\n{no_link}\n\n"
         f"Offer expires in 30 minutes."
     )
 
