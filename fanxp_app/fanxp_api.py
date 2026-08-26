@@ -396,7 +396,7 @@ def stripe_webhook():
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
         request_id = int(session["metadata"]["request_id"])
-        payment_intent_id = session.get("payment_intent")
+        payment_intent_id = session["payment_intent"]
 
         sb = get_supabase()
         req = (
