@@ -353,6 +353,10 @@ def request_nfl_seat(slug):
     session = stripe.checkout.Session.create(
         mode="payment",
         payment_intent_data={"capture_method": "manual"},
+        # Card only: BNPL/wallet methods (Klarna, Affirm, Cash App Pay,
+        # etc.) have their own settlement timing that hasn't been tested
+        # against manual capture, and a seat claim needs to be fast anyway.
+        payment_method_types=["card"],
         # Managed Payments (Stripe Tax) is on by default for new accounts
         # and requires a tax_code per product we don't need for this
         # marketplace-credit flow — turn it off for this session.
