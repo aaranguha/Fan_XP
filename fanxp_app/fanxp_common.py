@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 CREDIT_OFFER = 25  # stadium credit offered per surrendered seat
+NFL_OFFER_WINDOW_MINUTES = 30  # matches the "expires in 30 minutes" text in the seller SMS
 
 TWILIO_DRY_RUN = os.getenv("TWILIO_DRY_RUN", "").strip().lower() in ("1", "true", "yes")
 

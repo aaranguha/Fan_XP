@@ -15,12 +15,14 @@ Run locally:
 import os
 import re
 import secrets
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 
 from fanxp_common import (
     CREDIT_OFFER,
+    NFL_OFFER_WINDOW_MINUTES,
     get_supabase,
     get_twilio,
     send_nfl_seller_sms,
@@ -262,6 +264,26 @@ def get_or_create_nfl_seller(sb, slug, section):
     ).data[0]
 
 
+def expire_if_stale(sb, req):
+    """
+    Requests never got a background sweep, so expiry is checked lazily
+    wherever a request is read or acted on: if it's still 'seller_pinged'
+    past NFL_OFFER_WINDOW_MINUTES after creation, flip it to 'expired' and
+    return the updated row. Otherwise returns `req` unchanged.
+    """
+    if req["status"] != "seller_pinged":
+        return req
+    created_at = datetime.fromisoformat(req["created_at"].replace("Z", "+00:00"))
+    if datetime.now(timezone.utc) - created_at <= timedelta(minutes=NFL_OFFER_WINDOW_MINUTES):
+        return req
+    return (
+        sb.table("nfl_seat_requests")
+          .update({"status": "expired", "updated_at": "now()"})
+          .eq("id", req["id"])
+          .execute()
+    ).data[0]
+
+
 @app.route("/api/nfl/<slug>/request", methods=["POST"])
 def request_nfl_seat(slug):
     body = request.get_json(force=True) or {}
@@ -320,6 +342,7 @@ def nfl_request_status(request_id):
     ).data
     if not row:
         return jsonify({"error": "not found"}), 404
+    row = expire_if_stale(sb, row)
 
     resp = {"request_id": request_id, "status": row["status"]}
     if row["status"] == "confirmed" and row.get("pass_code"):
@@ -423,6 +446,7 @@ def apply_nfl_response(request_id, decision):
     ).data
     if not req:
         return None, "not found"
+    req = expire_if_stale(sb, req)
     if req["status"] != "seller_pinged":
         return None, f"request is '{req['status']}', not awaiting a response"
 
@@ -479,6 +503,9 @@ def nfl_respond_link(request_id):
     if error == "not found":
         return NFL_RESPOND_PAGE.format(icon="\U0001F937", heading="Request not found",
                                         body="This link doesn't match a Fan XP request."), 404
+    if error and error.startswith("request is 'expired'"):
+        return NFL_RESPOND_PAGE.format(icon="⏰", heading="This offer expired",
+                                        body="Too much time passed before this was answered, so the fan's request already timed out.")
     if error:
         return NFL_RESPOND_PAGE.format(icon="✅", heading="Already handled",
                                         body="This request was already responded to.")
