@@ -175,6 +175,23 @@ def main():
             except Exception as e:
                 print(f"  [{slug}] HTML generation failed: {e}")
 
+        # Refresh the interactive seat map for any team that just ran, so a
+        # real no_shows.csv from tonight's game shows up on the live page
+        # within minutes instead of waiting on a manual regen. Only teams
+        # with captured venue geometry (data/{slug}/seatmap_geo.json) have
+        # a seat map to regenerate at all.
+        print("\nRegenerating seat maps for tonight's teams...")
+        for slug in succeeded:
+            if not os.path.isfile(f"data/{slug}/seatmap_geo.json"):
+                print(f"  [{slug}] no captured geometry — skipping seat map")
+                continue
+            try:
+                subprocess.run([PYTHON, "extract_stadium_geo.py", slug], check=True)
+                subprocess.run([PYTHON, "build_stadium_seatmap.py", slug], check=True)
+                print(f"  [{slug}] seat map regenerated")
+            except Exception as e:
+                print(f"  [{slug}] seat map regeneration failed: {e}")
+
         print(f"\nCommitting and pushing to GitHub...")
         date_str  = datetime.now().strftime("%Y-%m-%d")
         teams_str = ", ".join(succeeded)
@@ -186,7 +203,10 @@ def main():
             subprocess.run(["git", "config", "user.email", git_email], check=True)
             subprocess.run(["git", "config", "user.name",  git_name],  check=True)
 
-        subprocess.run(["git", "add", "data/nfl/", "../docs/"], check=True)
+        # "data/" (not just "data/nfl/") so a regenerated seat map's
+        # data/{slug}/seatmap_extract.json — which lives outside data/nfl/,
+        # alongside the captured venue geometry — gets committed too.
+        subprocess.run(["git", "add", "data/", "../docs/"], check=True)
         subprocess.run(["git", "commit", "-m", f"NFL auto-update {date_str}: {teams_str}"], check=True)
         result = subprocess.run(["git", "push"])
         print("  Pushed." if result.returncode == 0 else "  git push failed.")
