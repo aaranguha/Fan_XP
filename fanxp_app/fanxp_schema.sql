@@ -203,3 +203,15 @@ ALTER TABLE nfl_seat_requests ADD CONSTRAINT nfl_seat_requests_status_check
 
 CREATE INDEX IF NOT EXISTS idx_nfl_requests_seller ON nfl_seat_requests(seller_id);
 CREATE INDEX IF NOT EXISTS idx_nfl_sellers_phone    ON nfl_sellers(phone);
+
+-- Payment: a claim now authorizes a hold via Stripe (capture_method:
+-- manual) instead of charging immediately. 'requested' becomes "awaiting
+-- payment" -- the Stripe webhook flips it to 'seller_pinged' once the
+-- card is authorized, at which point the seller actually gets texted.
+-- The hold is captured on 'confirmed' and released (cancelled) on
+-- 'declined'/'expired', so a fan is only ever actually charged once a
+-- seller has said yes.
+ALTER TABLE nfl_seat_requests ADD COLUMN IF NOT EXISTS stripe_session_id         TEXT;
+ALTER TABLE nfl_seat_requests ADD COLUMN IF NOT EXISTS stripe_payment_intent_id  TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_nfl_requests_stripe_session ON nfl_seat_requests(stripe_session_id);

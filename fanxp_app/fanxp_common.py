@@ -12,6 +12,16 @@ load_dotenv()
 
 CREDIT_OFFER = 25  # stadium credit offered per surrendered seat
 NFL_OFFER_WINDOW_MINUTES = 30  # matches the "expires in 30 minutes" text in the seller SMS
+SERVICE_FEE_RATE = 0.12  # matches the fee shown in the seat map's cart UI
+
+
+def get_stripe():
+    import stripe
+    key = os.getenv("STRIPE_SECRET_KEY", "").strip()
+    if not key:
+        raise RuntimeError("STRIPE_SECRET_KEY not set in .env")
+    stripe.api_key = key
+    return stripe
 
 TWILIO_DRY_RUN = os.getenv("TWILIO_DRY_RUN", "").strip().lower() in ("1", "true", "yes")
 

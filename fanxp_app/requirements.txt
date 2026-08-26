@@ -3,4 +3,5 @@ flask-cors
 python-dotenv
 supabase>=2.0.0
 twilio
+stripe
 gunicorn

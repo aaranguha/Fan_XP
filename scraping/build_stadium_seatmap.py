@@ -484,11 +484,7 @@ document.getElementById('mapwrap').addEventListener('wheel', (e) => {
   resetView();
 }, { passive: false });
 
-function pickSeat(el, secName, rowLabel, num, price){
-  document.querySelectorAll('.dot-picked').forEach(s => { s.classList.remove('dot-picked'); s.classList.add('dot-open'); });
-  el.classList.remove('dot-open'); el.classList.add('dot-picked');
-  pickedSeat = {secName, rowLabel, num, price};
-
+function fillCart(secName, rowLabel, num, price){
   document.getElementById('cart-empty').style.display = 'none';
   const item = document.getElementById('cart-item');
   item.classList.add('filled');
@@ -498,6 +494,13 @@ function pickSeat(el, secName, rowLabel, num, price){
   document.getElementById('cart-face').textContent = '$' + price;
   document.getElementById('cart-fee').textContent = '$' + fee;
   document.getElementById('cart-total-amt').textContent = '$' + (price + fee);
+}
+
+function pickSeat(el, secName, rowLabel, num, price){
+  document.querySelectorAll('.dot-picked').forEach(s => { s.classList.remove('dot-picked'); s.classList.add('dot-open'); });
+  el.classList.remove('dot-open'); el.classList.add('dot-picked');
+  pickedSeat = {secName, rowLabel, num, price};
+  fillCart(secName, rowLabel, num, price);
 
   document.getElementById('fan-fields').classList.add('show');
   const btn = document.getElementById('claimbtn');
@@ -580,6 +583,7 @@ document.getElementById('claimbtn').addEventListener('click', async () => {
   btn.textContent = 'Sending…';
 
   try {
+    const returnToUrl = window.location.href.split('?')[0];
     const res = await fetch(`${API_BASE}/api/nfl/${TEAM_SLUG}/request`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -590,13 +594,13 @@ document.getElementById('claimbtn').addEventListener('click', async () => {
         price: pickedSeat.price,
         fan_name: fanName,
         fan_phone: fanPhone,
+        return_to_url: returnToUrl,
       }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Request failed');
-    setRequestStatus('pending', `<span class="spin"></span>Texted the seat owner for Section ${pickedSeat.secName}, Row ${pickedSeat.rowLabel} Seat ${pickedSeat.num} — waiting for them to reply.`);
-    pollRequestStatus(data.request_id);
-    btn.textContent = 'Waiting for seller…';
+    btn.textContent = 'Redirecting to payment…';
+    window.location.href = data.checkout_url;
   } catch (err) {
     showToast(`Couldn't send request — is the API running at ${API_BASE}?`, true);
     btn.disabled = false;
@@ -604,7 +608,35 @@ document.getElementById('claimbtn').addEventListener('click', async () => {
   }
 });
 
+async function resumeFromCheckoutReturn(){
+  const params = new URLSearchParams(window.location.search);
+  const requestId = params.get('request_id');
+  const cancelledId = params.get('cancelled_request_id');
+  if (!requestId && !cancelledId) return;
+
+  history.replaceState(null, '', window.location.pathname);
+
+  if (cancelledId) {
+    showToast('Payment was cancelled — nothing was charged, feel free to try again.', true);
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/nfl/requests/${requestId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'not found');
+    fillCart(data.section, data.row, data.seat, data.price);
+    document.getElementById('claimbtn').textContent = 'Waiting for seller…';
+    document.getElementById('claimbtn').disabled = true;
+    setRequestStatus('pending', `<span class="spin"></span>Payment authorized — texting the seat owner for Section ${data.section}, Row ${data.row} Seat ${data.seat}.`);
+    pollRequestStatus(requestId);
+  } catch (err) {
+    showToast(`Couldn't load your request — is the API running at ${API_BASE}?`, true);
+  }
+}
+
 setVB(FULL_VB);
+resumeFromCheckoutReturn();
 </script>
 """
 

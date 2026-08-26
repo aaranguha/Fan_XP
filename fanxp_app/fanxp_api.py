@@ -23,6 +23,8 @@ from flask_cors import CORS
 from fanxp_common import (
     CREDIT_OFFER,
     NFL_OFFER_WINDOW_MINUTES,
+    SERVICE_FEE_RATE,
+    get_stripe,
     get_supabase,
     get_twilio,
     send_nfl_seller_sms,
@@ -267,15 +269,23 @@ def get_or_create_nfl_seller(sb, slug, section):
 def expire_if_stale(sb, req):
     """
     Requests never got a background sweep, so expiry is checked lazily
-    wherever a request is read or acted on: if it's still 'seller_pinged'
-    past NFL_OFFER_WINDOW_MINUTES after creation, flip it to 'expired' and
+    wherever a request is read or acted on: if it's still 'requested'
+    (checkout abandoned) or 'seller_pinged' past NFL_OFFER_WINDOW_MINUTES
+    after creation, flip it to 'expired', release any payment hold, and
     return the updated row. Otherwise returns `req` unchanged.
     """
-    if req["status"] != "seller_pinged":
+    if req["status"] not in ("requested", "seller_pinged"):
         return req
     created_at = datetime.fromisoformat(req["created_at"].replace("Z", "+00:00"))
     if datetime.now(timezone.utc) - created_at <= timedelta(minutes=NFL_OFFER_WINDOW_MINUTES):
         return req
+
+    if req.get("stripe_payment_intent_id"):
+        try:
+            get_stripe().PaymentIntent.cancel(req["stripe_payment_intent_id"])
+        except Exception:
+            pass  # already captured/cancelled/expired on Stripe's side — fine
+
     return (
         sb.table("nfl_seat_requests")
           .update({"status": "expired", "updated_at": "now()"})
@@ -284,20 +294,42 @@ def expire_if_stale(sb, req):
     ).data[0]
 
 
+def ping_nfl_seller(sb, req):
+    """Texts the seller and flips the request to 'seller_pinged'. Called
+    from the Stripe webhook once the card hold is authorized."""
+    seller = (
+        sb.table("nfl_sellers").select("*").eq("id", req["seller_id"]).single().execute()
+    ).data
+    twilio = get_twilio()
+    message = send_nfl_seller_sms(twilio, seller, req, os.getenv("API_PUBLIC_URL", request.url_root), CREDIT_OFFER)
+    sb.table("nfl_seat_requests").update({
+        "status":      "seller_pinged",
+        "message_sid": message.sid,
+        "updated_at":  "now()",
+    }).eq("id", req["id"]).execute()
+
+
 @app.route("/api/nfl/<slug>/request", methods=["POST"])
 def request_nfl_seat(slug):
     body = request.get_json(force=True) or {}
-    section   = str(body.get("section") or "").strip()
-    row_label = str(body.get("row") or "").strip()
-    seat_num  = str(body.get("seat") or "").strip()
-    price     = body.get("price")
-    fan_name  = (body.get("fan_name") or "").strip()
-    fan_phone = (body.get("fan_phone") or "").strip()
+    section       = str(body.get("section") or "").strip()
+    row_label     = str(body.get("row") or "").strip()
+    seat_num      = str(body.get("seat") or "").strip()
+    price         = body.get("price")
+    fan_name      = (body.get("fan_name") or "").strip()
+    fan_phone     = (body.get("fan_phone") or "").strip()
+    return_to_url = (body.get("return_to_url") or "").strip()
 
     if not section or not row_label or not seat_num or price is None:
         return jsonify({"error": "section, row, seat, and price are required"}), 400
     if not fan_name or not fan_phone:
         return jsonify({"error": "fan_name and fan_phone are required"}), 400
+    if not return_to_url:
+        return jsonify({"error": "return_to_url is required"}), 400
+
+    price = float(price)
+    fee = round(price * SERVICE_FEE_RATE, 2)
+    total_cents = round((price + fee) * 100)
 
     sb = get_supabase()
     seller = get_or_create_nfl_seller(sb, slug, section)
@@ -317,21 +349,64 @@ def request_nfl_seat(slug):
           .execute()
     ).data[0]
 
-    twilio = get_twilio()
-    message = send_nfl_seller_sms(twilio, seller, row, request.url_root, CREDIT_OFFER)
+    stripe = get_stripe()
+    session = stripe.checkout.Session.create(
+        mode="payment",
+        payment_intent_data={"capture_method": "manual"},
+        line_items=[{
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": total_cents,
+                "product_data": {
+                    "name": f"{slug.upper()} — Sec {section}, Row {row_label}, Seat {seat_num}",
+                    "description": "Card is authorized now and only charged if the seat owner confirms.",
+                },
+            },
+            "quantity": 1,
+        }],
+        success_url=f"{return_to_url}?request_id={row['id']}",
+        cancel_url=f"{return_to_url}?cancelled_request_id={row['id']}",
+        metadata={"request_id": str(row["id"])},
+    )
 
-    row = (
-        sb.table("nfl_seat_requests")
-          .update({
-              "status":      "seller_pinged",
-              "message_sid": message.sid,
-              "updated_at":  "now()",
-          })
-          .eq("id", row["id"])
-          .execute()
-    ).data[0]
+    sb.table("nfl_seat_requests").update({
+        "stripe_session_id": session.id,
+        "updated_at":        "now()",
+    }).eq("id", row["id"]).execute()
 
-    return jsonify({"request_id": row["id"], "status": row["status"]})
+    return jsonify({"request_id": row["id"], "checkout_url": session.url})
+
+
+@app.route("/webhooks/stripe", methods=["POST"])
+def stripe_webhook():
+    stripe = get_stripe()
+    payload = request.get_data()
+    sig     = request.headers.get("Stripe-Signature", "")
+    secret  = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig, secret)
+    except Exception as e:
+        return jsonify({"error": f"invalid webhook: {e}"}), 400
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        request_id = int(session["metadata"]["request_id"])
+        payment_intent_id = session.get("payment_intent")
+
+        sb = get_supabase()
+        req = (
+            sb.table("nfl_seat_requests").select("*").eq("id", request_id).single().execute()
+        ).data
+        if req and req["status"] == "requested":
+            sb.table("nfl_seat_requests").update({
+                "stripe_payment_intent_id": payment_intent_id,
+                "updated_at":               "now()",
+            }).eq("id", request_id).execute()
+            req["stripe_payment_intent_id"] = payment_intent_id
+            ping_nfl_seller(sb, req)
+
+    return jsonify({"received": True})
 
 
 @app.route("/api/nfl/requests/<int:request_id>")
@@ -344,7 +419,14 @@ def nfl_request_status(request_id):
         return jsonify({"error": "not found"}), 404
     row = expire_if_stale(sb, row)
 
-    resp = {"request_id": request_id, "status": row["status"]}
+    resp = {
+        "request_id": request_id,
+        "status":     row["status"],
+        "section":    row["section"],
+        "row":        row["row_label"],
+        "seat":       row["seat_num"],
+        "price":      float(row["price_usd"]),
+    }
     if row["status"] == "confirmed" and row.get("pass_code"):
         resp["pass_code"] = row["pass_code"]
     return jsonify(resp)
@@ -360,6 +442,9 @@ def resolve_nfl_seat_request(sb, req, seller, decision):
     blocked, e.g. by A2P 10DLC on a trial account).
     """
     if decision == "YES":
+        if req.get("stripe_payment_intent_id"):
+            get_stripe().PaymentIntent.capture(req["stripe_payment_intent_id"])
+
         pass_code = secrets.token_hex(6).upper()
 
         sb.table("nfl_seat_requests").update({
@@ -383,6 +468,9 @@ def resolve_nfl_seat_request(sb, req, seller, decision):
         return "confirmed"
 
     elif decision == "NO":
+        if req.get("stripe_payment_intent_id"):
+            get_stripe().PaymentIntent.cancel(req["stripe_payment_intent_id"])
+
         sb.table("nfl_seat_requests").update({
             "status":     "declined",
             "updated_at": "now()",
