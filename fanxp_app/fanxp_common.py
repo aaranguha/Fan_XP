@@ -12,7 +12,6 @@ load_dotenv()
 
 CREDIT_OFFER = 25  # stadium credit offered per surrendered seat
 NFL_OFFER_WINDOW_MINUTES = 30  # matches the "expires in 30 minutes" text in the seller SMS
-NFL_AUCTION_WINDOW_SECONDS = 60  # how long a seat stays open to outbidding after the first bid
 SERVICE_FEE_RATE = 0.12  # matches the fee shown in the seat map's cart UI
 
 
