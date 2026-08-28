@@ -35,7 +35,12 @@
       --max:        980px;
     }
 
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; scroll-snap-type: y mandatory; }
+    .hero, .stats, section.block {
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      scroll-margin-top: 60px; /* clears the sticky nav so snapped content isn't hidden under it */
+    }
     body {
       font-family: var(--sans);
       background: var(--bg);
