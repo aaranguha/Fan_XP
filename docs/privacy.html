@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fan XP · Privacy Policy</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #fafaf9; --surface: #ffffff; --border: #e7e6e2;
+      --text: #16181c; --muted: #6d7076; --muted-2: #9a9da3;
+      --accent: #2f5fff;
+      --sans: 'Inter', sans-serif; --serif: 'Fraunces', serif;
+      --max: 720px;
+    }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent); }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+
+    header.site { position: sticky; top: 0; z-index: 50; background: var(--bg); border-bottom: 1px solid var(--border); }
+    .nav-row { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; max-width: var(--max); margin: 0 auto; padding-left: 24px; padding-right: 24px; }
+    .wordmark { font-size: 1.05rem; font-weight: 800; letter-spacing: -.02em; text-decoration: none; color: var(--text); }
+    .wordmark .xp { color: var(--accent); }
+    .back { font-size: .85rem; color: var(--muted); text-decoration: none; }
+    .back:hover { color: var(--text); }
+
+    main { padding: 48px 0 80px; }
+    .eyebrow { font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+    h1 { font-family: var(--serif); font-size: clamp(1.8rem, 4vw, 2.4rem); font-weight: 600; letter-spacing: -.01em; margin-bottom: 8px; }
+    .updated { font-size: .82rem; color: var(--muted-2); margin-bottom: 40px; }
+    h2 { font-size: 1.05rem; font-weight: 700; margin: 36px 0 12px; }
+    p, li { font-size: .92rem; color: var(--muted); margin-bottom: 12px; }
+    ul { padding-left: 20px; margin-bottom: 12px; }
+    strong { color: var(--text); font-weight: 600; }
+    .notice {
+      background: #fff8e8; border: 1px solid #f0dfae; border-radius: 8px;
+      padding: 14px 16px; font-size: .85rem; color: #6b5a1f; margin-bottom: 32px;
+    }
+
+    footer { padding: 32px 0; border-top: 1px solid var(--border); text-align: center; }
+    .footer-copy { font-size: .8rem; color: var(--muted-2); }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <div class="nav-row">
+      <a href="index.html" class="wordmark">Fan<span class="xp">XP</span></a>
+      <a href="index.html" class="back">← Back</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="eyebrow">Legal</div>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated August 28, 2026</p>
+
+    <div class="notice">
+      Fan XP is an early-stage product. This policy describes our actual current data practices in plain language, but has not been reviewed by a lawyer. It will be replaced with formal legal terms before any public launch.
+    </div>
+
+    <h2>What we collect</h2>
+    <p>When you claim a seat, we collect the name and phone number you provide, and the seat (team, section, row, seat number, price) you're claiming.</p>
+    <p>We never see or store your card details. Payment is handled entirely by Stripe — we only receive confirmation that a charge was authorized or completed.</p>
+
+    <h2>How we use it</h2>
+    <ul>
+      <li>To text the seat owner asking them to confirm the release, and to text you the outcome.</li>
+      <li>To process payment authorization and capture through Stripe.</li>
+      <li>To show you the status of your claim when you check back on the page.</li>
+    </ul>
+
+    <h2>Who we share it with</h2>
+    <ul>
+      <li><strong>Stripe</strong> — processes your payment. See <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Stripe's privacy policy</a>.</li>
+      <li><strong>Twilio</strong> — delivers the SMS messages referenced above.</li>
+      <li><strong>Supabase</strong> — hosts the database where claim records are stored.</li>
+    </ul>
+    <p>We do not sell your data, and we do not use it for advertising.</p>
+
+    <h2>Cookies and tracking</h2>
+    <p>This site does not currently use analytics, tracking pixels, or advertising cookies.</p>
+
+    <h2>Your choices</h2>
+    <p>To request that we delete your data, email us using the contact below. Because seat claims involve a real financial transaction, we may need to retain records required for payment disputes or tax purposes even after a deletion request.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy: reach out via the waitlist form on our <a href="index.html#waitlist">homepage</a>.</p>
+  </main>
+
+  <footer class="wrap">
+    <div class="footer-copy">© 2026 Fan XP</div>
+  </footer>
+</body>
+</html>

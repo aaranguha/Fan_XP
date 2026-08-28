@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fan XP · Terms of Service</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #fafaf9; --surface: #ffffff; --border: #e7e6e2;
+      --text: #16181c; --muted: #6d7076; --muted-2: #9a9da3;
+      --accent: #2f5fff;
+      --sans: 'Inter', sans-serif; --serif: 'Fraunces', serif;
+      --max: 720px;
+    }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent); }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+
+    header.site { position: sticky; top: 0; z-index: 50; background: var(--bg); border-bottom: 1px solid var(--border); }
+    .nav-row { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; max-width: var(--max); margin: 0 auto; padding-left: 24px; padding-right: 24px; }
+    .wordmark { font-size: 1.05rem; font-weight: 800; letter-spacing: -.02em; text-decoration: none; color: var(--text); }
+    .wordmark .xp { color: var(--accent); }
+    .back { font-size: .85rem; color: var(--muted); text-decoration: none; }
+    .back:hover { color: var(--text); }
+
+    main { padding: 48px 0 80px; }
+    .eyebrow { font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+    h1 { font-family: var(--serif); font-size: clamp(1.8rem, 4vw, 2.4rem); font-weight: 600; letter-spacing: -.01em; margin-bottom: 8px; }
+    .updated { font-size: .82rem; color: var(--muted-2); margin-bottom: 40px; }
+    h2 { font-size: 1.05rem; font-weight: 700; margin: 36px 0 12px; }
+    p, li { font-size: .92rem; color: var(--muted); margin-bottom: 12px; }
+    ul { padding-left: 20px; margin-bottom: 12px; }
+    strong { color: var(--text); font-weight: 600; }
+    .notice {
+      background: #fff8e8; border: 1px solid #f0dfae; border-radius: 8px;
+      padding: 14px 16px; font-size: .85rem; color: #6b5a1f; margin-bottom: 32px;
+    }
+
+    footer { padding: 32px 0; border-top: 1px solid var(--border); text-align: center; }
+    .footer-copy { font-size: .8rem; color: var(--muted-2); }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <div class="nav-row">
+      <a href="index.html" class="wordmark">Fan<span class="xp">XP</span></a>
+      <a href="index.html" class="back">← Back</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="eyebrow">Legal</div>
+    <h1>Terms of Service</h1>
+    <p class="updated">Last updated August 28, 2026</p>
+
+    <div class="notice">
+      Fan XP is an early-stage product. These terms describe how the current version actually works, but have not been reviewed by a lawyer. They will be replaced with formal legal terms before any public launch.
+    </div>
+
+    <h2>What Fan XP does</h2>
+    <p>Fan XP identifies seats that were listed for resale before a game and never got resold or used by kickoff — a confirmed no-show. We let fans claim those seats for the second half, subject to the seat owner's confirmation.</p>
+
+    <h2>How a claim works</h2>
+    <ul>
+      <li>You submit a bid for a specific seat. Your card is <strong>authorized</strong>, not charged.</li>
+      <li>We text the seat owner asking them to confirm the release.</li>
+      <li>If they confirm, your card is charged and you receive a gate pass code.</li>
+      <li>If they decline, or don't respond within the offer window, the authorization is released and you are never charged.</li>
+    </ul>
+    <p>We do not guarantee that any specific seat owner will respond or confirm. A claim is a request, not a purchase, until it is confirmed.</p>
+
+    <h2>Payments</h2>
+    <p>Payments are processed by Stripe. By submitting a claim, you agree to Stripe's terms in addition to these. Fan XP does not store your card details.</p>
+
+    <h2>Your responsibilities</h2>
+    <ul>
+      <li>Provide accurate name and phone number when claiming a seat.</li>
+      <li>Show your gate pass code and valid ID if asked, when entering the venue.</li>
+      <li>Don't attempt to claim a seat you don't intend to use.</li>
+    </ul>
+
+    <h2>No warranty</h2>
+    <p>Fan XP is provided as-is, in active development. Seat availability data, pricing, and venue information may contain errors. We're not responsible for issues at the gate, including a seat owner who confirms and later changes their mind.</p>
+
+    <h2>Changes</h2>
+    <p>We may update these terms as the product changes. Continued use after a change means you accept the updated terms.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about these terms: reach out via the waitlist form on our <a href="index.html#waitlist">homepage</a>.</p>
+  </main>
+
+  <footer class="wrap">
+    <div class="footer-copy">© 2026 Fan XP</div>
+  </footer>
+</body>
+</html>
