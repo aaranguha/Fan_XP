@@ -4,359 +4,322 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fan XP — MLB Teams</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:        #04060f;
-      --bg-2:      #080d1a;
-      --bg-card:   #0b1221;
-      --cyan:      #00f5ff;
-      --cyan-dim:  rgba(0,245,255,0.08);
-      --cyan-glow: rgba(0,245,255,0.35);
-      --gold:      #ffd700;
-      --white:     #eef2ff;
-      --muted:     rgba(220,228,255,0.5);
-      --border:    rgba(0,245,255,0.14);
-      --font:      'Inter', sans-serif;
-      --ease:      cubic-bezier(0.4,0,0.2,1);
+      --bg:         #fafaf9;
+      --surface:    #ffffff;
+      --border:     #e7e6e2;
+      --text:       #16181c;
+      --muted:      #6d7076;
+      --muted-2:    #9a9da3;
+      --accent:     #2f5fff;
+      --accent-soft:#ecf1ff;
+      --sans:       'Inter', sans-serif;
+      --serif:      'Fraunces', serif;
+      --mono:       'IBM Plex Mono', monospace;
+      --max:        980px;
     }
-
     html { scroll-behavior: smooth; }
-    body { font-family: var(--font); background: var(--bg); color: var(--white); line-height: 1.6; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.55; -webkit-font-smoothing: antialiased; }
     a { text-decoration: none; color: inherit; }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
 
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: rgba(0,245,255,0.3); border-radius: 5px; }
-
-    .container { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
-
-    .navbar {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
-      padding: 20px 0;
-      background: rgba(4,6,15,0.3);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid transparent;
-      transition: all 0.3s var(--ease);
+    header.site {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(250,250,249,.88); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
     }
-    .navbar.scrolled { padding: 13px 0; background: rgba(4,6,15,0.9); border-bottom-color: var(--border); }
-    .navbar-inner { display: flex; align-items: center; justify-content: space-between; }
-    .logo { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.04em; display: flex; align-items: center; gap: 1px; }
-    .logo-fan { color: var(--white); }
-    .logo-xp { color: var(--cyan); text-shadow: 0 0 14px var(--cyan), 0 0 28px rgba(0,245,255,.35); }
+    .nav-row { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+    .wordmark { font-size: 1.05rem; font-weight: 800; letter-spacing: -.02em; }
+    .wordmark .xp { color: var(--accent); }
+    .nav-links { display: flex; align-items: center; gap: 28px; list-style: none; }
+    .nav-links a { font-size: .85rem; font-weight: 500; color: var(--muted); }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); }
+    .nav-links .cta { color: var(--text); font-weight: 600; padding: 7px 16px; border: 1px solid var(--text); border-radius: 6px; }
+    .nav-links .cta:hover { background: var(--text); color: var(--surface); }
+    .hamburger { display: none; flex-direction: column; gap: 4px; background: none; border: none; padding: 4px; }
+    .hamburger span { width: 20px; height: 1.5px; background: var(--text); }
+    .mobile-menu { display: none; position: fixed; inset: 0; z-index: 60; background: var(--bg); flex-direction: column; padding: 20px 24px; }
+    .mobile-menu.open { display: flex; }
+    .mobile-menu-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 48px; }
+    .mobile-menu a { font-size: 1.3rem; font-weight: 600; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .mobile-close { background: none; border: none; font-size: 1.4rem; color: var(--muted); }
 
-    .nav-links { display: flex; align-items: center; gap: 36px; list-style: none; }
-    .nav-links a { font-size: .875rem; font-weight: 500; color: var(--muted); transition: color .2s; }
-    .nav-links a:hover { color: var(--white); }
+    .page-hero { padding: 56px 0 36px; }
+    .eyebrow { font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+    .page-title { font-family: var(--serif); font-size: clamp(2rem, 4.4vw, 3rem); font-weight: 600; letter-spacing: -.015em; line-height: 1.05; }
+    .page-title .count { color: var(--accent); font-style: italic; font-weight: 500; }
+    .page-sub { color: var(--muted); font-size: .96rem; margin-top: 12px; }
 
-    .nav-dropdown { position: relative; }
-    .nav-dropdown > a { display: flex; align-items: center; gap: 5px; font-size: .875rem; font-weight: 500; color: var(--muted); transition: color .2s; cursor: pointer; }
-    .nav-dropdown > a:hover { color: var(--white); }
-    .nav-dropdown > a svg { transition: transform .2s; }
-    .nav-dropdown:hover > a svg { transform: rotate(180deg); }
-    .dropdown-menu {
-      position: absolute; top: calc(100% + 14px); left: 50%;
-      transform: translateX(-50%);
-      background: rgba(8,13,26,0.97); border: 1px solid var(--border);
-      border-radius: 12px; padding: 8px; min-width: 150px;
-      backdrop-filter: blur(20px); opacity: 0; pointer-events: none;
-      transition: opacity .2s, transform .2s;
-      transform: translateX(-50%) translateY(-6px); z-index: 100;
+    .search-wrap { position: relative; max-width: 360px; margin: 28px 0 8px; }
+    .search-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted-2); }
+    .search-input {
+      width: 100%; padding: 11px 14px 11px 40px; border: 1px solid var(--border); border-radius: 8px;
+      font-family: var(--sans); font-size: .88rem; background: var(--surface); color: var(--text); outline: none;
     }
-    .nav-dropdown:hover .dropdown-menu { opacity: 1; pointer-events: all; transform: translateX(-50%) translateY(0); transition-delay: 0s; }
-    .dropdown-menu { transition-delay: 0.15s; }
-    .dropdown-menu a { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 8px; font-size: .85rem; font-weight: 600; color: var(--muted); transition: background .15s, color .15s; white-space: nowrap; }
-    .dropdown-menu a:hover { background: var(--cyan-dim); color: var(--white); }
-    .dropdown-menu a.active { color: var(--cyan); }
-    .dropdown-menu a.coming-soon { opacity: .4; cursor: default; pointer-events: none; }
-    .league-tag { font-size: .68rem; font-weight: 700; letter-spacing: .06em; background: var(--cyan-dim); color: var(--cyan); border-radius: 4px; padding: 2px 6px; }
-    .dropdown-menu a.coming-soon .league-tag { background: rgba(220,228,255,.06); color: var(--muted); }
+    .search-input:focus { border-color: var(--text); }
 
-    .nav-cta { background: var(--cyan); color: var(--bg) !important; font-weight: 800 !important; padding: 9px 22px; border-radius: 999px; font-size: .875rem !important; box-shadow: 0 0 18px rgba(0,245,255,.3); transition: box-shadow .2s, transform .2s !important; }
-    .nav-cta:hover { box-shadow: 0 0 28px rgba(0,245,255,.55); transform: translateY(-1px); }
-
-    .page-header { padding: 140px 0 60px; text-align: center; position: relative; }
-    .page-header::before {
-      content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-      background-image: linear-gradient(rgba(0,245,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,245,255,.03) 1px, transparent 1px);
-      background-size: 56px 56px;
-      mask-image: radial-gradient(ellipse 80% 80% at 50% 40%, black 20%, transparent 75%);
+    main.wrap { padding-bottom: 90px; }
+    .conf-title {
+      font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--text); border-top: 1px solid var(--border); padding-top: 14px; margin: 40px 0 22px;
     }
-    .page-header .badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(0,245,255,.08); border: 1px solid rgba(0,245,255,.28); border-radius: 999px; padding: 7px 16px; font-size: .74rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); margin-bottom: 20px; position: relative; z-index: 1; }
-    .page-header h1 { font-size: clamp(2.2rem, 4vw, 3.4rem); font-weight: 900; letter-spacing: -.03em; position: relative; z-index: 1; }
-    .page-header h1 span { color: var(--cyan); text-shadow: 0 0 28px rgba(0,245,255,.5); }
-    .page-header p { color: var(--muted); font-size: 1rem; margin-top: 14px; position: relative; z-index: 1; }
+    .division-label { font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-2); margin: 22px 0 12px; }
 
-    .leagues { padding: 20px 0 100px; }
-    .league-section { margin-bottom: 64px; }
-    .league-title { font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--cyan); border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 32px; }
-    .division-label { font-size: .7rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; margin-top: 28px; }
+    .teams-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .team-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+      cursor: pointer; transition: border-color .15s, transform .15s;
+      position: relative;
+    }
+    .team-card:hover { border-color: var(--text); transform: translateY(-2px); }
+    .team-logo { width: 40px; height: 40px; object-fit: contain; }
+    .team-name { font-size: .74rem; font-weight: 700; text-align: center; line-height: 1.25; }
+    .team-city { font-size: .64rem; color: var(--muted); text-align: center; }
 
-    .teams-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
-    .team-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px 16px 18px; display: flex; flex-direction: column; align-items: center; gap: 12px; transition: border-color .2s, background .2s, transform .2s, box-shadow .2s; position: relative; overflow: hidden; }
-    .team-card::before { content: ''; position: absolute; inset: 0; border-radius: 16px; background: var(--cyan-dim); opacity: 0; transition: opacity .2s; }
-    .team-card.has-data { cursor: pointer; }
-    .team-card.has-data:hover { border-color: rgba(0,245,255,.4); transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,.4); }
-    .team-card.has-data:hover::before { opacity: 1; }
-    .team-logo { width: 72px; height: 72px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,.5)); transition: transform .2s; position: relative; z-index: 1; }
-    .team-card.has-data:hover .team-logo { transform: scale(1.08); }
-    .team-name { font-size: .78rem; font-weight: 700; text-align: center; color: var(--white); position: relative; z-index: 1; }
-    .team-city { font-size: .68rem; color: var(--muted); text-align: center; position: relative; z-index: 1; margin-top: -8px; }
-    .dev-badge { font-size: .58rem; color: rgba(255,100,100,.6); text-align: center; letter-spacing: .06em; text-transform: uppercase; position: relative; z-index: 1; margin-top: 4px; }
-    .live-badge { font-size: .62rem; font-weight: 700; letter-spacing: .06em; background: rgba(0,245,255,.12); color: var(--cyan); border-radius: 4px; padding: 2px 7px; position: relative; z-index: 1; }
-
-    .search-wrap { max-width: 400px; margin: 0 auto 52px; position: relative; }
-    .search-wrap svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
-    .search-input { width: 100%; padding: 13px 16px 13px 44px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; color: var(--white); font-family: var(--font); font-size: .9rem; outline: none; transition: border-color .2s; }
-    .search-input::placeholder { color: var(--muted); }
-    .search-input:focus { border-color: rgba(0,245,255,.4); }
+    footer { padding: 44px 0; border-top: 1px solid var(--border); }
+    .footer-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .footer-links { display: flex; gap: 22px; }
+    .footer-links a { font-size: .82rem; color: var(--muted); }
+    .footer-links a:hover { color: var(--text); }
+    .footer-copy { font-size: .8rem; color: var(--muted-2); }
 
     @media (max-width: 900px) { .teams-grid { grid-template-columns: repeat(4, 1fr); } }
-    @media (max-width: 640px) { .teams-grid { grid-template-columns: repeat(3, 1fr); } .nav-links { display: none; } }
-    @media (max-width: 420px) { .teams-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 760px) {
+      .nav-links { display: none; } .hamburger { display: flex; }
+    }
+    @media (max-width: 480px) { .teams-grid { grid-template-columns: repeat(3, 1fr); } }
   </style>
 </head>
 <body>
 
-  <nav class="navbar" id="navbar">
-    <div class="container">
-      <div class="navbar-inner">
-        <a href="index.html" class="logo"><span class="logo-fan">Fan</span><span class="logo-xp"> XP</span></a>
-        <ul class="nav-links">
-          <li><a href="index.html#how-it-works">How It Works</a></li>
-          <li><a href="index.html#features">For Fans</a></li>
-          <li><a href="index.html#for-teams">For Teams</a></li>
-          <li class="nav-dropdown">
-            <a href="#">Sports <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 4l3.5 3.5L9 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-            <div class="dropdown-menu">
-              <a href="nba.html"><span class="league-tag">NBA</span> Basketball</a>
-              <a href="wnba.html"><span class="league-tag">WNBA</span> Basketball</a>
-              <a href="mlb.html" class="active"><span class="league-tag">MLB</span> Baseball</a>
-              <a href="nfl.html"><span class="league-tag">NFL</span> Football</a>
-            </div>
-          </li>
-          <li><a href="index.html#waitlist" class="nav-cta">Sign Up</a></li>
-        </ul>
-      </div>
+  <header class="site">
+    <div class="wrap nav-row">
+      <a href="index.html" class="wordmark">Fan<span class="xp">XP</span></a>
+      <ul class="nav-links">
+        <li><a href="nfl.html">NFL</a></li>
+        <li><a href="nba.html">NBA</a></li>
+        <li><a href="wnba.html">WNBA</a></li>
+        <li><a href="mlb.html" class="active">MLB</a></li>
+        <li><a href="index.html#waitlist" class="cta">Sign up</a></li>
+      </ul>
+      <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
     </div>
-  </nav>
+  </header>
 
-  <div class="page-header">
-    <div class="container">
-      <div class="badge">⚾ Major League Baseball</div>
-      <h1>All <span>30 MLB</span> Teams</h1>
-      <p>Select a team to explore seat intelligence and no-show data.</p>
+  <div class="mobile-menu" id="mobile-menu">
+    <div class="mobile-menu-top">
+      <a href="index.html" class="wordmark">Fan<span class="xp" style="color:var(--accent)"> XP</span></a>
+      <button class="mobile-close" id="mobile-close">✕</button>
     </div>
+    <a href="nfl.html">NFL</a>
+    <a href="nba.html">NBA</a>
+    <a href="wnba.html">WNBA</a>
+    <a href="mlb.html" style="color:var(--accent)">MLB</a>
+    <a href="index.html#waitlist" onclick="closeMobileMenu()" style="color:var(--accent)">Sign up →</a>
   </div>
 
-  <div class="leagues">
-    <div class="container">
-
-      <div class="search-wrap">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        <input class="search-input" type="text" id="search" placeholder="Search teams…" oninput="filterTeams(this.value)" />
-      </div>
-
-      <!-- AMERICAN LEAGUE -->
-      <div class="league-section">
-        <div class="league-title">American League</div>
-
-        <div class="division-label">AL East</div>
-        <div class="teams-grid">
-          <div class="team-card" data-team="New York Yankees" data-slug="yankees" data-city="New York">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/nyy.png" alt="Yankees"/>
-            <div class="team-name">Yankees</div>
-          </div>
-          <div class="team-card" data-team="Boston Red Sox" data-slug="redsox" data-city="Boston">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/bos.png" alt="Red Sox"/>
-            <div class="team-name">Red Sox</div>
-          </div>
-          <div class="team-card" data-team="Toronto Blue Jays" data-slug="bluejays" data-city="Toronto">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/tor.png" alt="Blue Jays"/>
-            <div class="team-name">Blue Jays</div>
-          </div>
-          <div class="team-card" data-team="Baltimore Orioles" data-slug="orioles" data-city="Baltimore">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/bal.png" alt="Orioles"/>
-            <div class="team-name">Orioles</div>
-          </div>
-          <div class="team-card" data-team="Tampa Bay Rays" data-slug="rays" data-city="St. Petersburg">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/tb.png" alt="Rays"/>
-            <div class="team-name">Rays</div>
-          </div>
-        </div>
-
-        <div class="division-label">AL Central</div>
-        <div class="teams-grid">
-          <div class="team-card" data-team="Minnesota Twins" data-slug="twins" data-city="Minneapolis">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/min.png" alt="Twins"/>
-            <div class="team-name">Twins</div>
-          </div>
-          <div class="team-card" data-team="Kansas City Royals" data-slug="royals" data-city="Kansas City">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/kc.png" alt="Royals"/>
-            <div class="team-name">Royals</div>
-          </div>
-          <div class="team-card" data-team="Chicago White Sox" data-slug="whitesox" data-city="Chicago">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/chw.png" alt="White Sox"/>
-            <div class="team-name">White Sox</div>
-          </div>
-          <div class="team-card" data-team="Detroit Tigers" data-slug="tigers" data-city="Detroit">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/det.png" alt="Tigers"/>
-            <div class="team-name">Tigers</div>
-          </div>
-          <div class="team-card" data-team="Cleveland Guardians" data-slug="guardians" data-city="Cleveland">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/cle.png" alt="Guardians"/>
-            <div class="team-name">Guardians</div>
-          </div>
-        </div>
-
-        <div class="division-label">AL West</div>
-        <div class="teams-grid">
-          <div class="team-card" data-team="Houston Astros" data-slug="astros" data-city="Houston">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/hou.png" alt="Astros"/>
-            <div class="team-name">Astros</div>
-          </div>
-          <div class="team-card" data-team="Texas Rangers" data-slug="rangers" data-city="Arlington">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/tex.png" alt="Rangers"/>
-            <div class="team-name">Rangers</div>
-          </div>
-          <div class="team-card" data-team="Athletics" data-slug="athletics" data-city="Sacramento">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/oak.png" alt="Athletics"/>
-            <div class="team-name">Athletics</div>
-          </div>
-          <div class="team-card" data-team="Los Angeles Angels" data-slug="angels" data-city="Anaheim">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/laa.png" alt="Angels"/>
-            <div class="team-name">Angels</div>
-          </div>
-          <div class="team-card" data-team="Seattle Mariners" data-slug="mariners" data-city="Seattle">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/sea.png" alt="Mariners"/>
-            <div class="team-name">Mariners</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- NATIONAL LEAGUE -->
-      <div class="league-section">
-        <div class="league-title">National League</div>
-
-        <div class="division-label">NL East</div>
-        <div class="teams-grid">
-          <div class="team-card" data-team="New York Mets" data-slug="mets" data-city="New York">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/nym.png" alt="Mets"/>
-            <div class="team-name">Mets</div>
-          </div>
-          <div class="team-card" data-team="Philadelphia Phillies" data-slug="phillies" data-city="Philadelphia">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/phi.png" alt="Phillies"/>
-            <div class="team-name">Phillies</div>
-          </div>
-          <div class="team-card" data-team="Atlanta Braves" data-slug="braves" data-city="Atlanta">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/atl.png" alt="Braves"/>
-            <div class="team-name">Braves</div>
-          </div>
-          <div class="team-card" data-team="Washington Nationals" data-slug="nationals" data-city="Washington">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/wsh.png" alt="Nationals"/>
-            <div class="team-name">Nationals</div>
-          </div>
-          <div class="team-card" data-team="Miami Marlins" data-slug="marlins" data-city="Miami">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/mia.png" alt="Marlins"/>
-            <div class="team-name">Marlins</div>
-          </div>
-        </div>
-
-        <div class="division-label">NL Central</div>
-        <div class="teams-grid">
-          <div class="team-card" data-team="Chicago Cubs" data-slug="cubs" data-city="Chicago">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/chc.png" alt="Cubs"/>
-            <div class="team-name">Cubs</div>
-          </div>
-          <div class="team-card" data-team="St. Louis Cardinals" data-slug="cardinals" data-city="St. Louis">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/stl.png" alt="Cardinals"/>
-            <div class="team-name">Cardinals</div>
-          </div>
-          <div class="team-card" data-team="Milwaukee Brewers" data-slug="brewers" data-city="Milwaukee">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/mil.png" alt="Brewers"/>
-            <div class="team-name">Brewers</div>
-          </div>
-          <div class="team-card" data-team="Pittsburgh Pirates" data-slug="pirates" data-city="Pittsburgh">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/pit.png" alt="Pirates"/>
-            <div class="team-name">Pirates</div>
-          </div>
-          <div class="team-card" data-team="Cincinnati Reds" data-slug="reds" data-city="Cincinnati">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/cin.png" alt="Reds"/>
-            <div class="team-name">Reds</div>
-          </div>
-        </div>
-
-        <div class="division-label">NL West</div>
-        <div class="teams-grid">
-          <div class="team-card" data-team="Los Angeles Dodgers" data-slug="dodgers" data-city="Los Angeles">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/lad.png" alt="Dodgers"/>
-            <div class="team-name">Dodgers</div>
-          </div>
-          <div class="team-card" data-team="San Francisco Giants" data-slug="giants" data-city="San Francisco">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/sf.png" alt="Giants"/>
-            <div class="team-name">Giants</div>
-          </div>
-          <div class="team-card" data-team="San Diego Padres" data-slug="padres" data-city="San Diego">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/sd.png" alt="Padres"/>
-            <div class="team-name">Padres</div>
-          </div>
-          <div class="team-card" data-team="Colorado Rockies" data-slug="rockies" data-city="Denver">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/col.png" alt="Rockies"/>
-            <div class="team-name">Rockies</div>
-          </div>
-          <div class="team-card" data-team="Arizona Diamondbacks" data-slug="diamondbacks" data-city="Phoenix">
-            <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/ari.png" alt="Diamondbacks"/>
-            <div class="team-name">Diamondbacks</div>
-          </div>
-        </div>
-      </div>
-
+  <section class="page-hero wrap">
+    <div class="eyebrow">Major League Baseball</div>
+    <h1 class="page-title">All <span class="count">30</span> teams</h1>
+    <p class="page-sub">Select a team to explore seat intelligence and no-show data.</p>
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <input class="search-input" type="text" id="search" placeholder="Search teams…" oninput="filterTeams(this.value)" />
     </div>
-  </div>
+  </section>
+
+  <main class="wrap">
+    <div class="conf-title">American League</div>
+
+    <div class="division-label">AL East</div>
+    <div class="teams-grid">
+      <div class="team-card" data-team="New York Yankees" data-slug="yankees" data-city="New York">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/nyy.png" alt="Yankees"/>
+        <div class="team-name">Yankees</div>
+      </div>
+      <div class="team-card" data-team="Boston Red Sox" data-slug="redsox" data-city="Boston">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/bos.png" alt="Red Sox"/>
+        <div class="team-name">Red Sox</div>
+      </div>
+      <div class="team-card" data-team="Toronto Blue Jays" data-slug="bluejays" data-city="Toronto">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/tor.png" alt="Blue Jays"/>
+        <div class="team-name">Blue Jays</div>
+      </div>
+      <div class="team-card" data-team="Baltimore Orioles" data-slug="orioles" data-city="Baltimore">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/bal.png" alt="Orioles"/>
+        <div class="team-name">Orioles</div>
+      </div>
+      <div class="team-card" data-team="Tampa Bay Rays" data-slug="rays" data-city="St. Petersburg">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/tb.png" alt="Rays"/>
+        <div class="team-name">Rays</div>
+      </div>
+    </div>
+
+    <div class="division-label">AL Central</div>
+    <div class="teams-grid">
+      <div class="team-card" data-team="Minnesota Twins" data-slug="twins" data-city="Minneapolis">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/min.png" alt="Twins"/>
+        <div class="team-name">Twins</div>
+      </div>
+      <div class="team-card" data-team="Kansas City Royals" data-slug="royals" data-city="Kansas City">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/kc.png" alt="Royals"/>
+        <div class="team-name">Royals</div>
+      </div>
+      <div class="team-card" data-team="Chicago White Sox" data-slug="whitesox" data-city="Chicago">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/chw.png" alt="White Sox"/>
+        <div class="team-name">White Sox</div>
+      </div>
+      <div class="team-card" data-team="Detroit Tigers" data-slug="tigers" data-city="Detroit">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/det.png" alt="Tigers"/>
+        <div class="team-name">Tigers</div>
+      </div>
+      <div class="team-card" data-team="Cleveland Guardians" data-slug="guardians" data-city="Cleveland">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/cle.png" alt="Guardians"/>
+        <div class="team-name">Guardians</div>
+      </div>
+    </div>
+
+    <div class="division-label">AL West</div>
+    <div class="teams-grid">
+      <div class="team-card" data-team="Houston Astros" data-slug="astros" data-city="Houston">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/hou.png" alt="Astros"/>
+        <div class="team-name">Astros</div>
+      </div>
+      <div class="team-card" data-team="Texas Rangers" data-slug="rangers" data-city="Arlington">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/tex.png" alt="Rangers"/>
+        <div class="team-name">Rangers</div>
+      </div>
+      <div class="team-card" data-team="Athletics" data-slug="athletics" data-city="Sacramento">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/oak.png" alt="Athletics"/>
+        <div class="team-name">Athletics</div>
+      </div>
+      <div class="team-card" data-team="Los Angeles Angels" data-slug="angels" data-city="Anaheim">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/laa.png" alt="Angels"/>
+        <div class="team-name">Angels</div>
+      </div>
+      <div class="team-card" data-team="Seattle Mariners" data-slug="mariners" data-city="Seattle">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/sea.png" alt="Mariners"/>
+        <div class="team-name">Mariners</div>
+      </div>
+    </div>
+
+    <div class="conf-title">National League</div>
+
+    <div class="division-label">NL East</div>
+    <div class="teams-grid">
+      <div class="team-card" data-team="New York Mets" data-slug="mets" data-city="New York">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/nym.png" alt="Mets"/>
+        <div class="team-name">Mets</div>
+      </div>
+      <div class="team-card" data-team="Philadelphia Phillies" data-slug="phillies" data-city="Philadelphia">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/phi.png" alt="Phillies"/>
+        <div class="team-name">Phillies</div>
+      </div>
+      <div class="team-card" data-team="Atlanta Braves" data-slug="braves" data-city="Atlanta">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/atl.png" alt="Braves"/>
+        <div class="team-name">Braves</div>
+      </div>
+      <div class="team-card" data-team="Washington Nationals" data-slug="nationals" data-city="Washington">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/wsh.png" alt="Nationals"/>
+        <div class="team-name">Nationals</div>
+      </div>
+      <div class="team-card" data-team="Miami Marlins" data-slug="marlins" data-city="Miami">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/mia.png" alt="Marlins"/>
+        <div class="team-name">Marlins</div>
+      </div>
+    </div>
+
+    <div class="division-label">NL Central</div>
+    <div class="teams-grid">
+      <div class="team-card" data-team="Chicago Cubs" data-slug="cubs" data-city="Chicago">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/chc.png" alt="Cubs"/>
+        <div class="team-name">Cubs</div>
+      </div>
+      <div class="team-card" data-team="St. Louis Cardinals" data-slug="cardinals" data-city="St. Louis">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/stl.png" alt="Cardinals"/>
+        <div class="team-name">Cardinals</div>
+      </div>
+      <div class="team-card" data-team="Milwaukee Brewers" data-slug="brewers" data-city="Milwaukee">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/mil.png" alt="Brewers"/>
+        <div class="team-name">Brewers</div>
+      </div>
+      <div class="team-card" data-team="Pittsburgh Pirates" data-slug="pirates" data-city="Pittsburgh">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/pit.png" alt="Pirates"/>
+        <div class="team-name">Pirates</div>
+      </div>
+      <div class="team-card" data-team="Cincinnati Reds" data-slug="reds" data-city="Cincinnati">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/cin.png" alt="Reds"/>
+        <div class="team-name">Reds</div>
+      </div>
+    </div>
+
+    <div class="division-label">NL West</div>
+    <div class="teams-grid">
+      <div class="team-card" data-team="Los Angeles Dodgers" data-slug="dodgers" data-city="Los Angeles">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/lad.png" alt="Dodgers"/>
+        <div class="team-name">Dodgers</div>
+      </div>
+      <div class="team-card" data-team="San Francisco Giants" data-slug="giants" data-city="San Francisco">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/sf.png" alt="Giants"/>
+        <div class="team-name">Giants</div>
+      </div>
+      <div class="team-card" data-team="San Diego Padres" data-slug="padres" data-city="San Diego">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/sd.png" alt="Padres"/>
+        <div class="team-name">Padres</div>
+      </div>
+      <div class="team-card" data-team="Colorado Rockies" data-slug="rockies" data-city="Denver">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/col.png" alt="Rockies"/>
+        <div class="team-name">Rockies</div>
+      </div>
+      <div class="team-card" data-team="Arizona Diamondbacks" data-slug="diamondbacks" data-city="Phoenix">
+        <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/mlb/500/ari.png" alt="Diamondbacks"/>
+        <div class="team-name">Diamondbacks</div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="wrap">
+    <div class="footer-row">
+      <div class="footer-copy">© 2026 Fan XP</div>
+      <div class="footer-links">
+        <a href="nfl.html">NFL</a><a href="nba.html">NBA</a><a href="wnba.html">WNBA</a><a href="mlb.html">MLB</a>
+      </div>
+    </div>
+  </footer>
 
   <script>
-    const navbar = document.getElementById('navbar');
-    window.addEventListener('scroll', () => { navbar.classList.toggle('scrolled', window.scrollY > 20); });
-
-    // Teams that have collected data — populated dynamically by checking if the story HTML exists
-    // For now we link all and let the story page handle empty state
-    const STORY_PAGES = new Set([
-      // Slugs with data will be added here automatically by generate_mlb_story.py
-      // For now show all as clickable — the story page handles "no data yet"
-    ]);
+    const hamburger = document.getElementById('hamburger');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const mobileClose = document.getElementById('mobile-close');
+    hamburger.addEventListener('click', () => mobileMenu.classList.add('open'));
+    mobileClose.addEventListener('click', () => mobileMenu.classList.remove('open'));
+    function closeMobileMenu() { mobileMenu.classList.remove('open'); }
 
     document.querySelectorAll('.team-card').forEach(card => {
       const slug = card.dataset.slug;
       const city = card.dataset.city;
       const nameDiv = card.querySelector('.team-name');
-
-      // Add city label
       if (city && nameDiv) {
         const d = document.createElement('div');
         d.className = 'team-city';
         d.textContent = city;
         nameDiv.after(d);
       }
-
-      // All teams are clickable — story page shows "no data yet" if empty
-      card.classList.add('has-data');
-      card.style.cursor = 'pointer';
-      card.addEventListener('click', () => {
-        window.location.href = `mlb_${slug}_story.html`;
-      });
+      card.addEventListener('click', () => { window.location.href = `mlb_${slug}_story.html`; });
     });
 
     function filterTeams(query) {
       const q = query.toLowerCase();
       document.querySelectorAll('.team-card').forEach(card => {
-        const name = card.dataset.team.toLowerCase();
-        card.style.display = name.includes(q) ? '' : 'none';
+        card.style.display = card.dataset.team.toLowerCase().includes(q) ? '' : 'none';
       });
     }
   </script>
