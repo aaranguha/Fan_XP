@@ -75,21 +75,21 @@
     .teams-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     .team-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-      padding: 16px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px;
-      cursor: pointer; transition: border-color .15s, transform .15s;
+      padding: 16px 12px 12px; display: flex; flex-direction: column; align-items: center;
+      transition: border-color .15s, transform .15s;
       position: relative;
     }
     .team-card:hover { border-color: var(--text); transform: translateY(-2px); }
+    .team-main { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
     .team-dot { position: absolute; top: 10px; left: 10px; width: 7px; height: 7px; border-radius: 50%; }
     .team-logo { width: 40px; height: 40px; object-fit: contain; }
     .team-name { font-size: .74rem; font-weight: 700; text-align: center; line-height: 1.25; }
     .team-city { font-size: .64rem; color: var(--muted); text-align: center; }
     .team-dash {
-      position: absolute; top: 8px; right: 8px; font-size: .6rem; font-weight: 600;
-      color: var(--muted-2); text-transform: uppercase; letter-spacing: .04em;
-      padding: 3px 6px; border: 1px solid var(--border); border-radius: 5px;
+      margin-top: 10px; padding-top: 8px; width: 100%; border-top: 1px solid var(--border);
+      font-size: .64rem; font-weight: 500; color: var(--muted); text-align: center;
     }
-    .team-dash:hover { color: var(--text); border-color: var(--text); text-decoration: none; }
+    .team-dash:hover { color: var(--accent); text-decoration: none; }
 
     footer { padding: 44px 0; border-top: 1px solid var(--border); }
     .footer-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
@@ -265,34 +265,38 @@
       const slug = card.dataset.slug;
       const meta = NFL_META[slug];
       if (!meta) return;
-      card.onclick = () => { window.location.href = `nfl_${slug}_seatmap.html`; };
+
+      const main = document.createElement('div');
+      main.className = 'team-main';
+      main.onclick = () => { window.location.href = `nfl_${slug}_seatmap.html`; };
 
       const dot = document.createElement('span');
       dot.className = 'team-dot';
       dot.style.background = meta.color;
-      card.appendChild(dot);
+      main.appendChild(dot);
 
       const img = document.createElement('img');
       img.className = 'team-logo';
       img.src = `https://a.espncdn.com/i/teamlogos/nfl/500/${meta.espn}.png`;
       img.alt = card.dataset.team;
-      card.appendChild(img);
+      main.appendChild(img);
 
       const name = document.createElement('div');
       name.className = 'team-name';
       name.textContent = card.dataset.team.replace(/^(New England|New Orleans|New York|Green Bay|Tampa Bay|Los Angeles|Las Vegas|San Francisco|Kansas City)\s/, '');
-      card.appendChild(name);
+      main.appendChild(name);
 
       const city = document.createElement('div');
       city.className = 'team-city';
       city.textContent = meta.city;
-      card.appendChild(city);
+      main.appendChild(city);
+
+      card.appendChild(main);
 
       const dash = document.createElement('a');
       dash.className = 'team-dash';
       dash.href = `nfl_${slug}_story.html`;
-      dash.textContent = 'Dashboard';
-      dash.onclick = (e) => e.stopPropagation();
+      dash.textContent = 'View dashboard →';
       card.appendChild(dash);
     });
 

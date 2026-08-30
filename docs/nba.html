@@ -75,7 +75,7 @@
     .teams-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
     .team-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-      padding: 16px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 16px 12px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px;
       transition: border-color .15s, transform .15s;
       position: relative;
     }
@@ -88,11 +88,10 @@
     .team-city { font-size: .64rem; color: var(--muted); text-align: center; }
     .soon-tag { font-size: .58rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted-2); }
     .team-dash {
-      position: absolute; top: 8px; right: 8px; font-size: .6rem; font-weight: 600;
-      color: var(--muted-2); text-transform: uppercase; letter-spacing: .04em;
-      padding: 3px 6px; border: 1px solid var(--border); border-radius: 5px;
+      margin-top: 4px; padding-top: 8px; width: 100%; border-top: 1px solid var(--border);
+      font-size: .64rem; font-weight: 500; color: var(--muted); text-align: center;
     }
-    .team-dash:hover { color: var(--text); border-color: var(--text); text-decoration: none; }
+    .team-dash:hover { color: var(--accent); text-decoration: none; }
 
     footer { padding: 44px 0; border-top: 1px solid var(--border); }
     .footer-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
@@ -368,7 +367,7 @@
         const dash = document.createElement('a');
         dash.className = 'team-dash';
         dash.href = `nba_${slug}_dashboard.html`;
-        dash.textContent = 'Dashboard';
+        dash.textContent = 'View dashboard →';
         dash.onclick = (e) => e.stopPropagation();
         card.appendChild(dash);
       }

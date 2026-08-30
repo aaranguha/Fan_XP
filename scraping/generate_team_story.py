@@ -50,6 +50,17 @@ TEAM_META = {
     "wizards":      {"name": "Wizards",      "arena": "Capital One Arena",          "color": "#002b5c"},
 }
 
+def _rate_color(r):
+    """Green -> amber -> red gradient by no-show rate 0..1 (matches WNBA generator)."""
+    r = max(0.0, min(1.0, r))
+    if r <= 0.5:
+        t = r * 2
+        return f"#{int(t*255):02x}{int(229-t*14):02x}{int(160-t*160):02x}"
+    else:
+        t = (r - 0.5) * 2
+        return f"#ff{int(215-t*138):02x}{int(t*109):02x}"
+
+
 SVG_W, SVG_H = 960, 720
 TM_W,  TM_H  = 10240.0, 7680.0
 SX = SVG_W / TM_W
@@ -338,92 +349,11 @@ def load_geo_multi(geo_path, all_pre_keys, all_pre_price):
     return sections
 
 
-# ── Story HTML builder ─────────────────────────────────────────────────────────
-
-def gen_story_html(team_slug, games_data, color):
-    """Generate the scroll story section — headline/chart update dynamically via JS."""
-    name  = TEAM_META.get(team_slug, {}).get("name", team_slug.title())
-    arena = TEAM_META.get(team_slug, {}).get("arena", "")
-
-    # Build JS story data array — one entry per game
-    story_js_rows = []
-    for g in games_data:
-        top = g["topSecs"]
-        max_count = top[0][1] if top else 1
-        secs_js = "[" + ",".join(
-            f'{{sec:{json.dumps(sec)},count:{count},pct:{round(count/max_count*100)}}}'
-            for sec, count in top
-        ) + "]"
-        # Escape single quotes in sub text
-        sub_escaped = g["sub"].replace("'", "\\'").replace("$", "\\$")
-        story_js_rows.append(
-            f'  {{headlineSpan:{json.dumps(g["headlineSpan"])},headlineRest:{json.dumps(g["headlineRest"])},'
-            f'sub:{json.dumps(g["sub"])},chartNote:{json.dumps(g["chartNote"])},'
-            f'chartTitle:{json.dumps(g["chartTitlePrefix"] + " · " + g["label"])},'
-            f'kicker:{json.dumps(arena + " · " + g["story"])},'
-            f'topSecs:{secs_js}}}'
-        )
-    story_js = "const STORY_DATA = [\n" + ",\n".join(story_js_rows) + "\n];"
-
-    # Comparison table rows (static — shows all games always)
-    table_rows = ""
-    for g in games_data:
-        opp_display = g["opp"].split("(")[0].strip() if g["opp"] else g["folder"].replace("_", " ").title()
-        if g["ns"] > 0:
-            ns_cell      = f'<td class="hi">{g["ns"]:,} ({g["rate"]:.0%})</td>'
-            dead_cell    = f'<td class="hi">${g["dead"]:,.0f}</td>'
-            phantom_cell = f'<td class="hi">${g["phantom"]:,.0f}</td>'
-            row_style = ' style="background:rgba(255,255,255,.03)"'
-            chip = '<span class="dot-chip"></span>'
-        else:
-            ns_cell      = '<td style="color:rgba(200,185,185,.3)">—</td>'
-            dead_cell    = '<td style="color:rgba(200,185,185,.3)">—</td>'
-            phantom_cell = '<td style="color:rgba(200,185,185,.3)">—</td>'
-            row_style = ""
-            chip = ""
-        try:
-            d = datetime.strptime(g["date"], "%Y-%m-%d")
-            date_disp = d.strftime("%b %-d")
-        except Exception:
-            date_disp = g["date"]
-        table_rows += f'      <tr{row_style}>\n        <td>{date_disp}</td><td>{chip}{opp_display}</td><td>{g["pre"]:,}</td>{ns_cell}{dead_cell}{phantom_cell}\n      </tr>\n'
-
-    return f"""
-<!-- ── Story Section ─────────────────────────────────────────────────────── -->
-<div id="story-wrap">
-<div id="story">
-<div id="story-inner">
-
-  <div class="story-kicker" id="story-kicker"></div>
-  <div class="story-headline" id="story-headline"></div>
-  <p class="story-sub" id="story-sub"></p>
-
-  <div class="story-divider"></div>
-
-  <div class="chart-title" id="chart-title"></div>
-  <div id="bar-chart"></div>
-  <p id="chart-note" style="font-size:.58rem;color:rgba(200,185,185,.3);margin-top:14px;"></p>
-
-  <div class="story-divider"></div>
-
-  <div id="table-reveal" style="transform:translateY(30px);opacity:0;transition:transform .8s cubic-bezier(.22,1,.36,1),opacity .8s ease;">
-  <div class="chart-title">All tracked {name} games</div>
-  <table class="comp-table">
-    <thead>
-      <tr><th>Game</th><th>Opponent</th><th>Pre-game seats</th><th>Empty at halftime</th><th>Dead inventory</th><th>Phantom Revenue</th></tr>
-    </thead>
-    <tbody>
-{table_rows}    </tbody>
-  </table>
-  <p style="font-size:.58rem;color:rgba(200,185,185,.3);margin-top:12px;">More games added as the playoffs continue.</p>
-  </div>
-
-</div><!-- #story-inner -->
-</div><!-- #story -->
-</div><!-- #story-wrap -->
-<script>
-{story_js}
-</script>"""
+# ── (removed) Story HTML builder ───────────────────────────────────────────────
+# The below-the-fold narrative "story" section (scroll-snap essay, bar charts,
+# comparison table) was removed — that data now lives in the dedicated
+# nba_{slug}_dashboard.html KPI pages. This file now renders a single clean
+# section-fill arena map + stat bar, matching the NFL seatmap pages.
 
 
 # ── Main HTML generator ────────────────────────────────────────────────────────
@@ -434,36 +364,20 @@ def gen_html(team_slug, games_data, sec_paths, geo_sections, bg_inner, court_img
     name  = meta["name"]
     arena = meta["arena"]
 
-    if meta.get("bold_arena"):
-        dk_filter = '''<filter id="dk">
-          <feColorMatrix type="saturate" values="0.22"/>
-          <feColorMatrix type="matrix"
-            values="0.52 0 0 0 0.03
-                    0    0.44 0 0 0.03
-                    0    0 0.48 0 0.06
-                    0    0 0    1 0"/>
-        </filter>'''
-    else:
-        dk_filter = '''<filter id="dk">
-          <feColorMatrix type="matrix"
-            values="0.32 0 0 0 0.02
-                    0    0.23 0 0 0.02
-                    0    0 0.27 0 0.05
-                    0    0 0    1 0"/>
-        </filter>'''
-
     sec_paths_js = json.dumps(sec_paths, separators=(',', ':'))
 
-    # Pack geo_sections (no per-game status — just coordinates + row/seat for tracked dots)
+    # Pack geo_sections down to just a bounding box per section (in already-
+    # scaled render-space coordinates). We no longer render individual seat
+    # dots, so per-seat coordinates/row/seat/price are not needed client-side —
+    # only enough geometry to size a fallback hit/fill rect and center a label
+    # for sections that don't have a real path in arena.svg.
     sections_js_data = {}
     for sec, dots in geo_sections.items():
-        packed = []
-        for d in dots:
-            if d[2] == 1:
-                packed.append([d[0], d[1], 1, d[3], d[4], d[5]])
-            else:
-                packed.append([d[0], d[1], 0])
-        sections_js_data[sec] = {"dots": packed}
+        if not dots:
+            continue
+        xs = [d[0] for d in dots]
+        ys = [d[1] for d in dots]
+        sections_js_data[sec] = [min(xs), min(ys), max(xs), max(ys)]
     sections_json = json.dumps(sections_js_data, separators=(',', ':'))
 
     # Build GAMES JS array
@@ -475,8 +389,6 @@ def gen_html(team_slug, games_data, sec_paths, geo_sections, bg_inner, court_img
 
     games_js_parts = []
     for i, g in enumerate(games_data):
-        ns_list  = [f"{s}_{r}_{seat}" for s, r, seat in g["ns_keys"]]
-        pre_list = [f"{s}_{r}_{seat}" for s, r, seat in g["pre_keys"]]
         disp_ns   = g["ns"] if g["ns"] > 0 else g["pre"]
         rate_disp = g["rate"] if g["ns"] > 0 else 1.0
         dead_disp = g["dead"] if g["ns"] > 0 else g["pre"] * 180
@@ -485,8 +397,6 @@ def gen_html(team_slug, games_data, sec_paths, geo_sections, bg_inner, court_img
         games_js_parts.append(
             f'  {{label:{json.dumps(g["label"])},pre:{g["pre"]},ns:{g["ns"]},'
             f'displayNs:{disp_ns},rate:{rate_disp:.4f},dead:{dead_disp:.0f},phantom:{phantom_disp:.0f},'
-            f'nsKeys:new Set({json.dumps(ns_list)}),'
-            f'preKeys:new Set({json.dumps(pre_list)}),'
             f'secPre:{json.dumps(g["sec_pre"])},secNs:{json.dumps(g["sec_ns"])}}}{comma}'
         )
     games_js = "const GAMES = [\n" + "\n".join(games_js_parts) + "\n];\nlet currentGame = " + str(default_game_idx) + ";"
@@ -497,17 +407,30 @@ def gen_html(team_slug, games_data, sec_paths, geo_sections, bg_inner, court_img
         for i, g in enumerate(games_data)
     )
 
-    # Section hit area paths
+    # Section fill polygons — real per-section geometry from arena.svg,
+    # flat-filled (color set client-side per selected game via renderSections()).
     overlay_paths = []
     for sec, d_attr in sec_paths.items():
         overlay_paths.append(
-            f'<path class="sec-hit" data-sec="{sec}" '
-            f'd="{d_attr}" fill="transparent" stroke="rgba(255,255,255,0)" stroke-width="0" '
-            f'style="cursor:pointer" transform="scale({SX:.7f},{SY:.7f})"/>'
+            f'<path class="sec-fill" data-sec="{sec}" '
+            f'd="{d_attr}" fill="#e5e4df" '
+            f'transform="scale({SX:.7f},{SY:.7f})"/>'
         )
     overlay_svg = "\n          ".join(overlay_paths)
 
-    story_html = gen_story_html(team_slug, games_data, color)
+    # Fallback rects for sections that only have geometry from seatmap_geo.json
+    # (no matching data-section-name path in arena.svg) — same flat-fill treatment.
+    fallback_rects = []
+    for sec, bbox in sections_js_data.items():
+        if sec in sec_paths:
+            continue
+        minX, minY, maxX, maxY = bbox
+        fallback_rects.append(
+            f'<rect class="sec-fill" data-sec="{sec}" '
+            f'x="{minX-6:.2f}" y="{minY-6:.2f}" width="{maxX-minX+12:.2f}" height="{maxY-minY+12:.2f}" '
+            f'rx="3" fill="#e5e4df"/>'
+        )
+    fallback_svg = "\n          ".join(fallback_rects)
 
     featured = games_data[default_game_idx]
     title_game = featured["label"]
@@ -522,180 +445,135 @@ def gen_html(team_slug, games_data, sec_paths, geo_sections, bg_inner, court_img
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
 :root{{
-  --bg:#05070d;--f:'Inter',sans-serif;
-  --red:{color};--dim:rgba(200,185,185,.4);--border:rgba(255,255,255,.07);
-  --blue:#4a90d9;--gray:rgba(180,180,180,.18);
+  --bg:#fafaf9;--surface:#ffffff;--border:#e7e6e2;--text:#16181c;--muted:#6d7076;--muted-2:#9a9da3;
+  --accent:{color};--nodata:#e5e4df;
+  --f:'Inter',system-ui,-apple-system,sans-serif;
 }}
-html,body{{font-family:var(--f);background:var(--bg);color:#f0e8e8;
-  -webkit-font-smoothing:antialiased;margin:0;padding:0;}}
-#shell{{display:flex;flex-direction:column;height:100vh;scroll-snap-align:start;scroll-snap-stop:always;}}
+html,body{{font-family:var(--f);background:var(--bg);color:var(--text);
+  -webkit-font-smoothing:antialiased;margin:0;padding:0;height:100%;}}
+button,select{{font-family:inherit;}}
+#shell{{display:flex;flex-direction:column;height:100vh;}}
 
-#top{{flex:none;height:48px;display:flex;align-items:center;gap:10px;
-  padding:0 12px;border-bottom:1px solid var(--border);
-  background:rgba(5,7,13,.98);z-index:10;overflow:hidden;}}
-@media(max-width:500px){{
-  #top{{gap:6px;padding:0 8px;}}
+#top{{flex:none;height:56px;display:flex;align-items:center;gap:10px;
+  padding:0 20px;border-bottom:1px solid var(--border);
+  background:var(--surface);z-index:10;overflow:hidden;}}
+@media(max-width:560px){{
+  #top{{gap:6px;padding:0 12px;}}
   #brand{{display:none;}}
-  .sv{{font-size:.75rem;}}
-  .sl{{font-size:.42rem;}}
+  .sv{{font-size:.82rem;}}
+  .sl{{font-size:.44rem;}}
   .stat{{padding:0 10px;}}
-  #legend{{bottom:62px;left:8px;}}
-  .ll{{font-size:.5rem;}}
+  #legend{{gap:10px;}}
 }}
-#back-link{{font-size:.6rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
-  color:rgba(200,185,185,.35);text-decoration:none;flex:none;transition:color .18s;}}
-#back-link:hover{{color:rgba(200,185,185,.8);}}
-#brand{{font-size:.7rem;font-weight:800;letter-spacing:.12em;
-  text-transform:uppercase;color:rgba(220,200,200,.5);flex:none;}}
-#game-picker{{flex:none;margin-left:4px;}}
-#game-select{{font-family:var(--f);font-size:.58rem;font-weight:600;
-  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
-  color:rgba(200,185,185,.8);padding:3px 24px 3px 9px;border-radius:6px;
-  cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(200,185,185,.4)'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 7px center;transition:border-color .18s;}}
-#game-select:hover{{border-color:rgba(255,255,255,.3);}}
-#game-select option{{background:#0d1117;color:#e0d8d8;}}
-#back-btn{{display:none;font-family:var(--f);font-size:.62rem;font-weight:600;
-  background:transparent;border:1px solid var(--border);color:var(--dim);
-  padding:3px 12px;border-radius:999px;cursor:pointer;transition:all .18s;flex:none;}}
-#back-btn:hover{{border-color:rgba(255,255,255,.3);color:#fff;}}
+#back-link{{font-size:.72rem;font-weight:600;color:var(--muted);
+  text-decoration:none;flex:none;transition:color .15s;}}
+#back-link:hover{{color:var(--text);}}
+#brand{{font-size:.82rem;font-weight:700;color:var(--text);flex:none;}}
+#brand span{{color:var(--muted);font-weight:500;}}
+#back-btn{{display:none;font-size:.72rem;font-weight:700;color:var(--accent);
+  background:var(--surface);border:1px solid var(--border);
+  padding:6px 14px;border-radius:999px;cursor:pointer;transition:all .15s;flex:none;margin-left:6px;}}
+#back-btn:hover{{border-color:var(--muted-2);}}
 #back-btn.show{{display:block;}}
-#sec-label{{font-size:.8rem;font-weight:700;color:#fff;display:none;}}
+#sec-label{{font-size:.82rem;font-weight:800;color:var(--text);display:none;margin-left:8px;}}
 #sec-label.show{{display:block;}}
-#sec-sub{{font-size:.6rem;color:var(--dim);display:none;}}
+#sec-sub{{font-size:.7rem;color:var(--muted);display:none;}}
 #sec-sub.show{{display:block;}}
+#game-picker{{flex:none;margin-left:auto;}}
+#game-select{{font-family:var(--f);font-size:.74rem;font-weight:600;
+  background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:6px 28px 6px 12px;border-radius:8px;
+  cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236d7076'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;transition:border-color .15s;}}
+#game-select:hover{{border-color:var(--muted-2);}}
 
-#arena-wrap{{flex:1;display:flex;align-items:center;justify-content:center;
-  overflow:hidden;background:#05070d;}}
-#main-svg{{display:block;cursor:default;}}
+#stage{{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:16px 20px;gap:12px;min-height:0;}}
+#legend{{display:flex;align-items:center;gap:18px;flex-wrap:wrap;flex:none;}}
+.legend-item{{display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--muted);font-weight:500;}}
+.legend-swatch{{width:10px;height:10px;border-radius:3px;flex:none;}}
+.legend-scale{{display:flex;align-items:center;gap:7px;font-size:.7rem;color:var(--muted);font-weight:500;}}
+.legend-scale .bar{{width:70px;height:8px;border-radius:4px;background:linear-gradient(90deg,#00e5a0,#ffd700,#ff006d);}}
 
-#bg.labels-hidden text {{ visibility:hidden; }}
+#mapwrap{{flex:1;position:relative;background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:8px;box-shadow:0 1px 2px rgba(15,20,30,.04);
+  overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:0;}}
+#main-svg{{display:block;cursor:default;border-radius:10px;}}
 
-circle.gray{{ fill:rgba(160,160,180,.18); }}
-circle.tracked{{ fill:{color}22; }}
-circle.red{{ fill:{color}; }}
-circle.red:hover{{ fill:#fff; }}
+#bg{{opacity:.14;filter:grayscale(.6) brightness(1.5) contrast(.7);}}
+#bg.labels-hidden text{{visibility:hidden;}}
 
-.sec-active{{fill:none;stroke:rgba(255,255,255,.55);stroke-width:6;pointer-events:none;}}
-.sec-hit{{pointer-events:fill;}}
+.sec-fill{{cursor:pointer;stroke:var(--surface);stroke-width:1.4;transition:opacity .12s;}}
+.sec-fill:hover{{opacity:.8;}}
+.sec-active{{fill:none;stroke:var(--text);stroke-width:5;pointer-events:none;}}
+.sec-label-text{{font-family:var(--f);font-weight:800;pointer-events:none;
+  text-anchor:middle;dominant-baseline:middle;
+  paint-order:stroke;stroke:rgba(0,0,0,.18);stroke-width:.6px;}}
 
 #stats{{flex:none;display:flex;align-items:stretch;justify-content:center;
-  height:50px;border-top:1px solid var(--border);background:rgba(5,7,13,.98);}}
+  height:58px;border-top:1px solid var(--border);background:var(--surface);}}
 .stat{{display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:0 24px;border-right:1px solid var(--border);gap:1px;}}
+  padding:0 26px;border-right:1px solid var(--border);gap:2px;}}
 .stat:last-child{{border-right:none;}}
-.sv{{font-size:.9rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}}
-.sl{{font-size:.48rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);}}
-.rd{{color:{color};}}
-
-#legend{{position:absolute;left:14px;bottom:58px;
-  display:flex;flex-direction:column;gap:5px;pointer-events:none;}}
-.lrow{{display:flex;align-items:center;gap:7px;}}
-.ld{{width:9px;height:9px;border-radius:50%;flex:none;}}
-.ll{{font-size:.54rem;font-weight:500;color:var(--dim);}}
+.sv{{font-size:1rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--text);}}
+.sl{{font-size:.5rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}}
+.rd{{color:var(--accent);}}
 
 #tooltip{{position:fixed;pointer-events:none;
-  background:rgba(8,12,24,.94);border:1px solid rgba(255,255,255,.1);
-  border-radius:8px;padding:9px 13px;font-size:.62rem;
-  display:none;z-index:30;max-width:200px;}}
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:9px 13px;font-size:.68rem;
+  display:none;z-index:30;max-width:210px;box-shadow:0 8px 24px rgba(15,20,30,.12);}}
 #tooltip.show{{display:block;}}
-#tt-sec{{font-weight:700;font-size:.78rem;margin-bottom:4px;color:#fff;}}
-#tt-body{{color:var(--dim);line-height:1.65;}}
-
-#seat-tooltip{{position:fixed;pointer-events:none;
-  background:rgba(8,12,24,.96);border:1px solid {color}59;
-  border-radius:8px;padding:8px 12px;display:none;z-index:40;white-space:nowrap;}}
-#seat-tooltip.show{{display:block;}}
-.st-sec{{font-size:.68rem;font-weight:700;color:#fff;margin-bottom:3px;}}
-.st-tag{{font-size:.58rem;color:{color};font-weight:600;margin-bottom:2px;}}
-.st-price{{font-size:.6rem;color:var(--dim);}}
-
-.scroll-hint{{position:absolute;bottom:58px;right:16px;
-  display:flex;flex-direction:column;align-items:center;gap:3px;
-  animation:bounceHint 2s ease-in-out infinite;pointer-events:none;opacity:.4;}}
-.scroll-hint span{{font-size:.44rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(200,185,185,.6);}}
-@keyframes bounceHint{{0%,100%{{transform:translateY(0)}}50%{{transform:translateY(5px)}}}}
-
-/* ── Story section ───────────────────────────────────────────────────── */
-#story-wrap{{height:100vh;overflow-y:auto;scroll-snap-align:start;scroll-snap-stop:always;flex-shrink:0;}}
-#story{{background:var(--bg);padding:56px 24px 80px;max-width:860px;margin:0 auto;}}
-#story-inner{{transform:translateY(40px);opacity:0;transition:transform .7s cubic-bezier(.22,1,.36,1),opacity .7s ease;}}
-#story-inner.revealed{{transform:translateY(0);opacity:1;}}
-.story-kicker{{font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:{color};margin-bottom:10px;}}
-.story-headline{{font-size:2rem;font-weight:800;line-height:1.15;color:#fff;margin-bottom:10px;}}
-.story-headline span{{color:{color};}}
-.story-sub{{font-size:.85rem;color:rgba(200,185,185,.55);line-height:1.7;max-width:520px;}}
-.story-divider{{height:1px;background:var(--border);margin:40px 0;}}
-.chart-title{{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(200,185,185,.4);margin-bottom:16px;}}
-.bar-row{{display:flex;align-items:center;gap:10px;margin-bottom:10px;}}
-.bar-label{{font-size:.62rem;font-weight:600;color:rgba(200,185,185,.6);width:56px;text-align:right;flex:none;}}
-.bar-track{{flex:1;height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;}}
-.bar-fill{{height:100%;border-radius:3px;background:{color};box-shadow:0 0 8px {color}88;transition:width 1s cubic-bezier(.22,1,.36,1);}}
-.bar-val{{font-size:.6rem;color:rgba(200,185,185,.45);width:46px;flex:none;}}
-.comp-table{{width:100%;border-collapse:collapse;margin-top:8px;}}
-.comp-table th{{font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-  color:rgba(200,185,185,.3);padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);}}
-.comp-table td{{font-size:.68rem;padding:10px 10px;border-bottom:1px solid rgba(255,255,255,.04);color:rgba(200,185,185,.7);}}
-.comp-table tr:hover td{{background:rgba(255,255,255,.02);}}
-.comp-table .hi{{color:{color};font-weight:700;}}
-.dot-chip{{display:inline-block;width:7px;height:7px;border-radius:50%;
-  background:{color};box-shadow:0 0 5px {color}99;margin-right:5px;vertical-align:middle;}}
-@media(max-width:600px){{
-  .story-headline{{font-size:1.35rem;}}
-  #story{{padding:36px 16px 60px;}}
-}}
-/* Scroll snap container */
-#page{{height:100vh;overflow-y:scroll;scroll-snap-type:y mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;}}
+#tt-sec{{font-weight:800;font-size:.8rem;margin-bottom:4px;color:var(--text);}}
+#tt-body{{color:var(--muted);line-height:1.6;}}
 </style>
 </head>
 <body>
-<div id="page">
 <div id="shell">
   <div id="top">
     <a id="back-link" href="nba.html">← Teams</a>
-    <span id="brand">{name} · {arena}</span>
+    <span id="brand">{name} <span>· {arena}</span></span>
+    <button id="back-btn" onclick="resetView()">← All sections</button>
+    <span id="sec-label"></span>
+    <span id="sec-sub"></span>
     <div id="game-picker">
       <select id="game-select" onchange="switchGame(this.selectedIndex)">
 {dropdown_opts}
       </select>
     </div>
-    <button id="back-btn" onclick="resetView()">← All sections</button>
-    <span id="sec-label"></span>
-    <span id="sec-sub"></span>
   </div>
 
-  <div id="arena-wrap">
-    <svg id="main-svg" viewBox="0 0 {SVG_W} {SVG_H}"
-         xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"
-         overflow="hidden">
-      <defs>
-        {dk_filter}
-        <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <clipPath id="arena-clip">
-          <rect x="0" y="0" width="{SVG_W}" height="{SVG_H}"/>
-        </clipPath>
-      </defs>
-      <g clip-path="url(#arena-clip)">
-      <g id="bg" filter="url(#dk)" transform="scale({SX:.7f},{SY:.7f})">
-        {bg_inner}
-      </g>
-      </g>
-      <g id="court" xmlns:xlink="http://www.w3.org/1999/xlink" transform="scale({SX:.7f},{SY:.7f})">
-        {court_img}
-      </g>
-      <g id="dots-bg"></g>
-      <g id="sec-hits">
-        {overlay_svg}
-      </g>
-      <g id="dots-ns" filter="url(#glow)">
-        <animate attributeName="opacity" values="0.6;1;0.6" dur="1.8s" repeatCount="indefinite"/>
-      </g>
-      <g id="hover-ring"></g>
-    </svg>
+  <div id="stage">
+    <div id="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--nodata)"></div>No listing data</div>
+      <div class="legend-scale">Low no-show<div class="bar"></div>High no-show</div>
+    </div>
+
+    <div id="mapwrap">
+      <svg id="main-svg" viewBox="0 0 {SVG_W} {SVG_H}"
+           xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"
+           overflow="hidden">
+        <defs>
+          <clipPath id="arena-clip">
+            <rect x="0" y="0" width="{SVG_W}" height="{SVG_H}"/>
+          </clipPath>
+        </defs>
+        <g clip-path="url(#arena-clip)">
+          <g id="bg" transform="scale({SX:.7f},{SY:.7f})">
+            {bg_inner}
+          </g>
+        </g>
+        <g id="court" transform="scale({SX:.7f},{SY:.7f})">
+          {court_img}
+        </g>
+        <g id="sections">
+          {overlay_svg}
+          {fallback_svg}
+        </g>
+        <g id="sec-labels"></g>
+        <g id="hover-ring"></g>
+      </svg>
+    </div>
   </div>
 
   <div id="stats">
@@ -705,29 +583,15 @@ circle.red:hover{{ fill:#fff; }}
     <div class="stat"><span class="sv rd" id="sv-dv">—</span><span class="sl">Dead inventory</span></div>
     <div class="stat"><span class="sv rd" id="sv-ph">—</span><span class="sl">Phantom Revenue</span></div>
   </div>
-  <div class="scroll-hint">
-    <span>scroll</span>
-    <svg width="12" height="8" viewBox="0 0 12 8"><path d="M1 1l5 5 5-5" stroke="rgba(200,185,185,.5)" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-  </div>
-</div>
-
-{story_html}
-
-</div><!-- #page -->
-
-<div id="legend">
-  <div class="lrow"><div class="ld" style="background:rgba(160,160,180,.3)"></div><span class="ll">All seats</span></div>
-  <div class="lrow"><div class="ld" style="background:{color};box-shadow:0 0 5px {color}99"></div><span class="ll">Empty at halftime</span></div>
 </div>
 
 <div id="tooltip">
   <div id="tt-sec"></div>
   <div id="tt-body"></div>
 </div>
-<div id="seat-tooltip"></div>
 
 <script>
-const SECS      = {sections_json};
+const SEC_BBOX  = {sections_json};
 const SEC_PATHS = {sec_paths_js};
 const SVG_W = {SVG_W}, SVG_H = {SVG_H};
 const SCALE_X = {SX:.7f};
@@ -737,139 +601,92 @@ const TEAM_COLOR = '{color}';
 
 const svg      = document.getElementById('main-svg');
 const NS       = document.createElementNS.bind(document, 'http://www.w3.org/2000/svg');
-const dotsBg   = document.getElementById('dots-bg');
-const dotsNs   = document.getElementById('dots-ns');
 const tooltip  = document.getElementById('tooltip');
-let secDots    = {{}};
 let zoomedSec  = null;
 
 let vb = {{x:0, y:0, w:SVG_W, h:SVG_H}};
 function applyVB() {{ svg.setAttribute('viewBox', `${{vb.x}} ${{vb.y}} ${{vb.w}} ${{vb.h}}`); }}
 
-const seatTooltip = document.getElementById('seat-tooltip');
-
-function buildDots(gameIdx) {{
-  dotsBg.innerHTML = '';
-  dotsNs.innerHTML = '';
-  secDots = {{}};
-  const g = GAMES[gameIdx];
-  // If no halftime data, treat pre-game seats as the glowing dots (demo mode)
-  const nsKeys  = g.ns > 0 ? g.nsKeys  : g.preKeys;
-  const preKeys = g.ns > 0 ? g.preKeys : new Set();
-
-  for (const [sec, data] of Object.entries(SECS)) {{
-    const bgGroup = NS('g');
-    const nsGroup = NS('g');
-    const circles = [];
-
-    for (const d of data.dots) {{
-      const c = NS('circle');
-      c.setAttribute('cx', d[0]);
-      c.setAttribute('cy', d[1]);
-      const row = d[3] || '', seat = d[4] || '';
-      const key = row && seat ? `${{sec}}_${{row}}_${{seat}}` : null;
-      const isNs  = key ? nsKeys.has(key)  : false;
-      const isPre = key ? preKeys.has(key) : false;
-
-      if (isNs) {{
-        c.setAttribute('r', '2.2');
-        c.setAttribute('class', 'red');
-        c.dataset.sec   = sec;
-        c.dataset.row   = row;
-        c.dataset.seat  = seat;
-        c.dataset.price = d[5] || 0;
-        c.style.cursor  = 'crosshair';
-        c.addEventListener('mouseenter', showSeatTooltip);
-        c.addEventListener('mousemove',  moveSeatTooltip);
-        c.addEventListener('mouseleave', hideSeatTooltip);
-        nsGroup.appendChild(c);
-      }} else if (isPre) {{
-        c.setAttribute('r', '1.6');
-        c.setAttribute('class', 'tracked');
-        bgGroup.appendChild(c);
-      }} else {{
-        c.setAttribute('r', '1.2');
-        c.setAttribute('class', 'gray');
-        bgGroup.appendChild(c);
-      }}
-      c.style.opacity = '0';
-      circles.push(c);
-    }}
-
-    dotsBg.appendChild(bgGroup);
-    dotsNs.appendChild(nsGroup);
-    secDots[sec] = circles;
+// Green -> amber -> red gradient by no-show rate 0..1 (mirrors Python _rate_color()).
+function rateColor(r) {{
+  r = Math.max(0, Math.min(1, r));
+  const hx = v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0');
+  if (r <= 0.5) {{
+    const t = r * 2;
+    return '#' + hx(t * 255) + hx(229 - t * 14) + hx(160 - t * 160);
   }}
+  const t = (r - 0.5) * 2;
+  return '#ff' + hx(215 - t * 138) + hx(t * 109);
 }}
 
-function showSeatTooltip(e) {{
-  const c = e.target;
-  const price = +c.dataset.price;
-  seatTooltip.innerHTML =
-    `<div class="st-sec">Sec ${{c.dataset.sec}} · Row ${{c.dataset.row}} · Seat ${{c.dataset.seat}}</div>` +
-    `<div class="st-tag">Empty at halftime</div>` +
-    (price > 0 ? `<div class="st-price">Listed at <strong>$${{price}}</strong></div>` : '');
-  seatTooltip.classList.add('show');
-  moveSeatTooltip(e);
-}}
-function moveSeatTooltip(e) {{
-  const tw = seatTooltip.offsetWidth;
-  const left = Math.min(e.clientX + 14, window.innerWidth - tw - 8);
-  seatTooltip.style.left = left + 'px';
-  seatTooltip.style.top  = Math.min(e.clientY - 10, window.innerHeight - 90) + 'px';
-}}
-function hideSeatTooltip() {{ seatTooltip.classList.remove('show'); }}
-
-function runEntrance() {{
-  const CX = SVG_W / 2, CY = SVG_H / 2;
-  const PI2 = Math.PI * 2;
-  const START_ANGLE = -Math.PI / 2;
-
-  const allDots = [];
-  for (const circles of Object.values(secDots)) {{
-    for (const c of circles) {{
-      const cx = +c.getAttribute('cx'), cy = +c.getAttribute('cy');
-      let a = Math.atan2(cy - CY, cx - CX) - START_ANGLE;
-      if (a < 0) a += PI2;
-      allDots.push({{ c, a, isNs: c.classList.contains('red') }});
-    }}
+// Hide any white text baked into the arena background art (labels meant for a dark bg).
+const bgGroup = document.getElementById('bg');
+bgGroup.querySelectorAll('text').forEach(t => {{
+  const fill = (t.getAttribute('fill') || '').toLowerCase().trim();
+  if (fill === 'rgb(255,255,255)' || fill === '#ffffff' || fill === 'white' ||
+      fill === '#fff' || fill === 'rgb(255, 255, 255)') {{
+    t.style.display = 'none';
   }}
-  allDots.sort((a, b) => a.a - b.a);
+}});
+bgGroup.classList.add('labels-hidden');
 
-  const nonNs = allDots.filter(d => !d.isNs);
-  const ns    = allDots.filter(d =>  d.isNs);
-  const P1_DUR = 1200, P2_START = 1300, P2_DUR = 900;
-
-  nonNs.forEach((d, i) => d.revealAt = (i / Math.max(nonNs.length - 1, 1)) * P1_DUR);
-  ns.forEach((d, i)    => d.revealAt = P2_START + (i / Math.max(ns.length - 1, 1)) * P2_DUR);
-
-  let p1Idx = 0, p2Idx = 0;
-  const t0 = performance.now();
-  function frame(now) {{
-    const elapsed = now - t0;
-    while (p1Idx < nonNs.length && nonNs[p1Idx].revealAt <= elapsed) {{
-      nonNs[p1Idx].c.style.opacity = '1'; p1Idx++;
-    }}
-    while (p2Idx < ns.length && ns[p2Idx].revealAt <= elapsed) {{
-      ns[p2Idx].c.style.opacity = '1'; p2Idx++;
-    }}
-    if (p1Idx < nonNs.length || p2Idx < ns.length) requestAnimationFrame(frame);
+// One flat-filled shape per section (real arena.svg geometry where available,
+// a bbox rect fallback otherwise), each with a centered bold label + hover/click.
+const secLabelsGroup = document.getElementById('sec-labels');
+const labelEls = {{}};
+document.querySelectorAll('.sec-fill').forEach(el => {{
+  const sec = el.dataset.sec;
+  let cx, cy, w, h;
+  if (el.tagName === 'path') {{
+    const bb = el.getBBox();
+    cx = (bb.x + bb.width / 2) * SCALE_X;
+    cy = (bb.y + bb.height / 2) * SCALE_Y;
+    w = bb.width * SCALE_X; h = bb.height * SCALE_Y;
+  }} else {{
+    cx = +el.getAttribute('x') + (+el.getAttribute('width')) / 2;
+    cy = +el.getAttribute('y') + (+el.getAttribute('height')) / 2;
+    w = +el.getAttribute('width'); h = +el.getAttribute('height');
   }}
-  requestAnimationFrame(frame);
+  const t = NS('text');
+  t.setAttribute('x', cx); t.setAttribute('y', cy);
+  t.setAttribute('class', 'sec-label-text');
+  t.setAttribute('font-size', Math.max(4.5, Math.min(9, Math.min(w, h) * 0.34)).toFixed(1));
+  t.textContent = sec;
+  secLabelsGroup.appendChild(t);
+  labelEls[sec] = t;
+
+  el.addEventListener('mouseenter', e => showTooltip(sec, e));
+  el.addEventListener('mousemove',  e => moveTooltip(e));
+  el.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+  el.addEventListener('click', () => zoomToSection(sec));
+}});
+
+function renderSections(idx) {{
+  const cg = GAMES[idx];
+  document.querySelectorAll('.sec-fill').forEach(el => {{
+    const sec = el.dataset.sec;
+    const pre = cg.secPre[sec] || 0;
+    const ns  = cg.secNs[sec]  || 0;
+    const t   = labelEls[sec];
+    if (pre > 0) {{
+      const rate = ns / pre;
+      el.setAttribute('fill', rateColor(rate));
+      if (t) t.setAttribute('fill', '#ffffff');
+    }} else {{
+      el.setAttribute('fill', '#e5e4df');
+      if (t) t.setAttribute('fill', '#6d7076');
+    }}
+  }});
 }}
 
 function showTooltip(sec, e) {{
-  const data = SECS[sec];
-  if (!data) return;
   const cg   = GAMES[currentGame];
   const sPre = cg.secPre[sec] || 0;
   const sNs  = cg.secNs[sec]  || 0;
   document.getElementById('tt-sec').textContent = 'Section ' + sec;
-  document.getElementById('tt-body').innerHTML =
-    (sNs > 0
-      ? `<span style="color:${{TEAM_COLOR}};font-weight:600">${{sNs}} empty</span> of ${{sPre}} tracked<br>`
-      : (sPre > 0 ? `${{sPre}} tracked seats<br>` : '')) +
-    (sNs > 0 && cg.secNs[sec] ? `` : ``);
+  document.getElementById('tt-body').innerHTML = sNs > 0
+    ? `<span style="color:${{TEAM_COLOR}};font-weight:700">${{sNs}} empty</span> of ${{sPre}} tracked · ${{(sNs/sPre*100).toFixed(0)}}% no-show`
+    : (sPre > 0 ? `${{sPre}} tracked seats · no no-shows recorded` : 'No listing data for this section');
   tooltip.classList.add('show');
   moveTooltip(e);
 }}
@@ -887,88 +704,25 @@ function updateStats() {{
   document.getElementById('sv-ph').textContent  = cg.phantom > 0 ? '$'+Math.round(cg.phantom).toLocaleString() : '—';
 }}
 
-function renderStory(idx) {{
-  const sd = STORY_DATA[idx];
-  if (!sd) return;
-  document.getElementById('story-kicker').textContent    = sd.kicker;
-  document.getElementById('story-headline').innerHTML    = '<span>' + sd.headlineSpan + '</span> ' + sd.headlineRest;
-  document.getElementById('story-sub').innerHTML         = sd.sub;
-  document.getElementById('chart-title').textContent     = sd.chartTitle;
-  document.getElementById('chart-note').textContent      = sd.chartNote;
-  const barChart = document.getElementById('bar-chart');
-  barChart.innerHTML = sd.topSecs.map(s =>
-    `<div class="bar-row"><span class="bar-label">Sec ${{s.sec}}</span><div class="bar-track"><div class="bar-fill" style="width:0%" data-w="${{s.pct}}"></div></div><span class="bar-val">${{s.count}} seats</span></div>`
-  ).join('');
-  // animate bars after a short delay (allow paint)
-  requestAnimationFrame(() => {{
-    requestAnimationFrame(() => {{
-      barChart.querySelectorAll('.bar-fill').forEach(b => b.style.width = b.dataset.w + '%');
-    }});
-  }});
-}}
-
 function switchGame(idx) {{
   currentGame = idx;
   document.getElementById('game-select').selectedIndex = idx;
   resetView();
-  buildDots(idx);
-  runEntrance();
+  renderSections(idx);
   updateStats();
-  renderStory(idx);
-}}
-
-const bgGroup = document.getElementById('bg');
-bgGroup.querySelectorAll('text').forEach(t => {{
-  const fill = (t.getAttribute('fill') || '').toLowerCase().trim();
-  if (fill === 'rgb(255,255,255)' || fill === '#ffffff' || fill === 'white' ||
-      fill === '#fff' || fill === 'rgb(255, 255, 255)') {{
-    t.style.display = 'none';
-  }}
-}});
-bgGroup.classList.add('labels-hidden');
-
-const secHitsGroup = document.getElementById('sec-hits');
-const PAD = 6;
-for (const [sec, data] of Object.entries(SECS)) {{
-  if (!data.dots.length) continue;
-  const existing = secHitsGroup.querySelector(`[data-sec="${{sec}}"]`);
-  let hitEl;
-  if (existing) {{
-    hitEl = existing;
-  }} else {{
-    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
-    for (const d of data.dots) {{
-      if (d[0]<minX) minX=d[0]; if (d[0]>maxX) maxX=d[0];
-      if (d[1]<minY) minY=d[1]; if (d[1]>maxY) maxY=d[1];
-    }}
-    const r = NS('rect');
-    r.setAttribute('x', minX-PAD); r.setAttribute('y', minY-PAD);
-    r.setAttribute('width', (maxX-minX)+PAD*2); r.setAttribute('height', (maxY-minY)+PAD*2);
-    r.setAttribute('rx','3'); r.setAttribute('class','sec-hit');
-    r.dataset.sec = sec; r.setAttribute('fill','transparent'); r.setAttribute('stroke','none');
-    r.style.cursor = 'pointer';
-    secHitsGroup.appendChild(r);
-    hitEl = r;
-  }}
-  hitEl.addEventListener('mouseenter', e => showTooltip(sec, e));
-  hitEl.addEventListener('mousemove',  e => moveTooltip(e));
-  hitEl.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
-  hitEl.addEventListener('click', () => zoomToSection(sec));
 }}
 
 function zoomToSection(sec) {{
-  const data = SECS[sec];
-  if (!data || !data.dots.length) return;
+  const bb = SEC_BBOX[sec];
+  if (!bb) return;
   tooltip.classList.remove('show');
   zoomedSec = sec;
-  const xs = data.dots.map(d=>d[0]), ys = data.dots.map(d=>d[1]);
-  const minX=Math.min(...xs), maxX=Math.max(...xs);
-  const minY=Math.min(...ys), maxY=Math.max(...ys);
-  const padX=Math.max((maxX-minX)*0.45,18), padY=Math.max((maxY-minY)*0.45,18);
-  let w=(maxX-minX)+padX*2, h=(maxY-minY)+padY*2;
-  const ar=SVG_W/SVG_H;
-  if (w/h>ar) h=w/ar; else w=h*ar;
-  const tx=(minX+maxX)/2-w/2, ty=(minY+maxY)/2-h/2;
+  const [minX, minY, maxX, maxY] = bb;
+  const padX = Math.max((maxX-minX)*0.45, 18), padY = Math.max((maxY-minY)*0.45, 18);
+  let w = (maxX-minX)+padX*2, h = (maxY-minY)+padY*2;
+  const ar = SVG_W/SVG_H;
+  if (w/h > ar) h = w/ar; else w = h*ar;
+  const tx = (minX+maxX)/2-w/2, ty = (minY+maxY)/2-h/2;
   animVB(vb, {{x:tx,y:ty,w,h}}, 380);
   const ring = document.getElementById('hover-ring');
   ring.innerHTML = '';
@@ -1130,7 +884,7 @@ svg.addEventListener('touchend', e => {{
 }}, {{passive: false}});
 
 function fitSvg() {{
-  const wrap = document.getElementById('arena-wrap');
+  const wrap = document.getElementById('mapwrap');
   const ww = wrap.clientWidth, wh = wrap.clientHeight;
   const ar = SVG_W / SVG_H;
   const w = ww/wh > ar ? wh*ar : ww;
@@ -1138,35 +892,9 @@ function fitSvg() {{
   svg.style.height = (w/ar) + 'px';
 }}
 
-// Scroll story reveal
-const page = document.getElementById('page');
-const storyInner = document.getElementById('story-inner');
-let storyRevealed = false;
-page.addEventListener('scroll', () => {{
-  if (!storyRevealed && page.scrollTop > window.innerHeight * 0.3) {{
-    storyRevealed = true;
-    storyInner.classList.add('revealed');
-  }}
-}}, {{passive: true}});
-
-// Table reveal
-const tableEl = document.getElementById('table-reveal');
-const tableObs = new IntersectionObserver(entries => {{
-  entries.forEach(e => {{
-    if (e.isIntersecting) {{
-      tableEl.style.transform = 'translateY(0)';
-      tableEl.style.opacity   = '1';
-      tableObs.disconnect();
-    }}
-  }});
-}}, {{threshold: 0.2, root: document.getElementById('story-wrap')}});
-if (tableEl) tableObs.observe(tableEl);
-
 // Init
-buildDots(currentGame);
-runEntrance();
+renderSections(currentGame);
 updateStats();
-renderStory(currentGame);
 fitSvg();
 window.addEventListener('resize', fitSvg);
 </script>
