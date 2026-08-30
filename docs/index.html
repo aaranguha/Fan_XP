@@ -14,7 +14,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500;1,9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,7 +29,7 @@
       --accent:     #2f5fff;
       --accent-soft:#ecf1ff;
       --sans:       'Inter', sans-serif;
-      --serif:      'Fraunces', serif;
+      --serif:      'Newsreader', serif;
       --mono:       'IBM Plex Mono', monospace;
       --ease:       cubic-bezier(0.4,0,0.2,1);
       --max:        980px;
@@ -113,12 +113,12 @@
     .clock b { color: var(--text); font-weight: 600; }
 
     .hero h1 {
-      font-family: var(--serif); font-size: clamp(2.6rem, 6.2vw, 4.6rem); font-weight: 600;
-      line-height: 1.02; letter-spacing: -.01em; max-width: 720px;
-      margin-bottom: 24px;
+      font-family: var(--serif); font-size: clamp(2.1rem, 4.4vw, 3.2rem); font-weight: 500;
+      line-height: 1.15; letter-spacing: -.005em; max-width: 640px;
+      margin-bottom: 22px;
     }
     .hero h1 em {
-      font-style: normal; font-weight: 500; color: var(--accent);
+      font-style: italic; font-weight: 500; color: var(--accent);
     }
     .hero p.lead {
       font-size: 1.08rem; color: var(--muted); max-width: 480px;
@@ -143,7 +143,7 @@
     .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
     .stat { padding: 0 22px; border-left: 1px solid var(--border); }
     .stat:first-child { border-left: none; padding-left: 0; }
-    .stat-num { font-family: var(--mono); font-size: 2.3rem; font-weight: 600; letter-spacing: -.02em; }
+    .stat-num { font-family: var(--mono); font-size: 1.9rem; font-weight: 600; letter-spacing: -.02em; }
     .stat:first-child .stat-num { color: var(--accent); }
     .stat-label { font-size: .8rem; color: var(--muted); margin-top: 4px; }
 
@@ -155,7 +155,7 @@
       font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
       color: var(--accent); margin-bottom: 12px;
     }
-    .block-title { font-family: var(--serif); font-size: clamp(1.7rem, 2.9vw, 2.3rem); font-weight: 600; letter-spacing: -.01em; margin-bottom: 12px; }
+    .block-title { font-family: var(--serif); font-size: clamp(1.5rem, 2.4vw, 1.9rem); font-weight: 500; letter-spacing: -.005em; margin-bottom: 12px; }
     .block-sub { font-size: .96rem; color: var(--muted); line-height: 1.7; }
 
     /* ── Steps ── */
