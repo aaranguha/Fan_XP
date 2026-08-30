@@ -87,6 +87,12 @@
     .team-name { font-size: .74rem; font-weight: 700; text-align: center; line-height: 1.25; }
     .team-city { font-size: .64rem; color: var(--muted); text-align: center; }
     .soon-tag { font-size: .58rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted-2); }
+    .team-dash {
+      position: absolute; top: 8px; right: 8px; font-size: .6rem; font-weight: 600;
+      color: var(--muted-2); text-transform: uppercase; letter-spacing: .04em;
+      padding: 3px 6px; border: 1px solid var(--border); border-radius: 5px;
+    }
+    .team-dash:hover { color: var(--text); border-color: var(--text); text-decoration: none; }
 
     footer { padding: 44px 0; border-top: 1px solid var(--border); }
     .footer-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
@@ -323,6 +329,17 @@
       'New Orleans Pelicans':'New Orleans','San Antonio Spurs':'San Antonio'
     };
 
+    const TEAM_SLUGS = {
+      'Atlanta Hawks':'hawks','Boston Celtics':'celtics','Brooklyn Nets':'nets','Charlotte Hornets':'hornets',
+      'Chicago Bulls':'bulls','Cleveland Cavaliers':'cavaliers','Dallas Mavericks':'mavericks','Denver Nuggets':'nuggets',
+      'Detroit Pistons':'pistons','Golden State Warriors':'warriors','Houston Rockets':'rockets','Indiana Pacers':'pacers',
+      'LA Clippers':'clippers','Los Angeles Lakers':'lakers','Memphis Grizzlies':'grizzlies','Miami Heat':'heat',
+      'Milwaukee Bucks':'bucks','Minnesota Timberwolves':'timberwolves','New Orleans Pelicans':'pelicans',
+      'New York Knicks':'knicks','Oklahoma City Thunder':'thunder','Orlando Magic':'magic','Philadelphia 76ers':'76ers',
+      'Phoenix Suns':'suns','Portland Trail Blazers':'blazers','Sacramento Kings':'kings','San Antonio Spurs':'spurs',
+      'Toronto Raptors':'raptors','Utah Jazz':'jazz','Washington Wizards':'wizards'
+    };
+
     document.querySelectorAll('.team-card').forEach(card => {
       const nameDiv = card.querySelector('.team-name');
       const city = TEAM_CITIES[card.dataset.team];
@@ -344,6 +361,16 @@
         card.appendChild(tag);
       } else {
         card.classList.add('has-data');
+      }
+
+      const slug = TEAM_SLUGS[card.dataset.team];
+      if (slug) {
+        const dash = document.createElement('a');
+        dash.className = 'team-dash';
+        dash.href = `nba_${slug}_dashboard.html`;
+        dash.textContent = 'Dashboard';
+        dash.onclick = (e) => e.stopPropagation();
+        card.appendChild(dash);
       }
     });
 

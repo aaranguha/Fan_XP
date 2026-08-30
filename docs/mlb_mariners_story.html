@@ -3,51 +3,63 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FanXP — Mariners Seat Intelligence</title>
+  <title>Fan XP · Mariners Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:     #04060f;
-      --card:   #0b1221;
-      --border: rgba(255,255,255,0.08);
-      --accent: #0C2C56;
-      --white:  #eef2ff;
-      --muted:  rgba(220,228,255,0.5);
-      --font:   'Inter', sans-serif;
+      --bg:      #fafaf9;
+      --surface: #ffffff;
+      --border:  #e7e6e2;
+      --text:    #16181c;
+      --muted:   #6d7076;
+      --muted-2: #9a9da3;
+      --accent:  #0C2C56;
+      --sans:    'Inter', sans-serif;
+      --serif:   'Newsreader', serif;
+      --mono:    'IBM Plex Mono', monospace;
+      --max:     900px;
     }
-    body { font-family: var(--font); background: var(--bg); color: var(--white); line-height: 1.6; padding: 40px 20px; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.55; -webkit-font-smoothing: antialiased; }
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
-    .back { font-size: 13px; color: var(--muted); margin-bottom: 32px; display: block; }
-    .hero { margin-bottom: 40px; }
-    .hero-tag { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
-    .hero h1 { font-size: clamp(28px, 5vw, 48px); font-weight: 900; margin-bottom: 6px; }
-    .hero .sub { color: var(--muted); font-size: 15px; }
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 40px; }
-    .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
-    .kpi-val { font-size: 32px; font-weight: 900; color: var(--accent); }
-    .kpi-label { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .section { margin-bottom: 40px; }
-    .section h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; border-left: 3px solid var(--accent); padding-left: 12px; }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--border); }
-    td { padding: 12px; border-bottom: 1px solid var(--border); color: var(--white); }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 44px 24px 80px; }
+    .back { font-size: .82rem; color: var(--muted); margin-bottom: 28px; display: inline-block; }
+    .back:hover { color: var(--text); text-decoration: none; }
+    .hero { margin-bottom: 36px; }
+    .hero-tag { font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+    .hero h1 { font-family: var(--serif); font-size: clamp(1.7rem, 3.6vw, 2.3rem); font-weight: 500; letter-spacing: -.005em; margin-bottom: 8px; }
+    .hero .sub { color: var(--muted); font-size: .92rem; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 32px; }
+    .kpi { background: var(--surface); padding: 18px 20px; }
+    .kpi-val { font-family: var(--mono); font-size: 1.7rem; font-weight: 600; letter-spacing: -.02em; color: var(--text); }
+    .kpi.phantom .kpi-val { color: var(--accent); }
+    .kpi-label { font-size: .72rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+    .section { margin-bottom: 36px; }
+    .section h2 { font-size: .82rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 14px; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    th { text-align: left; padding: 9px 12px; font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); font-variant-numeric: tabular-nums; }
     tr:last-child td { border-bottom: none; }
-    td.hl { color: var(--accent); font-weight: 700; }
-    .tbl-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }
-    .footer { margin-top: 60px; font-size: 12px; color: var(--muted); text-align: center; }
-    .phantom-alert { background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.12); border-left: 3px solid var(--accent); border-radius: 12px; padding: 16px 20px; margin-bottom: 40px; font-size: 14px; color: var(--muted); line-height: 1.6; }
-    .phantom-alert strong { color: var(--white); }
+    td.hl { color: var(--accent); font-weight: 600; }
+    .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; overflow-x: auto; }
+    .footer { margin-top: 48px; font-size: .78rem; color: var(--muted-2); text-align: center; }
+    .phantom-alert {
+      background: #fff8e8; border: 1px solid #f0dfae; border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 32px; font-size: .85rem; color: #6b5a1f; line-height: 1.6;
+    }
+    .phantom-alert strong { color: #4a3d10; }
   </style>
 </head>
 <body>
-  <a class="back" href="/">← Back to FanXP</a>
+  <div class="wrap">
+  <a class="back" href="mlb.html">← All MLB Teams</a>
 
   <div class="hero">
-    <div class="hero-tag">MLB · Seattle · T-Mobile Park</div>
-    <h1>Mariners Seat Intelligence</h1>
+    <div class="hero-tag">MLB Team Dashboard · Seattle · T-Mobile Park</div>
+    <h1>Mariners</h1>
     <p class="sub">Secondary-market no-show tracking: pre-game vs. mid-game listings</p>
   </div>
 
@@ -68,12 +80,12 @@
       <div class="kpi-val">$825,652</div>
       <div class="kpi-label">Avg seat value / game</div>
     </div>
-    <div class="kpi" style="border-color:rgba(255,255,255,.18)">
-      <div class="kpi-val" style="color:#0C2C56">$10,504,073</div>
+    <div class="kpi phantom">
+      <div class="kpi-val">$10,504,073</div>
       <div class="kpi-label">Total phantom revenue</div>
     </div>
-    <div class="kpi" style="border-color:rgba(255,255,255,.18)">
-      <div class="kpi-val" style="color:#0C2C56">$1,313,009</div>
+    <div class="kpi phantom">
+      <div class="kpi-val">$1,313,009</div>
       <div class="kpi-label">Avg phantom / game</div>
     </div>
   </div>
@@ -199,67 +211,67 @@
     <div class="tbl-wrap">
       <table>
         <thead>
-          <tr><th>Section</th><th>No-show seats</th><th>Rate</th><th>Total value</th></tr>
+          <tr><th>Section</th><th>No-show seats</th><th>Share of no-shows</th><th>Total value</th></tr>
         </thead>
         <tbody>
         <tr>
           <td>141</td>
           <td>4533</td>
-          <td>100%</td>
+          <td>4%</td>
           <td>$464,040</td>
         </tr>
         <tr>
           <td>309</td>
           <td>3432</td>
-          <td>100%</td>
+          <td>3%</td>
           <td>$151,515</td>
         </tr>
         <tr>
           <td>308</td>
           <td>3414</td>
-          <td>100%</td>
+          <td>3%</td>
           <td>$150,828</td>
         </tr>
         <tr>
           <td>307</td>
           <td>3268</td>
-          <td>100%</td>
+          <td>3%</td>
           <td>$144,560</td>
         </tr>
         <tr>
           <td>312</td>
           <td>3223</td>
-          <td>100%</td>
+          <td>3%</td>
           <td>$133,789</td>
         </tr>
         <tr>
           <td>313</td>
           <td>3078</td>
-          <td>100%</td>
+          <td>3%</td>
           <td>$130,327</td>
         </tr>
         <tr>
           <td>310</td>
           <td>2591</td>
-          <td>100%</td>
+          <td>2%</td>
           <td>$114,711</td>
         </tr>
         <tr>
           <td>346</td>
           <td>2580</td>
-          <td>100%</td>
+          <td>2%</td>
           <td>$96,159</td>
         </tr>
         <tr>
           <td>119</td>
           <td>2402</td>
-          <td>100%</td>
+          <td>2%</td>
           <td>$245,913</td>
         </tr>
         <tr>
           <td>111</td>
           <td>2297</td>
-          <td>100%</td>
+          <td>2%</td>
           <td>$125,656</td>
         </tr></tbody>
       </table>
@@ -267,7 +279,8 @@
   </div>
 
   <div class="footer">
-    Generated by FanXP · Jul 30, 2026
+    Generated by Fan XP · Aug 30, 2026
+  </div>
   </div>
 </body>
 </html>

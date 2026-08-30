@@ -2,16 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FanXP — Vikings</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet" />
+  <title>Fan XP · Vikings Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: 'Inter', sans-serif; background: #04060f; color: #eef2ff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 40px; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #fafaf9; color: #16181c; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 40px; }
     a { color: #4F2683; text-decoration: none; }
-    .back { font-size: 13px; color: rgba(220,228,255,.5); position: absolute; top: 32px; left: 32px; }
-    .emoji { font-size: 64px; margin-bottom: 20px; }
-    h1 { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
-    p { color: rgba(220,228,255,.5); font-size: 15px; max-width: 340px; }
-    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4F2683; margin-right: 8px; animation: pulse 1.4s infinite; }
+    .back { font-size: 13px; color: #9a9da3; position: absolute; top: 32px; left: 32px; }
+    .emoji { font-size: 56px; margin-bottom: 20px; }
+    h1 { font-family: 'Newsreader', serif; font-size: 26px; font-weight: 500; margin-bottom: 8px; }
+    p { color: #6d7076; font-size: 15px; max-width: 340px; }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #4F2683; margin-right: 8px; animation: pulse 1.4s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
     .status { margin-top: 28px; font-size: 13px; font-weight: 600; color: #4F2683; }
   </style>
@@ -21,7 +24,7 @@
   <div class="emoji">🏈</div>
   <h1>Vikings</h1>
   <p>U.S. Bank Stadium · Minneapolis</p>
-  <p style="margin-top:16px">No game data collected yet. The runner checks for home games daily and will populate this page automatically.</p>
+  <p style="margin-top:16px">No game data collected yet. The runner checks for home games automatically and will populate this dashboard once one has been played.</p>
   <div class="status"><span class="dot"></span>Monitoring for next home game</div>
 </body>
 </html>

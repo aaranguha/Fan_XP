@@ -3,128 +3,158 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FanXP — Indiana Fever Seat Intelligence</title>
+  <title>Fan XP · Indiana Fever Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:     #04060f;
-      --card:   #0b1221;
-      --border: rgba(255,255,255,0.08);
-      --accent: #FFCD00;
-      --white:  #eef2ff;
-      --muted:  rgba(220,228,255,0.5);
-      --font:   'Inter', sans-serif;
+      --bg:      #fafaf9;
+      --surface: #ffffff;
+      --border:  #e7e6e2;
+      --text:    #16181c;
+      --muted:   #6d7076;
+      --muted-2: #9a9da3;
+      --accent:  #FFCD00;
+      --sans:    'Inter', sans-serif;
+      --serif:   'Newsreader', serif;
+      --mono:    'IBM Plex Mono', monospace;
+      --max:     900px;
     }
-    body { font-family: var(--font); background: var(--bg); color: var(--white); line-height: 1.6; padding: 40px 20px; max-width: 1100px; margin: 0 auto; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.55; -webkit-font-smoothing: antialiased; }
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
-    .back { font-size: 13px; color: var(--muted); margin-bottom: 32px; display: block; }
-    .hero { margin-bottom: 40px; }
-    .hero-tag { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
-    .hero h1 { font-size: clamp(28px, 5vw, 48px); font-weight: 900; margin-bottom: 6px; }
-    .hero .sub { color: var(--muted); font-size: 15px; }
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 40px; }
-    .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
-    .kpi-val { font-size: 32px; font-weight: 900; color: var(--accent); }
-    .kpi-label { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .section { margin-bottom: 40px; }
-    .section h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; border-left: 3px solid var(--accent); padding-left: 12px; }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--border); }
-    td { padding: 12px; border-bottom: 1px solid var(--border); color: var(--white); }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 44px 24px 80px; }
+    .back { font-size: .82rem; color: var(--muted); margin-bottom: 28px; display: inline-block; }
+    .back:hover { color: var(--text); text-decoration: none; }
+    .hero { margin-bottom: 36px; }
+    .hero-tag { font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+    .hero h1 { font-family: var(--serif); font-size: clamp(1.7rem, 3.6vw, 2.3rem); font-weight: 500; letter-spacing: -.005em; margin-bottom: 8px; }
+    .hero .sub { color: var(--muted); font-size: .92rem; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 32px; }
+    .kpi { background: var(--surface); padding: 18px 20px; }
+    .kpi-val { font-family: var(--mono); font-size: 1.7rem; font-weight: 600; letter-spacing: -.02em; color: var(--text); }
+    .kpi.phantom .kpi-val { color: var(--accent); }
+    .kpi-label { font-size: .72rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+    .section { margin-bottom: 36px; }
+    .section h2 { font-size: .82rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 14px; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    th { text-align: left; padding: 9px 12px; font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); font-variant-numeric: tabular-nums; }
     tr:last-child td { border-bottom: none; }
-    td.hl { color: var(--accent); font-weight: 700; }
-    .tbl-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }
-    .footer { margin-top: 60px; font-size: 12px; color: var(--muted); text-align: center; }
-    .phantom-alert { background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.12); border-left: 3px solid var(--accent); border-radius: 12px; padding: 16px 20px; margin-bottom: 40px; font-size: 14px; color: var(--muted); line-height: 1.6; }
-    .phantom-alert strong { color: var(--white); }
-    .arena-wrap { background: #07090f; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 40px; }
+    td.hl { color: var(--accent); font-weight: 600; }
+    .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; overflow-x: auto; }
+    .footer { margin-top: 48px; font-size: .78rem; color: var(--muted-2); text-align: center; }
+    .phantom-alert {
+      background: #fff8e8; border: 1px solid #f0dfae; border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 32px; font-size: .85rem; color: #6b5a1f; line-height: 1.6;
+    }
+    .phantom-alert strong { color: #4a3d10; }
+    .arena-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 36px; }
     .arena-wrap svg { width: 100%; height: auto; display: block; }
     .sec { cursor: pointer; transition: filter .08s; }
-    .sec:hover, .sec.on { filter: brightness(1.3) drop-shadow(0 0 4px rgba(255,255,255,.3)); stroke: #fff !important; stroke-width: 2px !important; }
-    .arena-legend { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
-    .arena-legend .lb { width: 120px; height: 8px; border-radius: 4px; background: linear-gradient(90deg,#16a34a,#d97706,#dc2626); }
-    .arena-legend .lnd { width: 18px; height: 8px; border-radius: 3px; background: #1e293b; }
-    #tt { position: fixed; z-index: 99; pointer-events: none; display: none; min-width: 180px;
-      background: rgba(3,6,16,.97); border: 1px solid rgba(0,245,255,.15); border-radius: 12px;
-      padding: 12px 15px; backdrop-filter: blur(20px); box-shadow: 0 12px 40px rgba(0,0,0,.8); }
+    .sec:hover, .sec.on { filter: brightness(1.06); stroke: var(--text) !important; stroke-width: 1.5px !important; }
+    .arena-legend { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border); font-size: .74rem; color: var(--muted); }
+    .arena-legend .lb { width: 110px; height: 7px; border-radius: 4px; background: linear-gradient(90deg,#16a34a,#d97706,#dc2626); }
+    .arena-legend .lnd { width: 16px; height: 7px; border-radius: 3px; background: #d8d6d0; }
+    #tt { position: fixed; z-index: 99; pointer-events: none; display: none; min-width: 170px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 15px; box-shadow: 0 12px 30px rgba(0,0,0,.1); font-family: var(--sans); }
     .th { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
-    .tn { font-size: .78rem; font-weight: 800; color: var(--accent); }
-    .tv { font-size: .95rem; font-weight: 900; }
-    hr.td { border: none; border-top: 1px solid rgba(255,255,255,.06); margin: 0 0 7px; }
+    .tn { font-size: .72rem; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+    .tv { font-size: .9rem; font-weight: 600; font-family: var(--mono); }
+    hr.td { border: none; border-top: 1px solid var(--border); margin: 0 0 7px; }
     .tr { display: flex; justify-content: space-between; margin-bottom: 2px; }
-    .tk { font-size: .67rem; color: var(--muted); }
-    .tw { font-size: .73rem; font-weight: 600; }
+    .tk { font-size: .68rem; color: var(--muted); }
+    .tw { font-size: .74rem; font-weight: 600; font-family: var(--mono); }
   </style>
 </head>
 <body>
+  <div class="wrap">
   <a class="back" href="wnba.html">← All WNBA Teams</a>
 
   <div class="hero">
-    <div class="hero-tag">WNBA · Indianapolis · Gainbridge Fieldhouse</div>
-    <h1>Indiana Fever Seat Intelligence</h1>
+    <div class="hero-tag">WNBA Team Dashboard · Indianapolis · Gainbridge Fieldhouse</div>
+    <h1>Indiana Fever</h1>
     <p class="sub">Secondary-market no-show tracking: pre-game vs. halftime listings</p>
   </div>
 
   <div class="kpi-grid">
-    <div class="kpi"><div class="kpi-val">3</div><div class="kpi-label">Games tracked</div></div>
-    <div class="kpi"><div class="kpi-val">420</div><div class="kpi-label">Total no-show seats</div></div>
-    <div class="kpi"><div class="kpi-val">29%</div><div class="kpi-label">Avg no-show rate</div></div>
-    <div class="kpi"><div class="kpi-val">$0</div><div class="kpi-label">Avg seat value / game</div></div>
-    <div class="kpi" style="border-color:rgba(255,255,255,.18)"><div class="kpi-val" style="color:#FFCD00">$14,700</div><div class="kpi-label">Total phantom revenue</div></div>
-    <div class="kpi" style="border-color:rgba(255,255,255,.18)"><div class="kpi-val" style="color:#FFCD00">$4,900</div><div class="kpi-label">Avg phantom / game</div></div>
+    <div class="kpi">
+      <div class="kpi-val">3</div>
+      <div class="kpi-label">Games tracked</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">420</div>
+      <div class="kpi-label">Total no-show seats</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">29%</div>
+      <div class="kpi-label">Avg no-show rate</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">$0</div>
+      <div class="kpi-label">Avg seat value / game</div>
+    </div>
+    <div class="kpi phantom">
+      <div class="kpi-val">$14,700</div>
+      <div class="kpi-label">Total phantom revenue</div>
+    </div>
+    <div class="kpi phantom">
+      <div class="kpi-val">$4,900</div>
+      <div class="kpi-label">Avg phantom / game</div>
+    </div>
   </div>
   <div class="phantom-alert">Your arena lost <strong>$12,320</strong> in phantom revenue — <strong>352 no-shows × seat price + $35 concession spend</strong> — during the Jul 15 game vs Golden State Valkyries.</div>
 
   <div class="arena-wrap">
-    <svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg"><rect width="900" height="620" fill="#07090f"/>
-<ellipse cx="450" cy="310" rx="288" ry="200" fill="#10182a"/>
-<path d="M236.0,311.3 A214,147 0 0,1 241.3,342.7 L175.0,353.1 A282,194 0 0,0 168.0,311.7Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="201" data-pre="0" data-ns="4" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M242.2,345.1 A214,147 0 0,1 257.9,374.8 L196.9,395.6 A282,194 0 0,0 176.2,356.4Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="203" data-pre="0" data-ns="10" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M259.6,377.1 A214,147 0 0,1 284.9,403.5 L232.4,433.4 A282,194 0 0,0 199.1,398.6Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="204" data-pre="0" data-ns="20" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M287.3,405.5 A214,147 0 0,1 320.7,427.1 L279.6,464.6 A282,194 0 0,0 235.6,436.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="205" data-pre="0" data-ns="20" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M323.7,428.7 A214,147 0 0,1 363.5,444.5 L336.1,487.5 A282,194 0 0,0 283.6,466.6Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="206" data-pre="0" data-ns="6" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M367.0,445.5 A214,147 0 0,1 411.0,454.5 L398.6,500.8 A282,194 0 0,0 340.6,488.8Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="207" data-pre="0" data-ns="15" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M414.7,455.0 A214,147 0 0,1 460.6,456.8 L463.9,503.8 A282,194 0 0,0 403.5,501.3Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="208" data-pre="0" data-ns="9" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M464.3,456.7 A214,147 0 0,1 509.6,451.2 L528.5,496.3 A282,194 0 0,0 468.9,503.6Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="209" data-pre="0" data-ns="20" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M513.2,450.5 A214,147 0 0,1 555.4,437.9 L588.9,478.8 A282,194 0 0,0 533.2,495.4Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="210" data-pre="0" data-ns="14" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M558.6,436.7 A214,147 0 0,1 595.5,417.8 L641.7,452.3 A282,194 0 0,0 593.1,477.2Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="211" data-pre="0" data-ns="10" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M598.2,416.0 A214,147 0 0,1 627.8,391.8 L684.2,418.0 A282,194 0 0,0 645.3,449.9Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="213" data-pre="0" data-ns="18" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M629.8,389.7 A214,147 0 0,1 650.4,361.5 L714.1,377.9 A282,194 0 0,0 687.0,415.2Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="214" data-pre="0" data-ns="8" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M651.7,359.1 A214,147 0 0,1 662.3,328.3 L729.8,334.2 A282,194 0 0,0 715.8,374.8Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="215" data-pre="0" data-ns="4" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M662.8,325.8 A214,147 0 0,1 662.8,294.2 L730.4,289.2 A282,194 0 0,0 730.4,330.8Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="216" data-pre="0" data-ns="4" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M662.3,291.7 A214,147 0 0,1 651.7,260.9 L715.8,245.2 A282,194 0 0,0 729.8,285.8Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="217" data-pre="0" data-ns="8" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M650.4,258.5 A214,147 0 0,1 629.8,230.3 L687.0,204.8 A282,194 0 0,0 714.1,242.1Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="218" data-pre="0" data-ns="8" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M627.8,228.2 A214,147 0 0,1 598.2,204.0 L645.3,170.1 A282,194 0 0,0 684.2,202.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="219" data-pre="0" data-ns="12" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M595.5,202.2 A214,147 0 0,1 558.6,183.3 L593.1,142.8 A282,194 0 0,0 641.7,167.7Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="220" data-pre="0" data-ns="6" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M555.4,182.1 A214,147 0 0,1 513.2,169.5 L533.2,124.6 A282,194 0 0,0 588.9,141.2Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="221" data-pre="0" data-ns="22" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M509.6,168.8 A214,147 0 0,1 464.3,163.3 L468.9,116.4 A282,194 0 0,0 528.5,123.7Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="222" data-pre="0" data-ns="6" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M460.6,163.2 A214,147 0 0,1 414.7,165.0 L403.5,118.7 A282,194 0 0,0 463.9,116.2Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="223" data-pre="0" data-ns="23" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M411.0,165.5 A214,147 0 0,1 367.0,174.5 L340.6,131.2 A282,194 0 0,0 398.6,119.2Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="224" data-pre="0" data-ns="14" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M363.5,175.5 A214,147 0 0,1 323.7,191.3 L283.6,153.4 A282,194 0 0,0 336.1,132.5Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="225" data-pre="0" data-ns="11" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M320.7,192.9 A214,147 0 0,1 287.3,214.5 L235.6,184.0 A282,194 0 0,0 279.6,155.4Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="226" data-pre="0" data-ns="18" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M284.9,216.5 A214,147 0 0,1 259.6,242.9 L199.1,221.4 A282,194 0 0,0 232.4,186.6Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="227" data-pre="0" data-ns="4" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M257.9,245.2 A214,147 0 0,1 242.2,274.9 L176.2,263.6 A282,194 0 0,0 196.9,224.4Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="228" data-pre="0" data-ns="4" data-r="N/A" data-v="N/A" class="sec"/>
-<path d="M241.3,277.3 A214,147 0 0,1 236.0,308.7 L168.0,308.3 A282,194 0 0,0 175.0,266.9Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="231" data-pre="0" data-ns="6" data-r="N/A" data-v="N/A" class="sec"/>
-<ellipse cx="450" cy="310" rx="214" ry="147" fill="#0c1422"/>
-<ellipse cx="450" cy="310" rx="206" ry="142" fill="#10182a"/>
-<path d="M322.0,311.1 A128,80 0 0,1 368.8,371.8 L319.3,419.8 A206,142 0 0,0 244.0,312.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="102" data-pre="0" data-ns="4" data-r="N/A" data-v="N/A" class="sec"/>
-<text x="300" y="358" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">102</text>
-<path d="M371.6,373.2 A128,80 0 0,1 476.7,388.2 L493.0,448.9 A206,142 0 0,0 323.8,422.2Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="103" data-pre="0" data-ns="4" data-r="N/A" data-v="N/A" class="sec"/>
-<text x="413" y="418" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">103</text>
-<path d="M480.2,387.7 A128,80 0 0,1 564.5,345.7 L634.3,373.4 A206,142 0 0,0 498.6,448.0Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="105" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
-<text x="554" y="397" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">105</text>
-<path d="M566.1,343.7 A128,80 0 0,1 566.1,276.3 L636.8,250.2 A206,142 0 0,0 636.8,369.8Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="106" data-pre="0" data-ns="6" data-r="N/A" data-v="N/A" class="sec"/>
-<text x="617" y="310" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">106</text>
-<path d="M564.5,274.3 A128,80 0 0,1 480.2,232.3 L498.6,172.0 A206,142 0 0,0 634.3,246.6Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="114" data-pre="0" data-ns="6" data-r="N/A" data-v="N/A" class="sec"/>
-<text x="554" y="223" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">114</text>
-<path d="M476.7,231.8 A128,80 0 0,1 371.6,246.8 L323.8,197.8 A206,142 0 0,0 493.0,171.1Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="117" data-pre="0" data-ns="14" data-r="N/A" data-v="N/A" class="sec"/>
-<text x="413" y="202" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">117</text>
-<path d="M368.8,248.2 A128,80 0 0,1 322.0,308.9 L244.0,308.0 A206,142 0 0,0 319.3,200.2Z" fill="#1e293b" stroke="#07090f" stroke-width="1.2" data-s="118" data-pre="0" data-ns="2" data-r="N/A" data-v="N/A" class="sec"/>
-<text x="300" y="262" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(255,255,255,0.92)" pointer-events="none">118</text>
-<ellipse cx="450" cy="310" rx="128" ry="80" fill="#0c1828"/>
+    <svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg"><rect width="900" height="620" fill="#f4f3ef"/>
+<ellipse cx="450" cy="310" rx="288" ry="200" fill="#e7e6e2"/>
+<path d="M236.0,311.3 A214,147 0 0,1 241.3,342.7 L175.0,353.1 A282,194 0 0,0 168.0,311.7Z" fill="#04e49c" stroke="#f4f3ef" stroke-width="1.2" data-s="201" data-ns="4" data-r="1.0%" data-v="$0" class="sec"/>
+<path d="M242.2,345.1 A214,147 0 0,1 257.9,374.8 L196.9,395.6 A282,194 0 0,0 176.2,356.4Z" fill="#0ce498" stroke="#f4f3ef" stroke-width="1.2" data-s="203" data-ns="10" data-r="2.4%" data-v="$0" class="sec"/>
+<path d="M259.6,377.1 A214,147 0 0,1 284.9,403.5 L232.4,433.4 A282,194 0 0,0 199.1,398.6Z" fill="#18e390" stroke="#f4f3ef" stroke-width="1.2" data-s="204" data-ns="20" data-r="4.8%" data-v="$0" class="sec"/>
+<path d="M287.3,405.5 A214,147 0 0,1 320.7,427.1 L279.6,464.6 A282,194 0 0,0 235.6,436.0Z" fill="#18e390" stroke="#f4f3ef" stroke-width="1.2" data-s="205" data-ns="20" data-r="4.8%" data-v="$0" class="sec"/>
+<path d="M323.7,428.7 A214,147 0 0,1 363.5,444.5 L336.1,487.5 A282,194 0 0,0 283.6,466.6Z" fill="#07e49b" stroke="#f4f3ef" stroke-width="1.2" data-s="206" data-ns="6" data-r="1.4%" data-v="$0" class="sec"/>
+<path d="M367.0,445.5 A214,147 0 0,1 411.0,454.5 L398.6,500.8 A282,194 0 0,0 340.6,488.8Z" fill="#12e494" stroke="#f4f3ef" stroke-width="1.2" data-s="207" data-ns="15" data-r="3.6%" data-v="$0" class="sec"/>
+<path d="M414.7,455.0 A214,147 0 0,1 460.6,456.8 L463.9,503.8 A282,194 0 0,0 403.5,501.3Z" fill="#0ae499" stroke="#f4f3ef" stroke-width="1.2" data-s="208" data-ns="9" data-r="2.1%" data-v="$0" class="sec"/>
+<path d="M464.3,456.7 A214,147 0 0,1 509.6,451.2 L528.5,496.3 A282,194 0 0,0 468.9,503.6Z" fill="#18e390" stroke="#f4f3ef" stroke-width="1.2" data-s="209" data-ns="20" data-r="4.8%" data-v="$0" class="sec"/>
+<path d="M513.2,450.5 A214,147 0 0,1 555.4,437.9 L588.9,478.8 A282,194 0 0,0 533.2,495.4Z" fill="#11e495" stroke="#f4f3ef" stroke-width="1.2" data-s="210" data-ns="14" data-r="3.3%" data-v="$0" class="sec"/>
+<path d="M558.6,436.7 A214,147 0 0,1 595.5,417.8 L641.7,452.3 A282,194 0 0,0 593.1,477.2Z" fill="#0ce498" stroke="#f4f3ef" stroke-width="1.2" data-s="211" data-ns="10" data-r="2.4%" data-v="$0" class="sec"/>
+<path d="M598.2,416.0 A214,147 0 0,1 627.8,391.8 L684.2,418.0 A282,194 0 0,0 645.3,449.9Z" fill="#15e392" stroke="#f4f3ef" stroke-width="1.2" data-s="213" data-ns="18" data-r="4.3%" data-v="$0" class="sec"/>
+<path d="M629.8,389.7 A214,147 0 0,1 650.4,361.5 L714.1,377.9 A282,194 0 0,0 687.0,415.2Z" fill="#09e499" stroke="#f4f3ef" stroke-width="1.2" data-s="214" data-ns="8" data-r="1.9%" data-v="$0" class="sec"/>
+<path d="M651.7,359.1 A214,147 0 0,1 662.3,328.3 L729.8,334.2 A282,194 0 0,0 715.8,374.8Z" fill="#04e49c" stroke="#f4f3ef" stroke-width="1.2" data-s="215" data-ns="4" data-r="1.0%" data-v="$0" class="sec"/>
+<path d="M662.8,325.8 A214,147 0 0,1 662.8,294.2 L730.4,289.2 A282,194 0 0,0 730.4,330.8Z" fill="#04e49c" stroke="#f4f3ef" stroke-width="1.2" data-s="216" data-ns="4" data-r="1.0%" data-v="$0" class="sec"/>
+<path d="M662.3,291.7 A214,147 0 0,1 651.7,260.9 L715.8,245.2 A282,194 0 0,0 729.8,285.8Z" fill="#09e499" stroke="#f4f3ef" stroke-width="1.2" data-s="217" data-ns="8" data-r="1.9%" data-v="$0" class="sec"/>
+<path d="M650.4,258.5 A214,147 0 0,1 629.8,230.3 L687.0,204.8 A282,194 0 0,0 714.1,242.1Z" fill="#09e499" stroke="#f4f3ef" stroke-width="1.2" data-s="218" data-ns="8" data-r="1.9%" data-v="$0" class="sec"/>
+<path d="M627.8,228.2 A214,147 0 0,1 598.2,204.0 L645.3,170.1 A282,194 0 0,0 684.2,202.0Z" fill="#0ee496" stroke="#f4f3ef" stroke-width="1.2" data-s="219" data-ns="12" data-r="2.9%" data-v="$0" class="sec"/>
+<path d="M595.5,202.2 A214,147 0 0,1 558.6,183.3 L593.1,142.8 A282,194 0 0,0 641.7,167.7Z" fill="#07e49b" stroke="#f4f3ef" stroke-width="1.2" data-s="220" data-ns="6" data-r="1.4%" data-v="$0" class="sec"/>
+<path d="M555.4,182.1 A214,147 0 0,1 513.2,169.5 L533.2,124.6 A282,194 0 0,0 588.9,141.2Z" fill="#1ae38f" stroke="#f4f3ef" stroke-width="1.2" data-s="221" data-ns="22" data-r="5.2%" data-v="$0" class="sec"/>
+<path d="M509.6,168.8 A214,147 0 0,1 464.3,163.3 L468.9,116.4 A282,194 0 0,0 528.5,123.7Z" fill="#07e49b" stroke="#f4f3ef" stroke-width="1.2" data-s="222" data-ns="6" data-r="1.4%" data-v="$0" class="sec"/>
+<path d="M460.6,163.2 A214,147 0 0,1 414.7,165.0 L403.5,118.7 A282,194 0 0,0 463.9,116.2Z" fill="#1be38e" stroke="#f4f3ef" stroke-width="1.2" data-s="223" data-ns="23" data-r="5.5%" data-v="$0" class="sec"/>
+<path d="M411.0,165.5 A214,147 0 0,1 367.0,174.5 L340.6,131.2 A282,194 0 0,0 398.6,119.2Z" fill="#11e495" stroke="#f4f3ef" stroke-width="1.2" data-s="224" data-ns="14" data-r="3.3%" data-v="$0" class="sec"/>
+<path d="M363.5,175.5 A214,147 0 0,1 323.7,191.3 L283.6,153.4 A282,194 0 0,0 336.1,132.5Z" fill="#0de497" stroke="#f4f3ef" stroke-width="1.2" data-s="225" data-ns="11" data-r="2.6%" data-v="$0" class="sec"/>
+<path d="M320.7,192.9 A214,147 0 0,1 287.3,214.5 L235.6,184.0 A282,194 0 0,0 279.6,155.4Z" fill="#15e392" stroke="#f4f3ef" stroke-width="1.2" data-s="226" data-ns="18" data-r="4.3%" data-v="$0" class="sec"/>
+<path d="M284.9,216.5 A214,147 0 0,1 259.6,242.9 L199.1,221.4 A282,194 0 0,0 232.4,186.6Z" fill="#04e49c" stroke="#f4f3ef" stroke-width="1.2" data-s="227" data-ns="4" data-r="1.0%" data-v="$0" class="sec"/>
+<path d="M257.9,245.2 A214,147 0 0,1 242.2,274.9 L176.2,263.6 A282,194 0 0,0 196.9,224.4Z" fill="#04e49c" stroke="#f4f3ef" stroke-width="1.2" data-s="228" data-ns="4" data-r="1.0%" data-v="$0" class="sec"/>
+<path d="M241.3,277.3 A214,147 0 0,1 236.0,308.7 L168.0,308.3 A282,194 0 0,0 175.0,266.9Z" fill="#07e49b" stroke="#f4f3ef" stroke-width="1.2" data-s="231" data-ns="6" data-r="1.4%" data-v="$0" class="sec"/>
+<ellipse cx="450" cy="310" rx="214" ry="147" fill="#eeede8"/>
+<ellipse cx="450" cy="310" rx="206" ry="142" fill="#e7e6e2"/>
+<path d="M322.0,311.1 A128,80 0 0,1 368.8,371.8 L319.3,419.8 A206,142 0 0,0 244.0,312.0Z" fill="#04e49c" stroke="#f4f3ef" stroke-width="1.2" data-s="102" data-ns="4" data-r="1.0%" data-v="$0" class="sec"/>
+<text x="300" y="358" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(22,24,28,0.75)" pointer-events="none">102</text>
+<path d="M371.6,373.2 A128,80 0 0,1 476.7,388.2 L493.0,448.9 A206,142 0 0,0 323.8,422.2Z" fill="#04e49c" stroke="#f4f3ef" stroke-width="1.2" data-s="103" data-ns="4" data-r="1.0%" data-v="$0" class="sec"/>
+<text x="413" y="418" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(22,24,28,0.75)" pointer-events="none">103</text>
+<path d="M480.2,387.7 A128,80 0 0,1 564.5,345.7 L634.3,373.4 A206,142 0 0,0 498.6,448.0Z" fill="#02e49e" stroke="#f4f3ef" stroke-width="1.2" data-s="105" data-ns="2" data-r="0.5%" data-v="$0" class="sec"/>
+<text x="554" y="397" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(22,24,28,0.75)" pointer-events="none">105</text>
+<path d="M566.1,343.7 A128,80 0 0,1 566.1,276.3 L636.8,250.2 A206,142 0 0,0 636.8,369.8Z" fill="#07e49b" stroke="#f4f3ef" stroke-width="1.2" data-s="106" data-ns="6" data-r="1.4%" data-v="$0" class="sec"/>
+<text x="617" y="310" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(22,24,28,0.75)" pointer-events="none">106</text>
+<path d="M564.5,274.3 A128,80 0 0,1 480.2,232.3 L498.6,172.0 A206,142 0 0,0 634.3,246.6Z" fill="#07e49b" stroke="#f4f3ef" stroke-width="1.2" data-s="114" data-ns="6" data-r="1.4%" data-v="$0" class="sec"/>
+<text x="554" y="223" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(22,24,28,0.75)" pointer-events="none">114</text>
+<path d="M476.7,231.8 A128,80 0 0,1 371.6,246.8 L323.8,197.8 A206,142 0 0,0 493.0,171.1Z" fill="#11e495" stroke="#f4f3ef" stroke-width="1.2" data-s="117" data-ns="14" data-r="3.3%" data-v="$0" class="sec"/>
+<text x="413" y="202" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(22,24,28,0.75)" pointer-events="none">117</text>
+<path d="M368.8,248.2 A128,80 0 0,1 322.0,308.9 L244.0,308.0 A206,142 0 0,0 319.3,200.2Z" fill="#02e49e" stroke="#f4f3ef" stroke-width="1.2" data-s="118" data-ns="2" data-r="0.5%" data-v="$0" class="sec"/>
+<text x="300" y="262" text-anchor="middle" dominant-baseline="middle" font-size="9" font-family="Inter,sans-serif" font-weight="700" fill="rgba(22,24,28,0.75)" pointer-events="none">118</text>
+<ellipse cx="450" cy="310" rx="128" ry="80" fill="#f0efe9"/>
 <rect x="345" y="254" width="210" height="112" fill="#c8922a" rx="3"/>
 <rect x="345" y="292" width="41" height="36" fill="#b8821f" stroke="rgba(255,255,255,.6)" stroke-width="1"/>
 <rect x="514" y="292" width="41" height="36" fill="#b8821f" stroke="rgba(255,255,255,.6)" stroke-width="1"/>
@@ -146,7 +176,7 @@
 <circle cx="544" cy="310" r="4.5" fill="#e87722" stroke="rgba(255,255,255,.8)" stroke-width="1"/>
 <rect x="345" y="254" width="210" height="112" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="1.5" rx="3"/></svg>
     <div class="arena-legend">
-      <span>0%</span><div class="lb"></div><span>100% no-show</span>
+      <span>Fewer no-shows</span><div class="lb"></div><span>More no-shows</span>
       &nbsp;&nbsp;<div class="lnd"></div><span>No data</span>
     </div>
   </div>
@@ -197,79 +227,78 @@
     <h2>Top No-Show Sections</h2>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Section</th><th>No-show seats</th><th>Rate</th><th>Total value</th></tr></thead>
+        <thead><tr><th>Section</th><th>No-show seats</th><th>Share of no-shows</th><th>Total value</th></tr></thead>
         <tbody>
         <tr>
           <td>223</td>
           <td>23</td>
-          <td>0%</td>
+          <td>5%</td>
           <td>$0</td>
         </tr>
         <tr>
           <td>221</td>
           <td>22</td>
-          <td>0%</td>
+          <td>5%</td>
           <td>$0</td>
         </tr>
         <tr>
           <td>204</td>
           <td>20</td>
-          <td>0%</td>
+          <td>5%</td>
           <td>$0</td>
         </tr>
         <tr>
           <td>205</td>
           <td>20</td>
-          <td>0%</td>
+          <td>5%</td>
           <td>$0</td>
         </tr>
         <tr>
           <td>209</td>
           <td>20</td>
-          <td>0%</td>
+          <td>5%</td>
           <td>$0</td>
         </tr>
         <tr>
           <td>213</td>
           <td>18</td>
-          <td>0%</td>
+          <td>4%</td>
           <td>$0</td>
         </tr>
         <tr>
           <td>226</td>
           <td>18</td>
-          <td>0%</td>
+          <td>4%</td>
           <td>$0</td>
         </tr>
         <tr>
           <td>16</td>
           <td>16</td>
-          <td>0%</td>
+          <td>4%</td>
           <td>$0</td>
         </tr>
         <tr>
           <td>207</td>
           <td>15</td>
-          <td>0%</td>
+          <td>4%</td>
           <td>$0</td>
         </tr>
         <tr>
           <td>11</td>
           <td>14</td>
-          <td>0%</td>
+          <td>3%</td>
           <td>$0</td>
         </tr></tbody>
       </table>
     </div>
   </div>
 
-  <div class="footer">Generated by FanXP · Jul 30, 2026</div>
-</body>
+  <div class="footer">Generated by Fan XP · Aug 30, 2026</div>
+  </div>
 
 <div id="tt">
   <div class="th"><span class="tn" id="tn2">—</span><span class="tv" id="tv2">—</span></div>
   <hr class="td"/>
-  <div class="tr"><span class="tk">Pre-game</span><span class="tw" id="tpre">—</span></div>
   <div class="tr"><span class="tk">No-shows</span><span class="tw" id="tns">—</span></div>
   <div class="tr"><span class="tk">Value</span><span class="tw" id="tdv">—</span></div>
 </div>
@@ -288,9 +317,6 @@
         var s=el.dataset.s,r=el.dataset.r,v=el.dataset.v;
         document.getElementById('tn2').textContent='Section '+s;
         document.getElementById('tv2').textContent=r;
-        var rv=parseFloat(r)/100;
-        document.getElementById('tv2').style.color=rv<.33?'#22c55e':rv<.66?'#f59e0b':'#ef4444';
-        document.getElementById('tpre').textContent=parseInt(el.dataset.pre).toLocaleString();
         document.getElementById('tns').textContent=parseInt(el.dataset.ns).toLocaleString();
         document.getElementById('tdv').textContent=v;
       }
@@ -302,4 +328,5 @@
   });
 })();
 </script>
+</body>
 </html>

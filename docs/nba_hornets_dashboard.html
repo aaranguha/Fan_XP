@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fan XP · Hornets Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #fafaf9;
+      --surface: #ffffff;
+      --border:  #e7e6e2;
+      --text:    #16181c;
+      --muted:   #6d7076;
+      --muted-2: #9a9da3;
+      --accent:  #1D1160;
+      --sans:    'Inter', sans-serif;
+      --serif:   'Newsreader', serif;
+      --mono:    'IBM Plex Mono', monospace;
+      --max:     900px;
+    }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 44px 24px 80px; }
+    .back { font-size: .82rem; color: var(--muted); margin-bottom: 28px; display: inline-block; }
+    .back:hover { color: var(--text); text-decoration: none; }
+    .hero { margin-bottom: 36px; }
+    .hero-tag { font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+    .hero h1 { font-family: var(--serif); font-size: clamp(1.7rem, 3.6vw, 2.3rem); font-weight: 500; letter-spacing: -.005em; margin-bottom: 8px; }
+    .hero .sub { color: var(--muted); font-size: .92rem; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 32px; }
+    .kpi { background: var(--surface); padding: 18px 20px; }
+    .kpi-val { font-family: var(--mono); font-size: 1.7rem; font-weight: 600; letter-spacing: -.02em; color: var(--text); }
+    .kpi.phantom .kpi-val { color: var(--accent); }
+    .kpi-label { font-size: .72rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+    .section { margin-bottom: 36px; }
+    .section h2 { font-size: .82rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 14px; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    th { text-align: left; padding: 9px 12px; font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); font-variant-numeric: tabular-nums; }
+    tr:last-child td { border-bottom: none; }
+    td.hl { color: var(--accent); font-weight: 600; }
+    .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; overflow-x: auto; }
+    .footer { margin-top: 48px; font-size: .78rem; color: var(--muted-2); text-align: center; }
+    .phantom-alert {
+      background: #fff8e8; border: 1px solid #f0dfae; border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 32px; font-size: .85rem; color: #6b5a1f; line-height: 1.6;
+    }
+    .phantom-alert strong { color: #4a3d10; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+  <a class="back" href="nba.html">← All NBA Teams</a>
+
+  <div class="hero">
+    <div class="hero-tag">NBA Team Dashboard · Charlotte · Spectrum Center</div>
+    <h1>Hornets</h1>
+    <p class="sub">Secondary-market no-show tracking: pre-game vs. halftime listings</p>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-val">2</div>
+      <div class="kpi-label">Games tracked</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">309</div>
+      <div class="kpi-label">Total no-show seats</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">49%</div>
+      <div class="kpi-label">Avg no-show rate</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">$15,855</div>
+      <div class="kpi-label">Avg seat value / game</div>
+    </div>
+    <div class="kpi phantom">
+      <div class="kpi-val">$42,525</div>
+      <div class="kpi-label">Total phantom revenue</div>
+    </div>
+    <div class="kpi phantom">
+      <div class="kpi-val">$21,262</div>
+      <div class="kpi-label">Avg phantom / game</div>
+    </div>
+  </div>
+  <div class="phantom-alert">Your arena lost <strong>$27,564</strong> in phantom revenue — <strong>213 no-shows × seat price + $35 concession spend</strong> — during the Apr 3 game vs Indiana Pacers.</div>
+
+  <div class="section">
+    <h2>Game Log</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Opponent</th><th>Pre-game</th><th>Halftime</th>
+            <th>No-shows</th><th>Rate</th><th>Seat value</th><th>Phantom Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td>Apr 3, 2026</td>
+          <td>vs Indiana Pacers</td>
+          <td>486</td>
+          <td>233</td>
+          <td class="hl">213</td>
+          <td class="hl">44%</td>
+          <td>$20,109</td>
+          <td class="hl">$27,564</td>
+        </tr>
+        <tr>
+          <td>Apr 2, 2026</td>
+          <td>vs Phoenix Suns</td>
+          <td>176</td>
+          <td>98</td>
+          <td class="hl">96</td>
+          <td class="hl">55%</td>
+          <td>$11,601</td>
+          <td class="hl">$14,961</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Top No-Show Sections</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Section</th><th>No-show seats</th><th>Share of no-shows</th><th>Total value</th></tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td>114</td>
+          <td>27</td>
+          <td>9%</td>
+          <td>$5,748</td>
+        </tr>
+        <tr>
+          <td>107</td>
+          <td>24</td>
+          <td>8%</td>
+          <td>$2,711</td>
+        </tr>
+        <tr>
+          <td>103</td>
+          <td>18</td>
+          <td>6%</td>
+          <td>$1,769</td>
+        </tr>
+        <tr>
+          <td>118</td>
+          <td>18</td>
+          <td>6%</td>
+          <td>$1,953</td>
+        </tr>
+        <tr>
+          <td>109</td>
+          <td>14</td>
+          <td>5%</td>
+          <td>$1,487</td>
+        </tr>
+        <tr>
+          <td>214</td>
+          <td>14</td>
+          <td>5%</td>
+          <td>$462</td>
+        </tr>
+        <tr>
+          <td>101</td>
+          <td>12</td>
+          <td>4%</td>
+          <td>$1,252</td>
+        </tr>
+        <tr>
+          <td>115</td>
+          <td>12</td>
+          <td>4%</td>
+          <td>$2,246</td>
+        </tr>
+        <tr>
+          <td>116</td>
+          <td>12</td>
+          <td>4%</td>
+          <td>$1,140</td>
+        </tr>
+        <tr>
+          <td>102</td>
+          <td>10</td>
+          <td>3%</td>
+          <td>$1,104</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    Generated by Fan XP · Aug 30, 2026
+  </div>
+  </div>
+</body>
+</html>
