@@ -121,7 +121,13 @@ def load_games_from_supabase(slug: str) -> list[dict]:
 
 def analyse_games(games: list[dict]) -> dict:
     per_game   = []
-    sec_totals = defaultdict(lambda: {"pre": 0, "ns": 0, "value": 0.0})
+    # Section-level breakdown is built only from no_shows rows -- the
+    # Supabase data path never fetches full pre_game listing rows (only
+    # counts, via count_listings), so "share of pre_game listings that
+    # went unsold" isn't computable per section without an extra query.
+    # "ns" / "value" are real; the top-sections table reports each
+    # section's share of total no-shows instead of a resale rate.
+    sec_totals = defaultdict(lambda: {"ns": 0, "value": 0.0})
 
     for g in games:
         pre  = g["pre"]
@@ -145,16 +151,11 @@ def analyse_games(games: list[dict]) -> dict:
 
         for r in ns:
             sec = r.get("section", "Unknown").strip()
-            sec_totals[sec]["pre"]   += 1
-            sec_totals[sec]["ns"]    += 1
+            sec_totals[sec]["ns"] += 1
             try:
                 sec_totals[sec]["value"] += float(r.get("price_usd", 0) or 0)
             except (ValueError, TypeError):
                 pass
-        for r in pre:
-            sec = r.get("section", "Unknown").strip()
-            if r not in ns:
-                sec_totals[sec]["pre"] += 1
 
         phantom = g.get("phantom", ns_value + ns_count * CONCESSION_PER_SEAT)
         per_game.append({
@@ -237,10 +238,14 @@ def generate_html(slug: str) -> str:
           <td class="hl">{phantom_str}</td>
         </tr>"""
 
-    # Build top-sections rows
+    # Build top-sections rows. "Rate" here is this section's share of all
+    # no-shows across every tracked game (see analyse_games) -- not a
+    # per-section resale rate, which isn't computable from the Supabase
+    # data path without an extra full-listings query.
+    total_ns_all = stats["total_ns"] or 1
     sec_html = ""
     for s in stats["top_sections"]:
-        rate = s["ns"] / s["pre"] * 100 if s["pre"] else 0
+        rate = s["ns"] / total_ns_all * 100
         sec_html += f"""
         <tr>
           <td>{s['section']}</td>
@@ -252,21 +257,26 @@ def generate_html(slug: str) -> str:
     total_games   = len(per_game)
     tracked_games = sum(1 for g in per_game if g["has_mid"])
 
+    FONT_LINKS = """<link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />"""
+
     if not has_data:
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FanXP — {name}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet" />
+  <title>Fan XP · {name} Dashboard</title>
+  {FONT_LINKS}
   <style>
-    body {{ font-family: 'Inter', sans-serif; background: #04060f; color: #eef2ff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 40px; }}
+    * {{ box-sizing: border-box; }}
+    body {{ font-family: 'Inter', sans-serif; background: #fafaf9; color: #16181c; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 40px; }}
     a {{ color: {color}; text-decoration: none; }}
-    .back {{ font-size: 13px; color: rgba(220,228,255,.5); position: absolute; top: 32px; left: 32px; }}
-    .emoji {{ font-size: 64px; margin-bottom: 20px; }}
-    h1 {{ font-size: 28px; font-weight: 900; margin-bottom: 8px; }}
-    p {{ color: rgba(220,228,255,.5); font-size: 15px; max-width: 340px; }}
-    .dot {{ display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: {color}; margin-right: 8px; animation: pulse 1.4s infinite; }}
+    .back {{ font-size: 13px; color: #9a9da3; position: absolute; top: 32px; left: 32px; }}
+    .emoji {{ font-size: 56px; margin-bottom: 20px; }}
+    h1 {{ font-family: 'Newsreader', serif; font-size: 26px; font-weight: 500; margin-bottom: 8px; }}
+    p {{ color: #6d7076; font-size: 15px; max-width: 340px; }}
+    .dot {{ display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: {color}; margin-right: 8px; animation: pulse 1.4s infinite; }}
     @keyframes pulse {{ 0%,100%{{opacity:1}} 50%{{opacity:.3}} }}
     .status {{ margin-top: 28px; font-size: 13px; font-weight: 600; color: {color}; }}
   </style>
@@ -276,7 +286,7 @@ def generate_html(slug: str) -> str:
   <div class="emoji">🏈</div>
   <h1>{name}</h1>
   <p>{arena} · {city}</p>
-  <p style="margin-top:16px">No game data collected yet. The runner checks for home games daily and will populate this page automatically.</p>
+  <p style="margin-top:16px">No game data collected yet. The runner checks for home games automatically and will populate this dashboard once one has been played.</p>
   <div class="status"><span class="dot"></span>Monitoring for next home game</div>
 </body>
 </html>"""
@@ -286,51 +296,61 @@ def generate_html(slug: str) -> str:
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FanXP — {name} Seat Intelligence</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <title>Fan XP · {name} Dashboard</title>
+  {FONT_LINKS}
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     :root {{
-      --bg:     #04060f;
-      --card:   #0b1221;
-      --border: rgba(255,255,255,0.08);
-      --accent: {color};
-      --white:  #eef2ff;
-      --muted:  rgba(220,228,255,0.5);
-      --font:   'Inter', sans-serif;
+      --bg:      #fafaf9;
+      --surface: #ffffff;
+      --border:  #e7e6e2;
+      --text:    #16181c;
+      --muted:   #6d7076;
+      --muted-2: #9a9da3;
+      --accent:  {color};
+      --sans:    'Inter', sans-serif;
+      --serif:   'Newsreader', serif;
+      --mono:    'IBM Plex Mono', monospace;
+      --max:     900px;
     }}
-    body {{ font-family: var(--font); background: var(--bg); color: var(--white); line-height: 1.6; padding: 40px 20px; }}
+    body {{ font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.55; -webkit-font-smoothing: antialiased; }}
     a {{ color: var(--accent); text-decoration: none; }}
     a:hover {{ text-decoration: underline; }}
-    .back {{ font-size: 13px; color: var(--muted); margin-bottom: 32px; display: block; }}
-    .hero {{ margin-bottom: 40px; }}
-    .hero-tag {{ font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }}
-    .hero h1 {{ font-size: clamp(28px, 5vw, 48px); font-weight: 900; margin-bottom: 6px; }}
-    .hero .sub {{ color: var(--muted); font-size: 15px; }}
-    .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 40px; }}
-    .kpi {{ background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }}
-    .kpi-val {{ font-size: 32px; font-weight: 900; color: var(--accent); }}
-    .kpi-label {{ font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }}
-    .section {{ margin-bottom: 40px; }}
-    .section h2 {{ font-size: 18px; font-weight: 700; margin-bottom: 16px; border-left: 3px solid var(--accent); padding-left: 12px; }}
-    table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
-    th {{ text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--border); }}
-    td {{ padding: 12px; border-bottom: 1px solid var(--border); color: var(--white); }}
+    .wrap {{ max-width: var(--max); margin: 0 auto; padding: 44px 24px 80px; }}
+    .back {{ font-size: .82rem; color: var(--muted); margin-bottom: 28px; display: inline-block; }}
+    .back:hover {{ color: var(--text); text-decoration: none; }}
+    .hero {{ margin-bottom: 36px; }}
+    .hero-tag {{ font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }}
+    .hero h1 {{ font-family: var(--serif); font-size: clamp(1.7rem, 3.6vw, 2.3rem); font-weight: 500; letter-spacing: -.005em; margin-bottom: 8px; }}
+    .hero .sub {{ color: var(--muted); font-size: .92rem; }}
+    .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 32px; }}
+    .kpi {{ background: var(--surface); padding: 18px 20px; }}
+    .kpi-val {{ font-family: var(--mono); font-size: 1.7rem; font-weight: 600; letter-spacing: -.02em; color: var(--text); }}
+    .kpi.phantom .kpi-val {{ color: var(--accent); }}
+    .kpi-label {{ font-size: .72rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }}
+    .section {{ margin-bottom: 36px; }}
+    .section h2 {{ font-size: .82rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 14px; color: var(--muted); }}
+    table {{ width: 100%; border-collapse: collapse; font-size: .84rem; }}
+    th {{ text-align: left; padding: 9px 12px; font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }}
+    td {{ padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); font-variant-numeric: tabular-nums; }}
     tr:last-child td {{ border-bottom: none; }}
-    td.hl {{ color: var(--accent); font-weight: 700; }}
-    .tbl-wrap {{ background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }}
-    .footer {{ margin-top: 60px; font-size: 12px; color: var(--muted); text-align: center; }}
-    .phantom-alert {{ background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.12); border-left: 3px solid var(--accent); border-radius: 12px; padding: 16px 20px; margin-bottom: 40px; font-size: 14px; color: var(--muted); line-height: 1.6; }}
-    .phantom-alert strong {{ color: var(--white); }}
+    td.hl {{ color: var(--accent); font-weight: 600; }}
+    .tbl-wrap {{ background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; overflow-x: auto; }}
+    .footer {{ margin-top: 48px; font-size: .78rem; color: var(--muted-2); text-align: center; }}
+    .phantom-alert {{
+      background: #fff8e8; border: 1px solid #f0dfae; border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 32px; font-size: .85rem; color: #6b5a1f; line-height: 1.6;
+    }}
+    .phantom-alert strong {{ color: #4a3d10; }}
   </style>
 </head>
 <body>
-  <a class="back" href="/">← Back to FanXP</a>
+  <div class="wrap">
+  <a class="back" href="nfl.html">← All NFL Teams</a>
 
   <div class="hero">
-    <div class="hero-tag">NFL · {city} · {arena}</div>
-    <h1>{name} Seat Intelligence</h1>
+    <div class="hero-tag">NFL Team Dashboard · {city} · {arena}</div>
+    <h1>{name}</h1>
     <p class="sub">Secondary-market no-show tracking: pre-game vs. mid-game listings</p>
   </div>
 
@@ -351,12 +371,12 @@ def generate_html(slug: str) -> str:
       <div class="kpi-val">${stats['avg_value']:,.0f}</div>
       <div class="kpi-label">Avg seat value / game</div>
     </div>
-    <div class="kpi" style="border-color:rgba(255,255,255,.18)">
-      <div class="kpi-val" style="color:{color}">${total_phantom:,.0f}</div>
+    <div class="kpi phantom">
+      <div class="kpi-val">${total_phantom:,.0f}</div>
       <div class="kpi-label">Total phantom revenue</div>
     </div>
-    <div class="kpi" style="border-color:rgba(255,255,255,.18)">
-      <div class="kpi-val" style="color:{color}">${stats['avg_value'] + 35 * (stats['total_ns'] / max(tracked_games, 1)):,.0f}</div>
+    <div class="kpi phantom">
+      <div class="kpi-val">${stats['avg_value'] + 35 * (stats['total_ns'] / max(tracked_games, 1)):,.0f}</div>
       <div class="kpi-label">Avg phantom / game</div>
     </div>
   </div>
@@ -382,7 +402,7 @@ def generate_html(slug: str) -> str:
     <div class="tbl-wrap">
       <table>
         <thead>
-          <tr><th>Section</th><th>No-show seats</th><th>Rate</th><th>Total value</th></tr>
+          <tr><th>Section</th><th>No-show seats</th><th>Share of no-shows</th><th>Total value</th></tr>
         </thead>
         <tbody>{sec_html if sec_html else '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:24px">No data yet</td></tr>'}</tbody>
       </table>
@@ -390,7 +410,8 @@ def generate_html(slug: str) -> str:
   </div>
 
   <div class="footer">
-    Generated by FanXP · {datetime.now().strftime("%b %-d, %Y")}
+    Generated by Fan XP · {datetime.now().strftime("%b %-d, %Y")}
+  </div>
   </div>
 </body>
 </html>"""
