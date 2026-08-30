@@ -10,6 +10,11 @@ on:
     - cron: "0 23 * * 1"
     # Thursday 11 PM UTC = 6 PM ET — catches Thursday Night Football (8:15 PM ET)
     - cron: "0 23 * * 4"
+    # Friday/Saturday 11 PM UTC — preseason and occasional regular-season
+    # games run on these days too; the regular Sun/Mon/Thu-only schedule
+    # missed a real preseason game entirely (confirmed 2026-08-28).
+    - cron: "0 23 * * 5"
+    - cron: "0 23 * * 6"
   workflow_dispatch:
 
 permissions:
@@ -18,7 +23,13 @@ permissions:
 jobs:
   run-nfl:
     runs-on: [self-hosted, nfl-runner]
-    timeout-minutes: 360
+    # Was 360 (6h) -- too short. GitHub's scheduled triggers can fire hours
+    # late under platform load (confirmed: the 2026-08-28 game was caught
+    # by a Thursday-23:00-UTC cron that actually fired ~8h late, at Friday
+    # 06:50 UTC), and from there the runner still has to wait for kickoff
+    # (evening games) plus reach halftime. 360 minutes killed that run
+    # before it ever captured data.
+    timeout-minutes: 720
 
     env:
       TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
