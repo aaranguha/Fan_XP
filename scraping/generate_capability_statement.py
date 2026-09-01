@@ -1,8 +1,9 @@
 """
 generate_capability_statement.py
 
-Builds a one-page Fan XP capability statement / pilot pitch, pulling real
-current numbers from Supabase instead of a hand-frozen document.
+Builds a one-page Fan XP capability statement -- what the product does,
+described generally, not addressed to any specific team. Pulls real current
+numbers from Supabase instead of a hand-frozen document.
 
 NFL is reported honestly (teams monitored, zero real games yet, since the
 scraper only recently had its timeout bug fixed). The "proof it works"
@@ -14,20 +15,15 @@ inflate a number that ends up in front of a team. Do not remove that filter
 without first finding and fixing the underlying MLB bug.
 
 Usage:
-    python generate_capability_statement.py                # generic version
-    python generate_capability_statement.py commanders     # for one NFL team
+    python generate_capability_statement.py
 
 Output:
-    ../capability_statement.html               (generic)
-    ../capability_statement_{team}.html         (team-specific)
+    ../capability_statement.html
 """
 
-import os
-import sys
 from datetime import datetime
 
 from nfl_teams import NFL_TEAMS
-from generate_nfl_story import NFL_ARENAS
 import supabase_client
 
 # Games with more no-shows than this are excluded from every total below --
@@ -60,55 +56,14 @@ def collect_proof_of_concept_stats() -> dict:
     return {"games": games, "no_shows": no_shows, "value": value}
 
 
-def collect_nfl_stats() -> dict:
-    c = supabase_client._get_client()
-    total_teams = len(NFL_TEAMS)
-    if c is None:
-        return {"teams": total_teams, "games_with_data": 0}
-
-    games = c.table("games").select("id").eq("league", "nfl").execute().data
-    games_with_data = 0
-    for g in games:
-        pre = supabase_client.count_listings(g["id"], "pre_game")
-        if pre > 0:
-            games_with_data += 1
-
-    return {"teams": total_teams, "games_with_data": games_with_data}
-
-
 FONT_LINKS = """<link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&display=swap" rel="stylesheet" />"""
 
 
-def generate_html(team_slug: str | None) -> str:
+def generate_html() -> str:
     poc = collect_proof_of_concept_stats()
-    nfl = collect_nfl_stats()
-
-    if team_slug:
-        team = NFL_TEAMS.get(team_slug)
-        if not team:
-            raise ValueError(f"Unknown NFL team '{team_slug}'. Valid: {', '.join(sorted(NFL_TEAMS.keys()))}")
-        team_name = team_slug.replace("_", " ").title()
-        if team_slug == "49ers":
-            team_name = "49ers"
-        arena = NFL_ARENAS.get(team_slug, "")
-        deliver_for = f"What We Deliver for the {team_name}"
-        pilot_line = (
-            f"We're offering to run our full data collection and reporting pipeline for "
-            f"<strong>one {team_name} home game at no cost</strong> — delivering a complete "
-            f"section-level no-show report with no commitment required."
-        )
-    else:
-        team_name = None
-        arena = ""
-        deliver_for = "What We Deliver"
-        pilot_line = (
-            "We're offering to run our full data collection and reporting pipeline for "
-            "<strong>one home game at no cost</strong> — delivering a complete section-level "
-            "no-show report with no commitment required."
-        )
-
+    nfl_teams_monitored = len(NFL_TEAMS)
     date_str = datetime.now().strftime("%B %-d, %Y")
     poc_value_str = f"${poc['value']:,.0f}"
 
@@ -116,7 +71,7 @@ def generate_html(team_slug: str | None) -> str:
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Fan XP · Capability Statement{f" · {team_name}" if team_name else ""}</title>
+<title>Fan XP · Capability Statement</title>
 {FONT_LINKS}
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
@@ -187,7 +142,7 @@ def generate_html(team_slug: str | None) -> str:
   <div class="header">
     <div class="header-left">
       <div class="word">Fan<span class="xp">XP</span></div>
-      <p>Capability Statement{f" &nbsp;&middot;&nbsp; {team_name}" if team_name else ""} &nbsp;&middot;&nbsp; {date_str}</p>
+      <p>Capability Statement &nbsp;&middot;&nbsp; {date_str}</p>
     </div>
     <div class="header-right">
       <strong>Aaran Guha</strong><br>
@@ -203,7 +158,7 @@ def generate_html(team_slug: str | None) -> str:
 
   <div class="stats">
     <div class="stat">
-      <div class="number">{nfl['teams']}</div>
+      <div class="number">{nfl_teams_monitored}</div>
       <div class="label">NFL teams monitored</div>
     </div>
     <div class="stat">
@@ -241,7 +196,7 @@ def generate_html(team_slug: str | None) -> str:
 
     <div>
       <div class="section">
-        <h2>{deliver_for}</h2>
+        <h2>What Fan XP Delivers</h2>
         <ul>
           <li>Per-section no-show rates every home game</li>
           <li>Opponent &amp; day-of-week attendance breakdowns</li>
@@ -254,10 +209,10 @@ def generate_html(team_slug: str | None) -> str:
       <div class="section">
         <h2>Why Fan XP</h2>
         <ul>
-          <li>Already monitoring {nfl['teams']} NFL teams, plus MLB, WNBA, and NBA</li>
+          <li>Already monitoring {nfl_teams_monitored} NFL teams, plus MLB, WNBA, and NBA</li>
           <li>Methodology already proven with real captured data — not a mockup</li>
           <li>Fully automated pipeline, zero ticketing-system integration required</li>
-          <li>Founder-led — direct, fast iteration on what your team actually needs</li>
+          <li>Founder-led — direct, fast iteration on what a team actually needs</li>
           <li>Live product demo available immediately</li>
         </ul>
       </div>
@@ -267,7 +222,7 @@ def generate_html(team_slug: str | None) -> str:
 
   <div class="pilot">
     <div class="pill">Free Pilot</div>
-    <p>{pilot_line} Live demo available at <strong>fan-xp.vercel.app</strong>{f" &nbsp;&middot;&nbsp; {arena}" if arena else ""}</p>
+    <p>We offer to run our full data collection and reporting pipeline for one home game at no cost — delivering a complete section-level no-show report with no commitment required. Live demo available at <strong>fan-xp.vercel.app</strong></p>
   </div>
 
   <div class="footer">
@@ -281,9 +236,8 @@ def generate_html(team_slug: str | None) -> str:
 
 
 def main():
-    team_slug = sys.argv[1].lower() if len(sys.argv) > 1 else None
-    html = generate_html(team_slug)
-    out = f"../capability_statement_{team_slug}.html" if team_slug else "../capability_statement.html"
+    html = generate_html()
+    out = "../capability_statement.html"
     with open(out, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"-> {out}")
