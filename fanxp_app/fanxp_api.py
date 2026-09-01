@@ -38,6 +38,17 @@ CORS(app)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+def fetch_one(query):
+    """
+    Runs a `.maybe_single()` query and returns its row dict, or None if no
+    row matched. In the installed postgrest-py version, `.maybe_single()
+    .execute()` itself returns None (not a response object with `.data`)
+    on zero rows, so `.data` can't be accessed unconditionally.
+    """
+    result = query.execute()
+    return result.data if result is not None else None
+
+
 def demo_game_id(sb):
     """The most recent game_id that has seeded STH seat assignments."""
     result = (
@@ -403,9 +414,7 @@ def stripe_webhook():
         payment_intent_id = session["payment_intent"]
 
         sb = get_supabase()
-        req = (
-            sb.table("nfl_seat_requests").select("*").eq("id", request_id).maybe_single().execute()
-        ).data
+        req = fetch_one(sb.table("nfl_seat_requests").select("*").eq("id", request_id).maybe_single())
         if req and req["status"] == "requested":
             sb.table("nfl_seat_requests").update({
                 "stripe_payment_intent_id": payment_intent_id,
@@ -420,9 +429,7 @@ def stripe_webhook():
 @app.route("/api/nfl/requests/<int:request_id>")
 def nfl_request_status(request_id):
     sb = get_supabase()
-    row = (
-        sb.table("nfl_seat_requests").select("*").eq("id", request_id).maybe_single().execute()
-    ).data
+    row = fetch_one(sb.table("nfl_seat_requests").select("*").eq("id", request_id).maybe_single())
     if not row:
         return jsonify({"error": "not found"}), 404
     row = expire_if_stale(sb, row)
@@ -547,9 +554,7 @@ def apply_nfl_response(request_id, decision):
         return None, "decision must be YES or NO"
 
     sb = get_supabase()
-    req = (
-        sb.table("nfl_seat_requests").select("*").eq("id", request_id).maybe_single().execute()
-    ).data
+    req = fetch_one(sb.table("nfl_seat_requests").select("*").eq("id", request_id).maybe_single())
     if not req:
         return None, "not found"
     req = expire_if_stale(sb, req)
