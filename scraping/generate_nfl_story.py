@@ -77,7 +77,7 @@ def load_game(slug: str, folder: str) -> dict | None:
     with open(meta_path, encoding="utf-8") as f:
         meta = json.load(f)
     pre  = load_csv_rows(f"{gdir}/pre_game.csv")
-    mid  = load_csv_rows(f"{gdir}/mid_game.csv")
+    mid  = load_csv_rows(f"{gdir}/halftime.csv")
     ns   = load_csv_rows(f"{gdir}/no_shows.csv")
     return {"folder": folder, "meta": meta, "pre": pre, "mid": mid, "noshows": ns}
 
@@ -93,7 +93,7 @@ def load_games_from_supabase(slug: str) -> list[dict]:
         pre_count = supabase_client.count_listings(game_id, "pre_game")
         if pre_count == 0:
             continue  # no scrape data yet for this game
-        mid_count = supabase_client.count_listings(game_id, "mid_game")
+        mid_count = supabase_client.count_listings(game_id, "halftime")
         no_shows  = supabase_client.fetch_no_shows_for_game(game_id)
         ns_value  = sum(float(r.get("price_usd") or 0) for r in no_shows)
         ns_count  = len(no_shows)
@@ -351,7 +351,7 @@ def generate_html(slug: str) -> str:
   <div class="hero">
     <div class="hero-tag">NFL Team Dashboard · {city} · {arena}</div>
     <h1>{name}</h1>
-    <p class="sub">Secondary-market no-show tracking: pre-game vs. mid-game listings</p>
+    <p class="sub">Secondary-market no-show tracking: pre-game vs. halftime listings</p>
   </div>
 
   <div class="kpi-grid">
@@ -388,7 +388,7 @@ def generate_html(slug: str) -> str:
       <table>
         <thead>
           <tr>
-            <th>Date</th><th>Opponent</th><th>Pre-game</th><th>Mid-game</th>
+            <th>Date</th><th>Opponent</th><th>Pre-game</th><th>Halftime</th>
             <th>No-shows</th><th>Rate</th><th>Seat value</th><th>Phantom Revenue</th>
           </tr>
         </thead>
