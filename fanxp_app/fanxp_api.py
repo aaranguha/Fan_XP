@@ -404,7 +404,7 @@ def stripe_webhook():
 
         sb = get_supabase()
         req = (
-            sb.table("nfl_seat_requests").select("*").eq("id", request_id).single().execute()
+            sb.table("nfl_seat_requests").select("*").eq("id", request_id).maybe_single().execute()
         ).data
         if req and req["status"] == "requested":
             sb.table("nfl_seat_requests").update({
@@ -421,7 +421,7 @@ def stripe_webhook():
 def nfl_request_status(request_id):
     sb = get_supabase()
     row = (
-        sb.table("nfl_seat_requests").select("*").eq("id", request_id).single().execute()
+        sb.table("nfl_seat_requests").select("*").eq("id", request_id).maybe_single().execute()
     ).data
     if not row:
         return jsonify({"error": "not found"}), 404
@@ -548,7 +548,7 @@ def apply_nfl_response(request_id, decision):
 
     sb = get_supabase()
     req = (
-        sb.table("nfl_seat_requests").select("*").eq("id", request_id).single().execute()
+        sb.table("nfl_seat_requests").select("*").eq("id", request_id).maybe_single().execute()
     ).data
     if not req:
         return None, "not found"
