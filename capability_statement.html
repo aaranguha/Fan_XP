@@ -2,254 +2,150 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<title>Fan XP · Capability Statement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&display=swap" rel="stylesheet" />
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --text: #16181c; --muted: #6d7076; --muted-2: #9a9da3; --border: #e7e6e2;
+    --accent: #2f5fff; --accent-wash: #ecf0ff;
+    --sans: 'Inter', sans-serif; --serif: 'Newsreader', Georgia, serif;
+  }
   body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 11px;
-    color: #1a1a1a;
-    background: white;
-    padding: 48px 56px;
-    max-width: 780px;
-    margin: 0 auto;
+    font-family: var(--sans); font-size: 11px; color: var(--text);
+    background: white; padding: 48px 56px; max-width: 780px; margin: 0 auto;
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* Header */
   .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    border-bottom: 2px solid #1a1a1a;
-    padding-bottom: 16px;
-    margin-bottom: 20px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    border-bottom: 2px solid var(--text); padding-bottom: 16px; margin-bottom: 20px;
   }
-  .header-left h1 {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-  }
-  .header-left p {
-    font-size: 10px;
-    color: #555;
-    margin-top: 3px;
-  }
-  .header-right {
-    text-align: right;
-    font-size: 10px;
-    color: #555;
-    line-height: 1.7;
-  }
-  .header-right strong {
-    color: #1a1a1a;
-    font-size: 11px;
-  }
+  .header-left .word { font-family: var(--serif); font-weight: 500; font-size: 24px; letter-spacing: -.01em; }
+  .header-left .word .xp { color: var(--accent); font-style: italic; }
+  .header-left p { font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .header-right { text-align: right; font-size: 10px; color: var(--muted); line-height: 1.7; }
+  .header-right strong { color: var(--text); font-size: 11px; }
 
-  /* Tag line */
   .tagline {
-    background: #1a1a1a;
-    color: white;
-    padding: 10px 14px;
-    font-size: 11px;
-    line-height: 1.5;
-    margin-bottom: 20px;
-    border-radius: 2px;
+    background: var(--accent); color: white; padding: 10px 14px;
+    font-size: 11px; line-height: 1.5; margin-bottom: 20px; border-radius: 4px;
   }
 
-  /* Sections */
-  .section {
-    margin-bottom: 18px;
-  }
+  .section { margin-bottom: 18px; }
   .section h2 {
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: #888;
-    border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 4px;
-    margin-bottom: 9px;
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 9px;
   }
-  .section p {
-    font-size: 11px;
-    line-height: 1.65;
-    color: #2a2a2a;
-  }
+  .section p { font-size: 11px; line-height: 1.65; color: #2a2a2a; }
 
-  /* Two-column layout */
-  .two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
-  /* Stats row */
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 18px;
-  }
-  .stat {
-    border: 1px solid #e0e0e0;
-    padding: 10px 12px;
-    border-radius: 2px;
-  }
-  .stat .number {
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 1;
-    color: #1a1a1a;
-  }
-  .stat .label {
-    font-size: 9px;
-    color: #888;
-    margin-top: 3px;
-    line-height: 1.3;
-  }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+  .stat { border: 1px solid var(--border); padding: 10px 12px; border-radius: 4px; }
+  .stat .number { font-family: var(--serif); font-size: 20px; font-weight: 600; line-height: 1; color: var(--text); }
+  .stat .label { font-size: 9px; color: var(--muted); margin-top: 4px; line-height: 1.3; }
 
-  /* Bullet list */
-  ul {
-    padding-left: 14px;
-    margin-top: 4px;
-  }
-  ul li {
-    font-size: 11px;
-    line-height: 1.7;
-    color: #2a2a2a;
-  }
+  ul { padding-left: 14px; margin-top: 4px; }
+  ul li { font-size: 11px; line-height: 1.7; color: #2a2a2a; }
 
-  /* Pilot box */
   .pilot {
-    border: 1.5px solid #1a1a1a;
-    padding: 10px 14px;
-    border-radius: 2px;
-    margin-top: 18px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    border: 1.5px solid var(--accent); padding: 10px 14px; border-radius: 4px;
+    margin-top: 18px; display: flex; align-items: center; gap: 12px; background: var(--accent-wash);
   }
   .pilot .pill {
-    background: #1a1a1a;
-    color: white;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    padding: 4px 8px;
-    border-radius: 2px;
-    white-space: nowrap;
+    background: var(--accent); color: white; font-size: 9px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; white-space: nowrap;
   }
-  .pilot p {
-    font-size: 11px;
-    line-height: 1.5;
-    color: #2a2a2a;
-  }
+  .pilot p { font-size: 11px; line-height: 1.5; color: #2a2a2a; }
 
-  /* Footer */
   .footer {
-    margin-top: 20px;
-    padding-top: 12px;
-    border-top: 1px solid #e0e0e0;
-    display: flex;
-    justify-content: space-between;
-    font-size: 9px;
-    color: #888;
+    margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; font-size: 9px; color: var(--muted);
   }
-  .footer a {
-    color: #1a1a1a;
-    text-decoration: none;
-    font-weight: 600;
-  }
+  .footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
 
-  @media print {
-    body { padding: 32px 40px; }
-  }
+  @media print { body { padding: 32px 40px; } }
 </style>
 </head>
 <body>
 
-  <!-- Header -->
   <div class="header">
     <div class="header-left">
-      <h1>N2IA Technologies</h1>
-      <p>Capability Statement &nbsp;·&nbsp; Washington Commanders RFI &nbsp;·&nbsp; July 1, 2026</p>
+      <div class="word">Fan<span class="xp">XP</span></div>
+      <p>Capability Statement &nbsp;&middot;&nbsp; August 31, 2026</p>
     </div>
     <div class="header-right">
       <strong>Aaran Guha</strong><br>
-      Data Analyst<br>
+      Founder<br>
       aaranguhaca@gmail.com<br>
-      n2ia-technologies.com
+      fan-xp.vercel.app
     </div>
   </div>
 
-  <!-- Tagline -->
   <div class="tagline">
-    N2IA Technologies delivers a real-time fan attendance intelligence capability that identifies, at the section level, which sold seats go unoccupied at every home game — with no integration into existing ticketing systems required.
+    Fan XP delivers real-time fan attendance intelligence that identifies, at the section level, which sold seats go unoccupied at every home game — with no integration into existing ticketing systems required.
   </div>
 
-  <!-- Stats -->
   <div class="stats">
     <div class="stat">
-      <div class="number">22</div>
-      <div class="label">NBA teams tracked</div>
+      <div class="number">32</div>
+      <div class="label">NFL teams monitored</div>
     </div>
     <div class="stat">
-      <div class="number">75</div>
-      <div class="label">Games with complete data</div>
+      <div class="number">91</div>
+      <div class="label">Games with verified no-show data (NBA/WNBA)</div>
     </div>
     <div class="stat">
-      <div class="number">12,886</div>
-      <div class="label">No-show seats identified</div>
+      <div class="number">13,658</div>
+      <div class="label">No-show seats identified to date</div>
     </div>
     <div class="stat">
-      <div class="number">3</div>
-      <div class="label">Leagues: NBA, MLB, WNBA</div>
+      <div class="number">$1,731,869</div>
+      <div class="label">In no-show ticket value identified</div>
     </div>
   </div>
 
-  <!-- Two column -->
   <div class="two-col">
 
     <div>
-      <!-- Problem -->
       <div class="section">
         <h2>The Problem</h2>
-        <p>Ticketing platforms tell you who bought a seat. They cannot tell you who sat in it. For a venue like FedEx Field, the gap between tickets sold and fans in seats directly impacts concession revenue, sponsor activation value, atmosphere, and broadcast product quality — yet no existing tool measures this in real time at the section level.</p>
+        <p>Ticketing platforms tell you who bought a seat. They cannot tell you who sat in it. The gap between tickets sold and fans in seats directly impacts concession revenue, sponsor activation value, atmosphere, and broadcast product quality — yet no existing tool measures this in real time at the section level.</p>
       </div>
 
-      <!-- How it works -->
       <div class="section">
         <h2>How It Works</h2>
-        <p>Our methodology captures live secondary market seat availability at two points per game:</p>
+        <p>Our methodology captures live secondary-market seat availability at two points per game:</p>
         <ul style="margin-top:6px">
-          <li><strong>Pre-game</strong> — 60 min before kickoff, baseline by section</li>
-          <li><strong>Mid-game</strong> — halftime, seats back on the market</li>
+          <li><strong>Pre-game</strong> — before kickoff, baseline by section</li>
+          <li><strong>Halftime</strong> — seats back on the market</li>
         </ul>
         <p style="margin-top:6px">The delta between these snapshots identifies confirmed no-show seats — mapped by section, price tier, opponent, and day of week. Fully automated. No manual reporting.</p>
       </div>
     </div>
 
     <div>
-      <!-- Deliverables -->
       <div class="section">
-        <h2>What We Deliver for the Commanders</h2>
+        <h2>What We Deliver</h2>
         <ul>
           <li>Per-section no-show rates every home game</li>
-          <li>Opponent & day-of-week attendance breakdowns</li>
-          <li>Secondary market pricing trends pre- & in-game</li>
+          <li>Opponent &amp; day-of-week attendance breakdowns</li>
+          <li>Secondary market pricing trends pre- &amp; in-game</li>
           <li>Live dashboard, auto-updated after every game</li>
           <li>Season-over-season trend analysis</li>
         </ul>
       </div>
 
-      <!-- Why N2IA -->
       <div class="section">
-        <h2>Why N2IA</h2>
+        <h2>Why Fan XP</h2>
         <ul>
-          <li>8(a) certified small business, Washington D.C.</li>
-          <li>Data analytics & agentic AI practice</li>
-          <li>Real-time automated data pipeline expertise</li>
-          <li>Local to the Commanders — available in person</li>
+          <li>Already monitoring 32 NFL teams, plus MLB, WNBA, and NBA</li>
+          <li>Methodology already proven with real captured data — not a mockup</li>
+          <li>Fully automated pipeline, zero ticketing-system integration required</li>
+          <li>Founder-led — direct, fast iteration on what your team actually needs</li>
           <li>Live product demo available immediately</li>
         </ul>
       </div>
@@ -257,16 +153,14 @@
 
   </div>
 
-  <!-- Pilot offer -->
   <div class="pilot">
     <div class="pill">Free Pilot</div>
-    <p>We are offering to run our full data collection and reporting pipeline for <strong>one Commanders home game at no cost</strong> — delivering a complete section-level no-show report with no commitment required. Live demo available at <strong>fan-xp.vercel.app</strong></p>
+    <p>We're offering to run our full data collection and reporting pipeline for <strong>one home game at no cost</strong> — delivering a complete section-level no-show report with no commitment required. Live demo available at <strong>fan-xp.vercel.app</strong></p>
   </div>
 
-  <!-- Footer -->
   <div class="footer">
-    <span>N2IA Technologies &nbsp;·&nbsp; 2000 Pennsylvania Ave NW, Suite 7000, Washington D.C.</span>
-    <span><a href="https://www.n2ia-technologies.com">n2ia-technologies.com</a></span>
+    <span>Fan XP</span>
+    <span><a href="https://fan-xp.vercel.app">fan-xp.vercel.app</a></span>
   </div>
 
 </body>

@@ -13,6 +13,10 @@ scraping/data/**/*.log
 # Debug artifacts only
 warriors_listings.csv
 
+# Team-specific pitch docs are one-off sales assets, not for the public repo.
+# The generic capability_statement.html (no team name) stays tracked.
+capability_statement_*.html
+
 # Debug artifacts
 investigate_*.json
 investigate_tm.py
