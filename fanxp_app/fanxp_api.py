@@ -451,7 +451,14 @@ def resolve_nfl_seat_request(sb, req, seller, decision):
     """
     if decision == "YES":
         if req.get("stripe_payment_intent_id"):
-            get_stripe().PaymentIntent.capture(req["stripe_payment_intent_id"])
+            try:
+                get_stripe().PaymentIntent.capture(req["stripe_payment_intent_id"])
+            except Exception:
+                # Don't confirm a seat whose payment wasn't actually
+                # captured -- leave the row as 'seller_pinged' so the
+                # seller's next tap/reply can retry instead of silently
+                # handing out a seat nobody paid for.
+                return "capture_failed"
 
         pass_code = secrets.token_hex(6).upper()
 
@@ -477,7 +484,10 @@ def resolve_nfl_seat_request(sb, req, seller, decision):
 
     elif decision == "NO":
         if req.get("stripe_payment_intent_id"):
-            get_stripe().PaymentIntent.cancel(req["stripe_payment_intent_id"])
+            try:
+                get_stripe().PaymentIntent.cancel(req["stripe_payment_intent_id"])
+            except Exception:
+                pass  # already captured/cancelled/expired on Stripe's side -- fine
 
         sb.table("nfl_seat_requests").update({
             "status":     "declined",
@@ -567,6 +577,8 @@ def respond_nfl_request(request_id):
     if error:
         status_code = 404 if error == "not found" else 409 if "awaiting" in error else 400
         return jsonify({"error": error}), status_code
+    if new_status == "capture_failed":
+        return jsonify({"error": "payment capture failed, please try again"}), 502
     return jsonify({"request_id": request_id, "status": new_status})
 
 
@@ -609,6 +621,9 @@ def nfl_respond_link(request_id):
     if new_status == "confirmed":
         return NFL_RESPOND_PAGE.format(icon="\U0001F389", heading="Seat released — thanks!",
                                         body="The fan has been sent their gate pass. Your stadium credit has been added.")
+    if new_status == "capture_failed":
+        return NFL_RESPOND_PAGE.format(icon="⚠️", heading="Something went wrong",
+                                        body="We couldn't complete the payment on our end. Please tap the link again in a moment."), 502
     return NFL_RESPOND_PAGE.format(icon="\U0001F44D", heading="Got it, seat kept",
                                     body="We let the fan know it's not available.")
 
