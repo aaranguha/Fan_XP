@@ -83,9 +83,20 @@ def insert_listings(
     """
     Bulk-insert seat listing rows for one snapshot ('pre_game' or 'halftime'/'mid_game').
     Inserts in batches of 500 to stay within Supabase limits.
+
+    Guards against duplicate inserts: if this game/snapshot already has rows
+    (e.g. a runner invoked twice for the same game -- overlapping cron
+    triggers, a manual retry, a runner that reads its own already-scraped
+    local CSV and re-inserts it), this is a no-op instead of adding a second
+    copy. This is the fix for a real bug found in production: MLB's
+    no_shows table had games with 100,000+ rows from exactly this pattern.
     """
     client = _get_client()
     if not client or not rows or game_id is None:
+        return
+    existing = count_listings(game_id, snapshot)
+    if existing > 0:
+        print(f"  [supabase] {existing} {snapshot} listings already exist for game_id={game_id} — skipping insert")
         return
     try:
         records = []
@@ -157,6 +168,24 @@ def count_listings(game_id: int, snapshot: str) -> int:
         return 0
 
 
+def count_no_shows(game_id: int) -> int:
+    """Return the number of no-show records already stored for a game."""
+    client = _get_client()
+    if not client or game_id is None:
+        return 0
+    try:
+        result = (
+            client.table("no_shows")
+            .select("id", count="exact")
+            .eq("game_id", game_id)
+            .execute()
+        )
+        return result.count or 0
+    except Exception as e:
+        print(f"  [supabase] count_no_shows failed: {e}")
+        return 0
+
+
 def fetch_no_shows_for_game(game_id: int) -> list[dict]:
     """Return all no-show seat records for a game (paginated)."""
     client = _get_client()
@@ -191,9 +220,17 @@ def insert_no_shows(
     game_date: str,
     league: str = "nba",
 ) -> None:
-    """Insert confirmed no-show seat records."""
+    """Insert confirmed no-show seat records.
+
+    Guards against duplicate inserts the same way insert_listings does --
+    see that function's docstring for why.
+    """
     client = _get_client()
     if not client or not rows or game_id is None:
+        return
+    existing = count_no_shows(game_id)
+    if existing > 0:
+        print(f"  [supabase] {existing} no-shows already exist for game_id={game_id} — skipping insert")
         return
     try:
         records = []

@@ -4,17 +4,14 @@ on:
   schedule:
     # Sunday 5 PM UTC = noon ET — catches 1 PM ET afternoon games
     - cron: "0 17 * * 0"
-    # Sunday 11 PM UTC = 6 PM ET — catches Sunday Night Football (8:20 PM ET kick-off)
-    - cron: "0 23 * * 0"
-    # Monday 11 PM UTC = 6 PM ET — catches Monday Night Football (8:15 PM ET)
-    - cron: "0 23 * * 1"
-    # Thursday 11 PM UTC = 6 PM ET — catches Thursday Night Football (8:15 PM ET)
-    - cron: "0 23 * * 4"
-    # Friday/Saturday 11 PM UTC — preseason and occasional regular-season
-    # games run on these days too; the regular Sun/Mon/Thu-only schedule
-    # missed a real preseason game entirely (confirmed 2026-08-28).
-    - cron: "0 23 * * 5"
-    - cron: "0 23 * * 6"
+    # 11 PM UTC = 6 PM ET, every day of the week — catches any evening
+    # kick-off (SNF, MNF, TNF, and one-off games on other days). Previously
+    # only Sun/Mon/Thu/Fri/Sat were listed and it missed real games twice:
+    # a preseason Fri/Sat game (2026-08-28) and a Wednesday regular-season
+    # game (2026-09-09) that the old schedule had no trigger for at all.
+    # Firing every day is cheap -- nfl_runner.py checks for a home game via
+    # the Ticketmaster API and exits immediately if there isn't one.
+    - cron: "0 23 * * *"
   workflow_dispatch:
 
 permissions:
