@@ -377,20 +377,10 @@ Object.keys(SECS).forEach(name => {
     labelsG.appendChild(label);
   }
 
-  const openCount = SECS[name].filter(d => d[5]).length;
-  if (openCount > 0) {
-    const [cx, cy] = META.centroids[name] || [0,0];
-    const g = document.createElementNS(svgNS, 'g');
-    g.setAttribute('class', 'section-badge');
-    const c = document.createElementNS(svgNS, 'circle');
-    c.setAttribute('cx', cx); c.setAttribute('cy', cy - 130); c.setAttribute('r', 62);
-    g.appendChild(c);
-    const t = document.createElementNS(svgNS, 'text');
-    t.setAttribute('x', cx); t.setAttribute('y', cy - 130 + 16);
-    t.textContent = openCount;
-    g.appendChild(t);
-    badgesG.appendChild(g);
-  }
+  // No per-section open-seat-count badge at the overview level anymore --
+  // TM's own chart doesn't show one either, and ours rendered too small to
+  // actually read, just adding clutter. Open seats are still fully visible
+  // once you tap into a section (buildDots below).
 });
 
 const tipEl = document.getElementById('tip');

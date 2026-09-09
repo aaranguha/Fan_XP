@@ -22,6 +22,7 @@ Output:
 import csv
 import glob
 import json
+import math
 import os
 import random
 import sys
@@ -105,6 +106,51 @@ def convex_hull(points):
         upper.append(p)
 
     return lower[:-1] + upper[:-1]
+
+
+def min_area_rect(hull):
+    """
+    Minimum-area bounding rectangle of a convex polygon (rotating
+    calipers), returned as 4 corners. A raw convex hull of real seat
+    positions looks organic/irregular -- real stadium sections are clean
+    trapezoids/rectangles, so fitting the tightest rectangle around the
+    seats reads as a proper section block instead of a hand-drawn blob,
+    much closer to how Ticketmaster's own chart actually looks.
+    """
+    if len(hull) < 3:
+        return hull
+
+    best_area = None
+    best_rect = None
+    n = len(hull)
+    for i in range(n):
+        x1, y1 = hull[i]
+        x2, y2 = hull[(i + 1) % n]
+        dx, dy = x2 - x1, y2 - y1
+        edge_len = math.hypot(dx, dy)
+        if edge_len < 1e-9:
+            continue
+        ux, uy = dx / edge_len, dy / edge_len  # edge direction (unit)
+        vx, vy = -uy, ux                        # perpendicular (unit)
+
+        # Project every hull point onto (u, v) axes aligned with this edge.
+        us = [px * ux + py * uy for px, py in hull]
+        vs = [px * vx + py * vy for px, py in hull]
+        umin, umax = min(us), max(us)
+        vmin, vmax = min(vs), max(vs)
+        area = (umax - umin) * (vmax - vmin)
+
+        if best_area is None or area < best_area:
+            best_area = area
+            # Rebuild the 4 corners in original xy space from the (u, v) box.
+            best_rect = [
+                (umin * ux + vmin * vx, umin * uy + vmin * vy),
+                (umax * ux + vmin * vx, umax * uy + vmin * vy),
+                (umax * ux + vmax * vx, umax * uy + vmax * vy),
+                (umin * ux + vmax * vx, umin * uy + vmax * vy),
+            ]
+
+    return best_rect if best_rect else hull
 
 
 def find_sections(seg, out):
@@ -208,6 +254,8 @@ def main():
                     (x1 - nx * half_w, y1 - ny * half_w),
                     (x0 - nx * half_w, y0 - ny * half_w),
                 ]
+            else:
+                hull = min_area_rect(hull)
             padded = [
                 [round(cx + (hx - cx) * HULL_PAD, 1), round(cy + (hy - cy) * HULL_PAD, 1)]
                 for hx, hy in hull
