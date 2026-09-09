@@ -20,13 +20,16 @@ permissions:
 jobs:
   run-nfl:
     runs-on: [self-hosted, nfl-runner]
-    # Was 360 (6h) -- too short. GitHub's scheduled triggers can fire hours
-    # late under platform load (confirmed: the 2026-08-28 game was caught
-    # by a Thursday-23:00-UTC cron that actually fired ~8h late, at Friday
-    # 06:50 UTC), and from there the runner still has to wait for kickoff
-    # (evening games) plus reach halftime. 360 minutes killed that run
-    # before it ever captured data.
-    timeout-minutes: 720
+    # Was 360 (6h), then 720 (12h) -- neither was enough. Confirmed live on
+    # 2026-09-09: a manual restart at 07:22 UTC for an unrelated code fix,
+    # with kickoff not until 00:20 UTC the next day (pregame scrape at
+    # 23:20 UTC) needed the job to stay alive ~16h -- the 720-minute cap
+    # killed it 4 hours before it ever reached the scrape. A scheduled
+    # trigger can also fire hours late under platform load (2026-08-28: an
+    # ~8h-late fire). 1440 (24h) covers both a late-firing trigger and a
+    # same-day restart well before a late kickoff, plus the wait for
+    # halftime after.
+    timeout-minutes: 1440
 
     env:
       TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
