@@ -227,29 +227,43 @@ let pickedSeat = null;
 
 // ── Step 1 (default state): flat, tier-colored real TM section paths ──
 // Ticketmaster's own SVG export doesn't use one consistent id scheme per
-// section -- most are a clean "<num>", but plenty are "Shape<num>",
-// "<num> lvl", or (accessible/companion seating with no drawn shape of its
-// own) have no element at all and fall back to their base section's shape.
-// Confirmed against real data (Lumen Field): plain lookup alone matched
-// only 126/260 real sections; these four strategies together match 177/260
-// -- the rest genuinely have no boundary drawn in TM's own artwork.
+// section. Confirmed against real data (Lumen Field) with a real headless
+// browser, not assumption: a plain document.getElementById(name) lookup
+// alone matched only 126/260 real sections. The rest fall into two real
+// patterns -- a single element under a different id ("Shape<num>",
+// "<num> lvl"), or (common for large curved upper-deck sections) split
+// into multiple fragment paths with ids like "<num>X96", "<num>X155"
+// instead of one unified shape. findSectionEls always returns an array so
+// both cases share the same code path below.
 const secKeySet = new Set(Object.keys(SECS));
-function findSectionEl(name){
-  return document.getElementById(name)
+function findSectionEls(name){
+  const single = document.getElementById(name)
       || document.getElementById('Shape' + name)
       || document.getElementById(name + ' lvl')
       || (name.endsWith('W') && !secKeySet.has(name.slice(0, -1))
           ? document.getElementById(name.slice(0, -1)) : null);
+  if (single) return [single];
+
+  // CSS.escape guards against section names with characters that would
+  // otherwise break the attribute selector (not seen in practice, but
+  // section-name formats vary a lot across 32 teams' own TM exports).
+  try {
+    return Array.from(document.querySelectorAll(`[id^="${CSS.escape(name)}X"]`));
+  } catch (e) {
+    return [];
+  }
 }
 
 Object.keys(SECS).forEach(name => {
-  const el = findSectionEl(name);
-  if (!el) return;
-  el.dataset.secName = name;
+  const els = findSectionEls(name);
+  if (!els.length) return;
   const tier = META.tiers[name];
-  el.classList.add((tier === 'club' || tier === 'suite') ? 'sec-premium' : 'sec-standard');
-  el.classList.add('sec-path', 'clickable');
-  el.addEventListener('click', () => zoomToSection(name));
+  els.forEach(el => {
+    el.dataset.secName = name;
+    el.classList.add((tier === 'club' || tier === 'suite') ? 'sec-premium' : 'sec-standard');
+    el.classList.add('sec-path', 'clickable');
+    el.addEventListener('click', () => zoomToSection(name));
+  });
 
   if (SECS[name].length > 60) {
     const [lcx, lcy] = META.centroids[name] || [0,0];
