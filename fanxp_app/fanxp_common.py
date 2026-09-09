@@ -48,6 +48,27 @@ def send_or_log_sms(twilio, to_phone, body):
     return twilio.messages.create(body=body, from_=from_number, to=to_phone)
 
 
+def get_anthropic():
+    import anthropic
+    key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("ANTHROPIC_API_KEY not set in .env")
+    return anthropic.Anthropic(api_key=key)
+
+
+def send_telegram(chat_id, text):
+    """Send a plain text message via the Telegram Bot API."""
+    import requests
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    if not token:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN not set in .env")
+    requests.post(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        data={"chat_id": chat_id, "text": text},
+        timeout=10,
+    )
+
+
 def get_supabase():
     from supabase import create_client
     url = os.getenv("SUPABASE_URL", "").strip()

@@ -24,12 +24,14 @@ from fanxp_common import (
     CREDIT_OFFER,
     NFL_OFFER_WINDOW_MINUTES,
     SERVICE_FEE_RATE,
+    get_anthropic,
     get_stripe,
     get_supabase,
     get_twilio,
     send_nfl_seller_sms,
     send_or_log_sms,
     send_surrender_sms,
+    send_telegram,
 )
 
 app = Flask(__name__)
@@ -745,6 +747,109 @@ def twilio_sms_webhook():
         )
 
     return Response("<Response></Response>", mimetype="text/xml")
+
+
+def answer_seat_question(question: str) -> str:
+    """
+    Answers a natural-language question about empty NFL 49ers seats using
+    real captured data: no_shows (confirmed empty -- listed pre-game and
+    still listed at halftime) for the most recent game if that data exists
+    yet, otherwise falls back to pre_game listings (not yet confirmed
+    empty, since halftime hasn't happened) so the bot is still useful
+    mid-game before the halftime scrape has run.
+    """
+    sb = get_supabase()
+    games = (
+        sb.table("games").select("*")
+          .eq("league", "nfl").eq("home_team", "49ers")
+          .order("game_date", desc=True).limit(1).execute()
+    ).data
+    if not games:
+        return "I don't have any 49ers game data yet."
+    game = games[0]
+    game_id = game["id"]
+    opponent = game.get("opponent", "the opponent")
+    game_date = game.get("game_date", "")
+
+    no_shows = (
+        sb.table("no_shows").select("section,row,seat,price_usd")
+          .eq("game_id", game_id).execute()
+    ).data
+
+    if no_shows:
+        basis = "confirmed empty seats (listed for resale before kickoff and still empty at halftime)"
+        seats = no_shows
+    else:
+        listings = (
+            sb.table("listings").select("section,row,seat,price_usd")
+              .eq("game_id", game_id).eq("snapshot", "pre_game").execute()
+        ).data
+        if not listings:
+            return f"No seat data captured yet for the {opponent} game ({game_date})."
+        basis = "seats currently listed for resale before kickoff -- halftime hasn't happened yet, so these aren't confirmed empty, just listed"
+        seats = listings
+
+    lines = [
+        f"Sec {r['section']}, Row {r['row']}, Seat {r['seat']}, ${r['price_usd']:.0f}"
+        if r.get("price_usd") is not None else f"Sec {r['section']}, Row {r['row']}, Seat {r['seat']}, price unknown"
+        for r in seats
+    ]
+    data_str = "\n".join(lines)
+
+    client = get_anthropic()
+    msg = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=500,
+        system=(
+            "You answer questions about NFL stadium seat data for Fan XP, a "
+            "no-show detection product. You're given a list of seats "
+            f"({basis}) for one specific game, and a question about it. "
+            "Answer concisely and specifically using only the data given -- "
+            "never invent a seat, section, or price not in the list. If "
+            "asked about specific sections, filter to those and say clearly "
+            "if a requested section has none. If asked for the 'best' or "
+            "'most' sections, rank by count of seats (mention total $ value "
+            "too) and summarize the top few. Keep replies short -- this is "
+            "a text message, not a report."
+        ),
+        messages=[{
+            "role": "user",
+            "content": f"Game: 49ers vs {opponent} ({game_date}).\n\nData ({basis}):\n{data_str}\n\nQuestion: {question}",
+        }],
+    )
+    return msg.content[0].text
+
+
+@app.route("/webhooks/telegram", methods=["POST"])
+def telegram_webhook():
+    """
+    Receives Telegram messages sent to the Fan XP bot. Only responds to the
+    configured TELEGRAM_CHAT_ID (the owner) -- anyone else messaging the bot
+    is silently ignored. Verifies the request actually came from Telegram
+    via the secret token header set on the webhook (see set_telegram_webhook.py).
+    """
+    expected_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "").strip()
+    if expected_secret:
+        got_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if got_secret != expected_secret:
+            return jsonify({"ok": False}), 403
+
+    update  = request.get_json(force=True) or {}
+    message = update.get("message") or {}
+    chat_id = str(message.get("chat", {}).get("id", ""))
+    text    = (message.get("text") or "").strip()
+
+    allowed_chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    if not text or not allowed_chat_id or chat_id != allowed_chat_id:
+        return jsonify({"ok": True})
+
+    try:
+        answer = answer_seat_question(text)
+    except Exception as e:
+        answer = f"Sorry, something went wrong answering that: {e}"
+
+    send_telegram(chat_id, answer)
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

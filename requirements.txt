@@ -8,4 +8,5 @@ flask
 flask-cors
 twilio
 stripe
+anthropic
 gunicorn
