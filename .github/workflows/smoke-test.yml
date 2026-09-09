@@ -1,0 +1,38 @@
+name: Runner Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      event_url:
+        description: "Ticketmaster event URL to test-scrape"
+        required: true
+        default: "https://www.ticketmaster.com/seattle-seahawks-vs-new-england-patriots-seattle-washington-09-09-2026/event/0F006482E67E7496"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: [self-hosted, nfl-runner]
+    timeout-minutes: 15
+
+    env:
+      HEADLESS_BROWSER: "0"
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+
+      - name: Install Playwright + Chromium
+        run: .venv/bin/python -m playwright install chromium
+
+      - name: Run smoke test
+        run: |
+          cd scraping
+          ../.venv/bin/python smoke_test_runner.py "${{ github.event.inputs.event_url }}"
