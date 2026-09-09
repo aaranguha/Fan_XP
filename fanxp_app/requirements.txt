@@ -4,5 +4,5 @@ python-dotenv
 supabase>=2.0.0
 twilio
 stripe
-anthropic
+openai
 gunicorn

@@ -48,12 +48,12 @@ def send_or_log_sms(twilio, to_phone, body):
     return twilio.messages.create(body=body, from_=from_number, to=to_phone)
 
 
-def get_anthropic():
-    import anthropic
-    key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+def get_openai():
+    import openai
+    key = os.getenv("OPENAI_API_KEY", "").strip()
     if not key:
-        raise RuntimeError("ANTHROPIC_API_KEY not set in .env")
-    return anthropic.Anthropic(api_key=key)
+        raise RuntimeError("OPENAI_API_KEY not set in .env")
+    return openai.OpenAI(api_key=key)
 
 
 def send_telegram(chat_id, text):

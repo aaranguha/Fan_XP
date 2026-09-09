@@ -24,7 +24,7 @@ from fanxp_common import (
     CREDIT_OFFER,
     NFL_OFFER_WINDOW_MINUTES,
     SERVICE_FEE_RATE,
-    get_anthropic,
+    get_openai,
     get_stripe,
     get_supabase,
     get_twilio,
@@ -796,28 +796,33 @@ def answer_seat_question(question: str) -> str:
     ]
     data_str = "\n".join(lines)
 
-    client = get_anthropic()
-    msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=500,
-        system=(
-            "You answer questions about NFL stadium seat data for Fan XP, a "
-            "no-show detection product. You're given a list of seats "
-            f"({basis}) for one specific game, and a question about it. "
-            "Answer concisely and specifically using only the data given -- "
-            "never invent a seat, section, or price not in the list. If "
-            "asked about specific sections, filter to those and say clearly "
-            "if a requested section has none. If asked for the 'best' or "
-            "'most' sections, rank by count of seats (mention total $ value "
-            "too) and summarize the top few. Keep replies short -- this is "
-            "a text message, not a report."
-        ),
-        messages=[{
-            "role": "user",
-            "content": f"Game: 49ers vs {opponent} ({game_date}).\n\nData ({basis}):\n{data_str}\n\nQuestion: {question}",
-        }],
+    client = get_openai()
+    resp = client.chat.completions.create(
+        model="gpt-5-nano",
+        max_completion_tokens=500,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You answer questions about NFL stadium seat data for Fan XP, a "
+                    "no-show detection product. You're given a list of seats "
+                    f"({basis}) for one specific game, and a question about it. "
+                    "Answer concisely and specifically using only the data given -- "
+                    "never invent a seat, section, or price not in the list. If "
+                    "asked about specific sections, filter to those and say clearly "
+                    "if a requested section has none. If asked for the 'best' or "
+                    "'most' sections, rank by count of seats (mention total $ value "
+                    "too) and summarize the top few. Keep replies short -- this is "
+                    "a text message, not a report."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Game: 49ers vs {opponent} ({game_date}).\n\nData ({basis}):\n{data_str}\n\nQuestion: {question}",
+            },
+        ],
     )
-    return msg.content[0].text
+    return resp.choices[0].message.content
 
 
 @app.route("/webhooks/telegram", methods=["POST"])

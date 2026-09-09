@@ -8,5 +8,5 @@ flask
 flask-cors
 twilio
 stripe
-anthropic
+openai
 gunicorn
