@@ -800,6 +800,13 @@ def answer_seat_question(question: str) -> str:
     resp = client.chat.completions.create(
         model="gpt-5-nano",
         max_completion_tokens=500,
+        # Without this, gpt-5-nano can spend its entire token budget on
+        # internal reasoning and return an empty message (confirmed live:
+        # finish_reason "length", 0 output text, 100/100 tokens spent on
+        # reasoning) -- this task is a simple data lookup, not something
+        # that needs deep reasoning, so minimal also means fewer billed
+        # tokens.
+        reasoning_effort="minimal",
         messages=[
             {
                 "role": "system",
