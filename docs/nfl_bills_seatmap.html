@@ -226,9 +226,26 @@ let zoomedSec = null;
 let pickedSeat = null;
 
 // ── Step 1 (default state): flat, tier-colored real TM section paths ──
+// Ticketmaster's own SVG export doesn't use one consistent id scheme per
+// section -- most are a clean "<num>", but plenty are "Shape<num>",
+// "<num> lvl", or (accessible/companion seating with no drawn shape of its
+// own) have no element at all and fall back to their base section's shape.
+// Confirmed against real data (Lumen Field): plain lookup alone matched
+// only 126/260 real sections; these four strategies together match 177/260
+// -- the rest genuinely have no boundary drawn in TM's own artwork.
+const secKeySet = new Set(Object.keys(SECS));
+function findSectionEl(name){
+  return document.getElementById(name)
+      || document.getElementById('Shape' + name)
+      || document.getElementById(name + ' lvl')
+      || (name.endsWith('W') && !secKeySet.has(name.slice(0, -1))
+          ? document.getElementById(name.slice(0, -1)) : null);
+}
+
 Object.keys(SECS).forEach(name => {
-  const el = document.getElementById(name);
+  const el = findSectionEl(name);
   if (!el) return;
+  el.dataset.secName = name;
   const tier = META.tiers[name];
   el.classList.add((tier === 'club' || tier === 'suite') ? 'sec-premium' : 'sec-standard');
   el.classList.add('sec-path', 'clickable');
@@ -303,7 +320,7 @@ function zoomToSection(name){
   zoomedSec = name;
 
   document.querySelectorAll('.sec-path').forEach(el => {
-    el.classList.toggle('faded', el.id !== name);
+    el.classList.toggle('faded', el.dataset.secName !== name);
   });
   badgesG.style.display = 'none';
   labelsG.style.display = 'none';
