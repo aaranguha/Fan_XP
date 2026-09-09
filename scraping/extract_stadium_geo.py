@@ -75,6 +75,38 @@ def tier_of(name: str) -> str:
     return "other"
 
 
+def convex_hull(points):
+    """
+    Andrew's monotone chain convex hull. Returns hull points in CCW order.
+    Used to draw each section's own clickable/colorable shape directly from
+    its real seat coordinates -- Ticketmaster's background art turned out
+    to have no shape at all for a large share of real sections (confirmed
+    live: only 168/260 for one venue even after chasing every id-naming
+    variant we could find), so this sidesteps that entirely by never
+    depending on their art having a matching shape in the first place.
+    """
+    pts = sorted(set(points))
+    if len(pts) <= 2:
+        return pts
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lower = []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+
+    upper = []
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+
+    return lower[:-1] + upper[:-1]
+
+
 def find_sections(seg, out):
     if seg.get("segmentCategory", "") == "SECTION":
         out.append(seg)
@@ -115,8 +147,15 @@ def main():
     secs = {}
     tiers = {}
     centroids = {}
+    hulls = {}
     total_seats = 0
     total_open = 0
+
+    # How far to push each hull point out from the section's own centroid,
+    # so the drawn shape has some real margin around the seats instead of
+    # a razor-thin outline hugging the exact dot positions -- closer to
+    # how TM's own clean section blocks look.
+    HULL_PAD = 1.18
 
     for sec in sections:
         name = sec["name"]
@@ -145,11 +184,40 @@ def main():
 
         if dots:
             secs[name] = dots
-            centroids[name] = [round(sum(xs) / len(xs), 1), round(sum(ys) / len(ys), 1)]
+            cx, cy = sum(xs) / len(xs), sum(ys) / len(ys)
+            centroids[name] = [round(cx, 1), round(cy, 1)]
+
+            hull = convex_hull(list(zip(xs, ys)))
+            if len(hull) < 3:
+                # All seats collinear (a single-row section, e.g. a narrow
+                # accessible-seating row) -- convex_hull degenerates to a
+                # line with no fillable interior. Thicken it into a thin
+                # rectangle perpendicular to the row instead of dropping
+                # the section entirely.
+                (x0, y0), (x1, y1) = (hull[0], hull[-1]) if len(hull) == 2 else (hull[0], hull[0])
+                dx, dy = x1 - x0, y1 - y0
+                length = (dx * dx + dy * dy) ** 0.5
+                if length < 1e-6:
+                    nx, ny = 1.0, 0.0
+                else:
+                    nx, ny = -dy / length, dx / length
+                half_w = 12.0
+                hull = [
+                    (x0 + nx * half_w, y0 + ny * half_w),
+                    (x1 + nx * half_w, y1 + ny * half_w),
+                    (x1 - nx * half_w, y1 - ny * half_w),
+                    (x0 - nx * half_w, y0 - ny * half_w),
+                ]
+            padded = [
+                [round(cx + (hx - cx) * HULL_PAD, 1), round(cy + (hy - cy) * HULL_PAD, 1)]
+                for hx, hy in hull
+            ]
+            hulls[name] = padded
 
     out = {
         "tiers": tiers,
         "centroids": centroids,
+        "hulls": hulls,
         "secs": secs,
         "data_source": "real" if using_real_data else "simulated",
         "game_date": game_date,

@@ -48,7 +48,7 @@ def main():
     extract = json.load(open(extract_path))
     FULL_JSON = json.dumps({"secs": extract["secs"]}, separators=(",", ":"))
     META_JSON = json.dumps(
-        {"tiers": extract["tiers"], "centroids": extract["centroids"]},
+        {"tiers": extract["tiers"], "centroids": extract["centroids"], "hulls": extract.get("hulls", {})},
         separators=(",", ":"),
     )
 
@@ -288,6 +288,7 @@ circle.dot-picked{fill:var(--good) !important;}
     <div id="mapwrap">
       <svg id="bowlsvg" viewBox="__VIEWBOX_ATTR__" xmlns="http://www.w3.org/2000/svg">
 __ARENA_INNER__
+        <g id="sections"></g>
         <g id="labels"></g>
         <g id="badges"></g>
         <g id="dots-gray"></g>
@@ -341,45 +342,31 @@ let curVB = {...FULL_VB};
 let zoomedSec = null;
 let pickedSeat = null;
 
-// ── Step 1 (default state): flat, tier-colored real TM section paths ──
-// Ticketmaster's own SVG export doesn't use one consistent id scheme per
-// section. Confirmed against real data (Lumen Field) with a real headless
-// browser, not assumption: a plain document.getElementById(name) lookup
-// alone matched only 126/260 real sections. The rest fall into two real
-// patterns -- a single element under a different id ("Shape<num>",
-// "<num> lvl"), or (common for large curved upper-deck sections) split
-// into multiple fragment paths with ids like "<num>X96", "<num>X155"
-// instead of one unified shape. findSectionEls always returns an array so
-// both cases share the same code path below.
-const secKeySet = new Set(Object.keys(SECS));
-function findSectionEls(name){
-  const single = document.getElementById(name)
-      || document.getElementById('Shape' + name)
-      || document.getElementById(name + ' lvl')
-      || (name.endsWith('W') && !secKeySet.has(name.slice(0, -1))
-          ? document.getElementById(name.slice(0, -1)) : null);
-  if (single) return [single];
-
-  // CSS.escape guards against section names with characters that would
-  // otherwise break the attribute selector (not seen in practice, but
-  // section-name formats vary a lot across 32 teams' own TM exports).
-  try {
-    return Array.from(document.querySelectorAll(`[id^="${CSS.escape(name)}X"]`));
-  } catch (e) {
-    return [];
-  }
-}
+// ── Step 1 (default state): flat, tier-colored section shapes ──
+// These are drawn directly from real seat coordinates (a convex hull
+// around every real seat in the section, computed in
+// extract_stadium_geo.py), not matched against Ticketmaster's own
+// background art. TM's SVG export turned out to have no usable shape at
+// all for a large share of real sections, under several different and
+// inconsistent id schemes -- confirmed live, with a real headless
+// browser: chasing every id-naming variant we could find still only
+// recovered 168/260 for one venue. Since every section's real seats are
+// data we already fully control, drawing our own shape from them sidesteps
+// that problem entirely and gets every section with real seat data.
+const sectionsG = document.getElementById('sections');
 
 Object.keys(SECS).forEach(name => {
-  const els = findSectionEls(name);
-  if (!els.length) return;
+  const hull = (META.hulls || {})[name];
+  if (!hull || hull.length < 3) return;
   const tier = META.tiers[name];
-  els.forEach(el => {
-    el.dataset.secName = name;
-    el.classList.add((tier === 'club' || tier === 'suite') ? 'sec-premium' : 'sec-standard');
-    el.classList.add('sec-path', 'clickable');
-    el.addEventListener('click', () => zoomToSection(name));
-  });
+
+  const path = document.createElementNS(svgNS, 'path');
+  path.setAttribute('d', 'M' + hull.map(p => p.join(',')).join('L') + 'Z');
+  path.dataset.secName = name;
+  path.classList.add((tier === 'club' || tier === 'suite') ? 'sec-premium' : 'sec-standard');
+  path.classList.add('sec-path', 'clickable');
+  path.addEventListener('click', () => zoomToSection(name));
+  sectionsG.appendChild(path);
 
   if (SECS[name].length > 60) {
     const [lcx, lcy] = META.centroids[name] || [0,0];
