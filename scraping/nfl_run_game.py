@@ -20,6 +20,7 @@ import re
 import sys
 import time
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 import requests
 from dotenv import load_dotenv
@@ -44,6 +45,12 @@ PRE_GAME_OFFSET_MIN  = 60    # scrape this many minutes before kick-off
 HALFTIME_FALLBACK_MIN = 70   # fallback: minutes after kick-off if live clock unavailable
 Q2_TRIGGER_MIN        = 2    # trigger halftime scrape when Q2 ≤ this many minutes
 POLL_INTERVAL_SEC     = 30
+
+EASTERN = ZoneInfo("America/New_York")
+PRIMETIME_ET_HOUR = 19  # 7 PM ET or later kickoff -- covers SNF/MNF/TNF and
+                         # one-off nationally-televised evening games, while
+                         # excluding the standard 1 PM / 4:05 / 4:25 PM ET
+                         # Sunday afternoon slate.
 
 
 def get_kickoff_utc(event: dict) -> datetime:
@@ -180,9 +187,15 @@ def save_game_meta(event: dict, team: dict, gdir: str) -> dict:
     return meta
 
 
-def notify_49ers(team_slug: str, message: str) -> None:
-    """Telegram status ping, scoped to the 49ers only per request."""
-    if team_slug == "49ers":
+def is_primetime(kickoff_utc: datetime) -> bool:
+    return kickoff_utc.astimezone(EASTERN).hour >= PRIMETIME_ET_HOUR
+
+
+def notify_scrape_status(team_slug: str, primetime: bool, message: str) -> None:
+    """Telegram status ping for 49ers games and primetime games (evening
+    kickoffs), so there's visibility into scrape health for every game
+    worth watching without checking every single one manually."""
+    if team_slug == "49ers" or primetime:
         send_telegram(message)
 
 
@@ -223,12 +236,14 @@ def main():
 
     kickoff       = get_kickoff_utc(event)
     pre_game_time = kickoff - timedelta(minutes=PRE_GAME_OFFSET_MIN)
+    primetime     = is_primetime(kickoff)
 
     print(f"\n  Game:            {name}  ({game_dt})")
     print(f"  Kick-off:        {kickoff.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Pre-game scrape: {pre_game_time.strftime('%H:%M UTC')}  ({PRE_GAME_OFFSET_MIN} min before kick-off)")
     print(f"  Halftime scrape: Live clock (Q2 ≤{Q2_TRIGGER_MIN} min)  |  fallback: {HALFTIME_FALLBACK_MIN} min after kick-off")
-    print(f"  Data folder:     {gdir}/\n")
+    print(f"  Data folder:     {gdir}/")
+    print(f"  Telegram alerts: {'yes (49ers or primetime)' if (team['slug'] == '49ers' or primetime) else 'no'}\n")
 
     sleep_until(pre_game_time, "pre_game")
     jitter = random.randint(0, 240)
@@ -236,15 +251,17 @@ def main():
         print(f"  [jitter] Waiting {jitter}s before scrape...")
         time.sleep(jitter)
 
+    team_label = team["slug"].title()
+
     try:
         pre_rows = run_snapshot(event, url, "pre_game", pg_csv, team["slug"])
         supabase_client.insert_listings(game_id, pre_rows, "pre_game", team["slug"], game_dt, league="nfl")
         priced = sum(1 for r in pre_rows if r.get("price_usd") is not None)
-        notify_49ers(team["slug"],
-            f"49ers pregame scrape done: {len(pre_rows)} seats found, {priced} priced. "
+        notify_scrape_status(team["slug"], primetime,
+            f"{team_label} pregame scrape done: {len(pre_rows)} seats found, {priced} priced. "
             f"vs {opponent} ({game_dt}).")
     except Exception as e:
-        notify_49ers(team["slug"], f"49ers pregame scrape FAILED: {e}")
+        notify_scrape_status(team["slug"], primetime, f"{team_label} pregame scrape FAILED: {e}")
         raise
 
     print("\nWaiting for halftime...")
@@ -254,11 +271,11 @@ def main():
         ht_rows = run_snapshot(event, url, "halftime", ht_csv, team["slug"])
         supabase_client.insert_listings(game_id, ht_rows, "halftime", team["slug"], game_dt, league="nfl")
         priced = sum(1 for r in ht_rows if r.get("price_usd") is not None)
-        notify_49ers(team["slug"],
-            f"49ers halftime scrape done: {len(ht_rows)} seats still listed, {priced} priced. "
+        notify_scrape_status(team["slug"], primetime,
+            f"{team_label} halftime scrape done: {len(ht_rows)} seats still listed, {priced} priced. "
             f"vs {opponent} ({game_dt}).")
     except Exception as e:
-        notify_49ers(team["slug"], f"49ers halftime scrape FAILED: {e}")
+        notify_scrape_status(team["slug"], primetime, f"{team_label} halftime scrape FAILED: {e}")
         raise
 
     print("\nComparing snapshots...")
