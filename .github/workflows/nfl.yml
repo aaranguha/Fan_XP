@@ -32,6 +32,8 @@ jobs:
       TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
       SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
       GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
       GIT_USER_NAME:        "github-actions[bot]"
       GIT_USER_EMAIL:       "github-actions[bot]@users.noreply.github.com"

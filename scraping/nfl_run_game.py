@@ -35,6 +35,7 @@ from fetch_listings import (
     print_summary,
 )
 from compare_snapshots import load_csv, compare, save_no_shows, print_report
+from telegram_notify import send_telegram
 import supabase_client
 
 load_dotenv()
@@ -179,6 +180,12 @@ def save_game_meta(event: dict, team: dict, gdir: str) -> dict:
     return meta
 
 
+def notify_49ers(team_slug: str, message: str) -> None:
+    """Telegram status ping, scoped to the 49ers only per request."""
+    if team_slug == "49ers":
+        send_telegram(message)
+
+
 def main():
     if len(sys.argv) not in (2, 3):
         print("Usage: python nfl_run_game.py <team_slug> [YYYY-MM-DD]")
@@ -229,14 +236,30 @@ def main():
         print(f"  [jitter] Waiting {jitter}s before scrape...")
         time.sleep(jitter)
 
-    pre_rows = run_snapshot(event, url, "pre_game", pg_csv, team["slug"])
-    supabase_client.insert_listings(game_id, pre_rows, "pre_game", team["slug"], game_dt, league="nfl")
+    try:
+        pre_rows = run_snapshot(event, url, "pre_game", pg_csv, team["slug"])
+        supabase_client.insert_listings(game_id, pre_rows, "pre_game", team["slug"], game_dt, league="nfl")
+        priced = sum(1 for r in pre_rows if r.get("price_usd") is not None)
+        notify_49ers(team["slug"],
+            f"49ers pregame scrape done: {len(pre_rows)} seats found, {priced} priced. "
+            f"vs {opponent} ({game_dt}).")
+    except Exception as e:
+        notify_49ers(team["slug"], f"49ers pregame scrape FAILED: {e}")
+        raise
 
     print("\nWaiting for halftime...")
     wait_for_halftime(kickoff, team["espn_tricode"])
 
-    ht_rows = run_snapshot(event, url, "halftime", ht_csv, team["slug"])
-    supabase_client.insert_listings(game_id, ht_rows, "halftime", team["slug"], game_dt, league="nfl")
+    try:
+        ht_rows = run_snapshot(event, url, "halftime", ht_csv, team["slug"])
+        supabase_client.insert_listings(game_id, ht_rows, "halftime", team["slug"], game_dt, league="nfl")
+        priced = sum(1 for r in ht_rows if r.get("price_usd") is not None)
+        notify_49ers(team["slug"],
+            f"49ers halftime scrape done: {len(ht_rows)} seats still listed, {priced} priced. "
+            f"vs {opponent} ({game_dt}).")
+    except Exception as e:
+        notify_49ers(team["slug"], f"49ers halftime scrape FAILED: {e}")
+        raise
 
     print("\nComparing snapshots...")
     pre_rows = load_csv(pg_csv)
