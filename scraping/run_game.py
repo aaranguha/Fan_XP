@@ -41,6 +41,7 @@ from fetch_listings import (
     close_browser_session,
     parse_facet,
     parse_seats,
+    build_rows_from_embedded_offers,
     save_csv,
     print_summary,
 )
@@ -307,8 +308,10 @@ def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str, max_retries
         return load_csv(out_csv)
     scraped_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"\n[{scraped_at}] Starting {snapshot} scrape...")
-    facets, offer_price_map, places_facets = scrape_listings(url, max_retries=max_retries, team_slug=team_slug, session=session, save_endpoints_path=save_endpoints_path)
-    if places_facets:
+    facets, offer_price_map, places_facets, embedded_offers = scrape_listings(url, max_retries=max_retries, team_slug=team_slug, session=session, save_endpoints_path=save_endpoints_path)
+    if embedded_offers:
+        rows = build_rows_from_embedded_offers(embedded_offers, scraped_at)
+    elif places_facets:
         rows = parse_seats(facets, places_facets, offer_price_map, scraped_at)
     else:
         rows = []
@@ -418,8 +421,10 @@ def main():
                     scraped_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                     print(f"\n[{scraped_at}] Starting halftime scrape...")
                     page = browser_session[2]
-                    facets, offer_price_map, places_facets = scrape_from_endpoints(page, endpoints_path, scraped_at)
-                    if places_facets:
+                    facets, offer_price_map, places_facets, embedded_offers = scrape_from_endpoints(page, endpoints_path, scraped_at)
+                    if embedded_offers:
+                        ht_rows = build_rows_from_embedded_offers(embedded_offers, scraped_at)
+                    elif places_facets:
                         ht_rows = parse_seats(facets, places_facets, offer_price_map, scraped_at)
                     else:
                         ht_rows = []

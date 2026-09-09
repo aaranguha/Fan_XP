@@ -97,6 +97,52 @@ def decode_place(place_str):
     return None, None, None
 
 
+def _expand_seat_range(seat_from, seat_to):
+    """Expand a 'seatFrom'..'seatTo' range into individual seat number strings.
+    Falls back to just [seat_from] if either bound isn't a plain integer
+    (e.g. general-admission or lettered seat labels)."""
+    try:
+        a, b = int(seat_from), int(seat_to)
+        lo, hi = (a, b) if a <= b else (b, a)
+        return [str(s) for s in range(lo, hi + 1)]
+    except (TypeError, ValueError):
+        return [str(seat_from)] if seat_from not in (None, "") else []
+
+
+def build_rows_from_embedded_offers(embedded_offers, scraped_at):
+    """
+    Build one CSV row per seat directly from the inventory response's
+    embedded offer objects (embed=offer) -- each resale offer already
+    carries section, row, seatFrom/seatTo, and price together, so this
+    needs no cross-referencing against a separate facets/places response.
+
+    This is the reliable seat+price source as of ~Sept 2026 (see the
+    comment in scrape_listings() for why facet-based joining broke).
+    Only 'resale' offers are used, matching the secondary-market scope of
+    the rest of this pipeline (parse_seats' places_facets query filters to
+    the same inventoryTypes:"resale").
+    """
+    rows = []
+    for offer in embedded_offers:
+        if offer.get("inventoryType") != "resale":
+            continue
+        section = (offer.get("section") or "").strip()
+        row     = (offer.get("row") or "").strip()
+        price   = offer.get("totalPrice")
+        if price is None:
+            price = offer.get("listPrice")
+        for seat in _expand_seat_range(offer.get("seatFrom"), offer.get("seatTo")):
+            rows.append({
+                "section":        section,
+                "row":            row,
+                "seat":           seat,
+                "price_usd":      price,
+                "selection_type": "resale",
+                "scraped_at":     scraped_at,
+            })
+    return rows
+
+
 def parse_seats(all_facets, places_facets, offer_price_map, scraped_at):
     """
     Build seat-level CSV rows by joining:
@@ -257,7 +303,7 @@ def close_browser_session(pw, ctx) -> None:
     pw.stop()
 
 
-def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "default", session=None, save_endpoints_path: str | None = None) -> tuple[list[dict], dict, list[dict]]:
+def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "default", session=None, save_endpoints_path: str | None = None) -> tuple[list[dict], dict, list[dict], list[dict]]:
     """
     Load the TM event page, intercept three XHR calls:
       - services.ticketmaster.com full-inventory facets → ALL available seats (primary + resale)
@@ -268,10 +314,14 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
     If session is None, a new browser is launched and closed after scraping.
 
     Returns:
-        (facets, offer_price_map, places_facets)
+        (facets, offer_price_map, places_facets, embedded_offers)
         facets          — list of raw facet dicts, one per listing group
         offer_price_map — {offer_id: price_usd}
         places_facets   — list of raw places facet dicts (contains encoded seat data)
+        embedded_offers — list of full offer objects (section, row, seatFrom,
+                          seatTo, price) embedded in the inventory response via
+                          embed=offer. This is the reliable seat+price source
+                          -- see build_rows_from_embedded_offers().
     """
     offer_price_map: dict[str, float] = {}
     owns_browser = session is None
@@ -408,6 +458,15 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
             total_seats = sum(f.get("count", 0) for f in all_facets)
             print(f"  Found {len(all_facets)} listing groups covering {total_seats} seats.")
 
+            # TM's inventory URL requests embed=offer, which returns full offer
+            # objects (section, row, seatFrom/seatTo, price) in _embedded.offer.
+            # As of ~Sept 2026 TM stopped putting a "section" field directly on
+            # facets/places facets (they're now grouped by offer id / shape
+            # instead), which silently broke price-to-seat joining everywhere
+            # else in this file -- embedded_offers is the reliable source now;
+            # see build_rows_from_embedded_offers().
+            embedded_offers = inventory_data.get("_embedded", {}).get("offer", [])
+
             # Build offer→price map
             # Try intercepted pricing URL first; if not captured, construct one from inventory URL
             pricing_sources = []
@@ -483,7 +542,7 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
             pw.stop()
 
     print(f"  Price map built for {len(offer_price_map)} offers.")
-    return all_facets, offer_price_map, all_places_facets
+    return all_facets, offer_price_map, all_places_facets, embedded_offers
 
 
 def refresh_endpoints(page, event_url: str, endpoints_path: str) -> bool:
@@ -537,7 +596,7 @@ def refresh_endpoints(page, event_url: str, endpoints_path: str) -> bool:
     return True
 
 
-def scrape_from_endpoints(page, endpoints_path: str, scraped_at: str) -> tuple[list[dict], dict, list[dict]]:
+def scrape_from_endpoints(page, endpoints_path: str, scraped_at: str) -> tuple[list[dict], dict, list[dict], list[dict]]:
     """
     Re-fetch TM inventory data using previously saved XHR endpoint URLs + headers.
     No page navigation — uses page.request.get() to call the APIs directly.
@@ -549,7 +608,7 @@ def scrape_from_endpoints(page, endpoints_path: str, scraped_at: str) -> tuple[l
         scraped_at      — ISO timestamp string for logging
 
     Returns:
-        (all_facets, offer_price_map, places_facets) — same shape as scrape_listings()
+        (all_facets, offer_price_map, places_facets, embedded_offers) — same shape as scrape_listings()
     """
     print(f"  [direct] Loading saved endpoints from {endpoints_path}")
     with open(endpoints_path, "r", encoding="utf-8") as f:
@@ -567,6 +626,7 @@ def scrape_from_endpoints(page, endpoints_path: str, scraped_at: str) -> tuple[l
     all_facets = inventory_data.get("facets", [])
     total_seats = sum(f.get("count", 0) for f in all_facets)
     print(f"  [direct] Found {len(all_facets)} listing groups covering {total_seats} seats.")
+    embedded_offers = inventory_data.get("_embedded", {}).get("offer", [])
 
     # Offer → price map — try saved pricing URL then a constructed one from inventory URL
     offer_price_map: dict[str, float] = {}
@@ -634,7 +694,7 @@ def scrape_from_endpoints(page, endpoints_path: str, scraped_at: str) -> tuple[l
         print("  [direct] Warning: no places endpoint saved — seat numbers will not be available.")
 
     print(f"  [direct] Price map built for {len(offer_price_map)} offers.")
-    return all_facets, offer_price_map, all_places_facets
+    return all_facets, offer_price_map, all_places_facets, embedded_offers
 
 
 # ── Parsing / output ──────────────────────────────────────────────────────────

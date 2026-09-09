@@ -29,6 +29,7 @@ from fetch_listings import (
     scrape_listings,
     parse_facet,
     parse_seats,
+    build_rows_from_embedded_offers,
     save_csv,
     print_summary,
 )
@@ -176,9 +177,11 @@ def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str) -> list[dic
 
     scraped_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"\n[{scraped_at}] Starting {snapshot} scrape...")
-    facets, offer_price_map, places_facets = scrape_listings(url, max_retries=3)
+    facets, offer_price_map, places_facets, embedded_offers = scrape_listings(url, max_retries=3)
 
-    if places_facets:
+    if embedded_offers:
+        rows = build_rows_from_embedded_offers(embedded_offers, scraped_at)
+    elif places_facets:
         rows = parse_seats(facets, places_facets, offer_price_map, scraped_at)
     else:
         rows = []
