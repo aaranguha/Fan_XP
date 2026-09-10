@@ -42,7 +42,24 @@ import supabase_client
 load_dotenv()
 
 PRE_GAME_OFFSET_MIN  = 60    # scrape this many minutes before kick-off
-HALFTIME_FALLBACK_MIN = 70   # fallback: minutes after kick-off if live clock unavailable
+HALFTIME_FALLBACK_MIN = 45   # fallback: minutes after kick-off if live clock unavailable.
+                              # Was 70 (aimed at actual halftime), lowered after the
+                              # 2026-09-09 Seahawks game: TM listings had already
+                              # collapsed from 181 (pre-game) to 4 real seats by the
+                              # 71-minute mark, and were fully gone hours later --
+                              # whatever is closing that inventory out starts well
+                              # before true halftime. 45 min targets roughly halfway
+                              # through Q2 (a full NFL quarter runs ~40-45 real
+                              # minutes on average with stoppages/TV timeouts), erring
+                              # earlier on purpose to catch data before it disappears
+                              # rather than precisely hitting the literal Q2 midpoint.
+                              # This is a first estimate, not a measured value -- ESPN
+                              # (the live-clock source that would trigger earlier,
+                              # exactly when real events happen) is blocked from the
+                              # runner, confirmed via the smoke-test workflow, so this
+                              # fallback is the only timing signal available right now.
+                              # Revisit once a real game confirms whether 45 min still
+                              # catches meaningful inventory or needs to move earlier.
 Q2_TRIGGER_MIN        = 2    # trigger halftime scrape when Q2 ≤ this many minutes
 POLL_INTERVAL_SEC     = 30
 
@@ -280,7 +297,33 @@ def main():
 
     print("\nComparing snapshots...")
     pre_rows = load_csv(pg_csv)
-    ht_rows  = load_csv(ht_csv)
+    # save_csv() legitimately writes nothing when a scrape returns zero
+    # rows (confirmed live, 2026-09-09: the halftime scrape got back only
+    # 4 real seats from TM, well below the threshold below, and never even
+    # got that far because this used to crash on the missing file first) --
+    # a missing halftime.csv is now a valid, expected state, not an error.
+    ht_rows = load_csv(ht_csv) if os.path.isfile(ht_csv) else []
+
+    # Sanity gate: compare() treats every seat present in both snapshots as
+    # a no-show. If the halftime listing count has collapsed far below
+    # pre-game (confirmed live: 181 pre-game -> 4 at halftime, ~98% "no-show"),
+    # that is not real fan behavior -- it means TM's own resale marketplace
+    # emptied out the listings, not that fans failed to show up. Inserting
+    # that as if it were real no-show data would be actively misleading
+    # (a fabricated ~98% no-show rate is worse than no data at all). 15% is
+    # a first estimate for "this isn't real attendance signal anymore", not
+    # a measured value -- revisit once more real games establish what a
+    # normal halftime listing count actually looks like relative to pre-game.
+    MIN_HALFTIME_RATIO = 0.15
+    if pre_rows and len(ht_rows) < len(pre_rows) * MIN_HALFTIME_RATIO:
+        msg = (f"Halftime listings collapsed to {len(ht_rows)} from {len(pre_rows)} pre-game "
+               f"(below {MIN_HALFTIME_RATIO:.0%}) -- likely TM's marketplace closing out "
+               f"listings, not real no-shows. Skipping no-show insert to avoid recording "
+               f"fabricated data.")
+        print(f"  {msg}")
+        notify_scrape_status(team["slug"], primetime, f"{team_label}: {msg}")
+        return
+
     no_shows = compare(pre_rows, ht_rows)
     save_no_shows(no_shows, ns_csv)
     supabase_client.insert_no_shows(game_id, no_shows, team["slug"], game_dt, league="nfl")
