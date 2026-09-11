@@ -263,7 +263,15 @@ def main():
     print(f"  Telegram alerts: {'yes (49ers or primetime)' if (team['slug'] == '49ers' or primetime) else 'no'}\n")
 
     sleep_until(pre_game_time, "pre_game")
-    jitter = random.randint(0, 240)
+    # Widened from 240s -> 480s (8 min). On a Sunday with 8+ teams sharing a
+    # 1:00 PM ET kickoff, every one of those subprocesses hits this line at
+    # the same instant and each opens a real, full (non-headless) Chrome
+    # window via launch_browser_session() on the SAME single runner machine
+    # -- a small jitter window meant several still landed in the same
+    # 30-second slice. There's no timing pressure here (60 min of buffer
+    # before kick-off), so spread further to keep simultaneous browser
+    # launches to a handful instead of most of them at once.
+    jitter = random.randint(0, 480)
     if jitter:
         print(f"  [jitter] Waiting {jitter}s before scrape...")
         time.sleep(jitter)
@@ -283,6 +291,16 @@ def main():
 
     print("\nWaiting for halftime...")
     wait_for_halftime(kickoff, team["espn_tricode"])
+
+    # Same clustering problem as the pre-game scrape, but here we can't
+    # spread as wide -- TM's own listings are actively collapsing as the
+    # game proceeds (see HALFTIME_FALLBACK_MIN comment above), so a long
+    # delay costs real data. A short jitter is enough to avoid every
+    # same-kickoff-time team launching a browser in the exact same second.
+    ht_jitter = random.randint(0, 90)
+    if ht_jitter:
+        print(f"  [jitter] Waiting {ht_jitter}s before halftime scrape...")
+        time.sleep(ht_jitter)
 
     try:
         ht_rows = run_snapshot(event, url, "halftime", ht_csv, team["slug"])
