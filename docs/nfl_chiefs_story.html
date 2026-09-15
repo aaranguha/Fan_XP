@@ -1,30 +1,196 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fan XP · Chiefs Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: #fafaf9; color: #16181c; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 40px; }
-    a { color: #E31837; text-decoration: none; }
-    .back { font-size: 13px; color: #9a9da3; position: absolute; top: 32px; left: 32px; }
-    .emoji { font-size: 56px; margin-bottom: 20px; }
-    h1 { font-family: 'Newsreader', serif; font-size: 26px; font-weight: 500; margin-bottom: 8px; }
-    p { color: #6d7076; font-size: 15px; max-width: 340px; }
-    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #E31837; margin-right: 8px; animation: pulse 1.4s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-    .status { margin-top: 28px; font-size: 13px; font-weight: 600; color: #E31837; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #fafaf9;
+      --surface: #ffffff;
+      --border:  #e7e6e2;
+      --text:    #16181c;
+      --muted:   #6d7076;
+      --muted-2: #9a9da3;
+      --accent:  #E31837;
+      --sans:    'Inter', sans-serif;
+      --serif:   'Newsreader', serif;
+      --mono:    'IBM Plex Mono', monospace;
+      --max:     900px;
+    }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 44px 24px 80px; }
+    .back { font-size: .82rem; color: var(--muted); margin-bottom: 28px; display: inline-block; }
+    .back:hover { color: var(--text); text-decoration: none; }
+    .hero { margin-bottom: 36px; }
+    .hero-tag { font-size: .72rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+    .hero h1 { font-family: var(--serif); font-size: clamp(1.7rem, 3.6vw, 2.3rem); font-weight: 500; letter-spacing: -.005em; margin-bottom: 8px; }
+    .hero .sub { color: var(--muted); font-size: .92rem; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 32px; }
+    .kpi { background: var(--surface); padding: 18px 20px; }
+    .kpi-val { font-family: var(--mono); font-size: 1.7rem; font-weight: 600; letter-spacing: -.02em; color: var(--text); }
+    .kpi.phantom .kpi-val { color: var(--accent); }
+    .kpi-label { font-size: .72rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+    .section { margin-bottom: 36px; }
+    .section h2 { font-size: .82rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 14px; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    th { text-align: left; padding: 9px 12px; font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); font-variant-numeric: tabular-nums; }
+    tr:last-child td { border-bottom: none; }
+    td.hl { color: var(--accent); font-weight: 600; }
+    .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; overflow-x: auto; }
+    .footer { margin-top: 48px; font-size: .78rem; color: var(--muted-2); text-align: center; }
+    .phantom-alert {
+      background: #fff8e8; border: 1px solid #f0dfae; border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 32px; font-size: .85rem; color: #6b5a1f; line-height: 1.6;
+    }
+    .phantom-alert strong { color: #4a3d10; }
   </style>
 </head>
 <body>
+  <div class="wrap">
   <a class="back" href="nfl.html">← All NFL Teams</a>
-  <div class="emoji">🏈</div>
-  <h1>Chiefs</h1>
-  <p>GEHA Field at Arrowhead Stadium · Kansas City</p>
-  <p style="margin-top:16px">No game data collected yet. The runner checks for home games automatically and will populate this dashboard once one has been played.</p>
-  <div class="status"><span class="dot"></span>Monitoring for next home game</div>
+
+  <div class="hero">
+    <div class="hero-tag">NFL Team Dashboard · Kansas City · GEHA Field at Arrowhead Stadium</div>
+    <h1>Chiefs</h1>
+    <p class="sub">Secondary-market no-show tracking: pre-game vs. halftime listings</p>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-val">1</div>
+      <div class="kpi-label">Games tracked</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">286</div>
+      <div class="kpi-label">Total no-show seats</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">100%</div>
+      <div class="kpi-label">Avg no-show rate</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">$131,372</div>
+      <div class="kpi-label">Avg seat value / game</div>
+    </div>
+    <div class="kpi phantom">
+      <div class="kpi-val">$141,382</div>
+      <div class="kpi-label">Total phantom revenue</div>
+    </div>
+    <div class="kpi phantom">
+      <div class="kpi-val">$141,382</div>
+      <div class="kpi-label">Avg phantom / game</div>
+    </div>
+  </div>
+  <div class="phantom-alert">Your stadium lost <strong>$141,382</strong> in phantom revenue — <strong>286 no-shows × seat price + $35 concession spend</strong> — during the Sep 14 game vs Denver Broncos.</div>
+
+  <div class="section">
+    <h2>Game Log</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Opponent</th><th>Pre-game</th><th>Halftime</th>
+            <th>No-shows</th><th>Rate</th><th>Seat value</th><th>Phantom Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td>Sep 14, 2026</td>
+          <td>vs Denver Broncos</td>
+          <td>287</td>
+          <td>286</td>
+          <td class="hl">286</td>
+          <td class="hl">100%</td>
+          <td>$131,372</td>
+          <td class="hl">$141,382</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Top No-Show Sections</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Section</th><th>No-show seats</th><th>Share of no-shows</th><th>Total value</th></tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td>119</td>
+          <td>16</td>
+          <td>6%</td>
+          <td>$13,172</td>
+        </tr>
+        <tr>
+          <td>120</td>
+          <td>13</td>
+          <td>5%</td>
+          <td>$6,318</td>
+        </tr>
+        <tr>
+          <td>104</td>
+          <td>10</td>
+          <td>3%</td>
+          <td>$4,334</td>
+        </tr>
+        <tr>
+          <td>123</td>
+          <td>10</td>
+          <td>3%</td>
+          <td>$3,887</td>
+        </tr>
+        <tr>
+          <td>121</td>
+          <td>9</td>
+          <td>3%</td>
+          <td>$3,195</td>
+        </tr>
+        <tr>
+          <td>111</td>
+          <td>8</td>
+          <td>3%</td>
+          <td>$3,786</td>
+        </tr>
+        <tr>
+          <td>312</td>
+          <td>8</td>
+          <td>3%</td>
+          <td>$1,919</td>
+        </tr>
+        <tr>
+          <td>336</td>
+          <td>8</td>
+          <td>3%</td>
+          <td>$2,059</td>
+        </tr>
+        <tr>
+          <td>116</td>
+          <td>7</td>
+          <td>2%</td>
+          <td>$3,667</td>
+        </tr>
+        <tr>
+          <td>208</td>
+          <td>7</td>
+          <td>2%</td>
+          <td>$5,676</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    Generated by Fan XP · Sep 14, 2026
+  </div>
+  </div>
 </body>
 </html>
