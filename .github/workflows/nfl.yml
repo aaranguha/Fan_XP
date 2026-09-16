@@ -62,6 +62,16 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      # Cancelling a job on a self-hosted runner stops the wrapper process,
+      # but nfl_runner.py's per-team subprocesses (spawned via
+      # subprocess.Popen) aren't always reaped with it -- confirmed live
+      # 2026-09-09: several cancel-and-restart cycles that morning left an
+      # orphaned seahawks subprocess running for hours, which later woke up
+      # and duplicated a pregame/halftime cycle a completed run had already
+      # done. Kill any leftover instances before this run starts its own.
+      - name: Clean up orphaned scrapers from a previous cancelled run
+        run: pkill -f "nfl_run_game.py" || true
+
       - name: Run NFL daily runner
         run: |
           cd scraping

@@ -20,6 +20,7 @@ import re
 import sys
 import time
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import requests
@@ -236,17 +237,41 @@ def main():
             raise RuntimeError("Event has no URL or ID in TM API response.")
         url = f"https://www.ticketmaster.com/event/{event_id}"
 
+    # TM's own event names are inconsistent about this separator: "vs.",
+    # "vs", "v.", or a bare "v"/"V" (confirmed live: "Kansas City Chiefs v
+    # Denver Broncos" and "Los Angeles Chargers V Arizona Cardinals" both
+    # slipped through the old literal-substring check, which required a
+    # period or trailing "s" and was case-sensitive, leaving `opponent` as
+    # the entire unparsed event name). Match case-insensitively as a
+    # standalone word instead of a fixed literal list.
     opponent = name
-    for sep in (" vs. ", " v. ", " vs ", " at "):
-        if sep in name:
-            opponent = name.split(sep, 1)[1].strip()
-            break
+    sep_match = re.search(r"\s+(?:vs\.?|v\.?|at)\s+", name, re.IGNORECASE)
+    if sep_match:
+        opponent = name[sep_match.end():].strip()
 
     gdir    = nfl_game_dir(team["slug"], game_dt, opponent)
     pg_csv  = os.path.join(gdir, "pre_game.csv")
     ht_csv  = os.path.join(gdir, "halftime.csv")
     ns_csv  = os.path.join(gdir, "no_shows.csv")
+    done_marker = os.path.join(gdir, ".scrape_complete")
     os.makedirs(gdir, exist_ok=True)
+
+    # nfl.yml fires twice on a Sunday: once at noon ET (for 1pm ET games)
+    # and again at 6pm ET (to catch SNF). The 6pm trigger re-discovers every
+    # home game "today" via the TM API, including ones the noon trigger
+    # already fully handled - confirmed live 2026-09-13: the Giants' pregame
+    # scrape ran fine at the noon trigger, then the 6pm trigger launched a
+    # SECOND giants subprocess that tried to "pre-game" scrape a game that
+    # was already at/past halftime, timing out against the live event page.
+    # A completed run leaves this marker so a same-day re-discovery is a
+    # cheap no-op instead of a duplicate (and likely failing) scrape. Only
+    # written on a clean finish, not on an exception, so a genuinely failed
+    # attempt (e.g. a real transient timeout) stays eligible for the later
+    # trigger to retry.
+    if os.path.isfile(done_marker):
+        print(f"  {team['slug'].title()} vs {opponent} ({game_dt}) was already fully "
+              f"scraped earlier today - skipping duplicate run.")
+        return
 
     meta    = save_game_meta(event, team, gdir)
     game_id = supabase_client.upsert_game(meta, league="nfl")
@@ -263,6 +288,14 @@ def main():
     print(f"  Telegram alerts: {'yes (49ers or primetime)' if (team['slug'] == '49ers' or primetime) else 'no'}\n")
 
     sleep_until(pre_game_time, "pre_game")
+    if os.path.isfile(done_marker):
+        # A stray duplicate instance (e.g. an orphaned process from a
+        # cancelled-and-restarted job) can sleep here for hours; re-check
+        # right after waking, since another instance may have finished the
+        # whole game in the meantime.
+        print(f"  {team_label} vs {opponent} ({game_dt}) was completed by another "
+              f"run while this one was waiting - skipping.")
+        return
     # Widened from 240s -> 480s (8 min). On a Sunday with 8+ teams sharing a
     # 1:00 PM ET kickoff, every one of those subprocesses hits this line at
     # the same instant and each opens a real, full (non-headless) Chrome
@@ -291,6 +324,10 @@ def main():
 
     print("\nWaiting for halftime...")
     wait_for_halftime(kickoff, team["espn_tricode"])
+    if os.path.isfile(done_marker):
+        print(f"  {team_label} vs {opponent} ({game_dt}) was completed by another "
+              f"run while this one was waiting - skipping.")
+        return
 
     # Same clustering problem as the pre-game scrape, but here we can't
     # spread as wide -- TM's own listings are actively collapsing as the
@@ -340,12 +377,14 @@ def main():
                f"fabricated data.")
         print(f"  {msg}")
         notify_scrape_status(team["slug"], primetime, f"{team_label}: {msg}")
+        Path(done_marker).touch()
         return
 
     no_shows = compare(pre_rows, ht_rows)
     save_no_shows(no_shows, ns_csv)
     supabase_client.insert_no_shows(game_id, no_shows, team["slug"], game_dt, league="nfl")
     print_report(pre_rows, ht_rows, no_shows, ns_csv)
+    Path(done_marker).touch()
 
 
 if __name__ == "__main__":
