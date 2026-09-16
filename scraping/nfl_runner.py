@@ -142,6 +142,7 @@ def main():
     print(f"\nAll {len(procs)} runner(s) started. Waiting for completion...\n")
 
     succeeded = []
+    failed = []
     for slug, proc, log_file in procs:
         proc.wait()
         log_file.close()
@@ -150,8 +151,10 @@ def main():
             print(f"  [{slug}] done")
         elif proc.returncode == 2:
             print(f"  [{slug}] FAILED (Bot Detection)")
+            failed.append(slug)
         else:
             print(f"  [{slug}] FAILED (exit {proc.returncode})")
+            failed.append(slug)
             log_path = f"data/nfl/{slug}/game.log"
             try:
                 with open(log_path) as f:
@@ -212,6 +215,16 @@ def main():
         print("  Pushed." if result.returncode == 0 else "  git push failed.")
 
     print("\nAll done.")
+
+    if failed:
+        # Without this, a partial failure (e.g. one team's Playwright
+        # timeout) still leaves the whole GitHub Actions run marked
+        # "success" -- confirmed live, 2026-09-13: the Giants pregame
+        # timeout never surfaced as anything but green in the Actions UI.
+        # That makes automated monitoring (or just glancing at run status)
+        # unable to tell a real failure happened at all.
+        print(f"\n{len(failed)} team(s) failed: {', '.join(failed)}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
