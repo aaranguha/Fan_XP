@@ -211,8 +211,33 @@ def main():
         # alongside the captured venue geometry — gets committed too.
         subprocess.run(["git", "add", "data/", "../docs/"], check=True)
         subprocess.run(["git", "commit", "-m", f"NFL auto-update {date_str}: {teams_str}"], check=True)
-        result = subprocess.run(["git", "push"])
-        print("  Pushed." if result.returncode == 0 else "  git push failed.")
+
+        # A silent push failure here used to just print a message and move
+        # on, leaving the whole run reporting "success" while actually
+        # losing the commit (including every .scrape_complete marker just
+        # written). Confirmed live 2026-09-20: a dropped push on the noon-ET
+        # run meant the 6pm-ET run's checkout hard-reset to the old origin
+        # state, had no memory that Chiefs/49ers/etc. were already done, and
+        # re-launched pregame scrapes for 14 teams hours after kickoff,
+        # hitting bot-block/timeout errors across the board. Retry with a
+        # rebase in between (handles the common "remote moved on" case from
+        # another run pushing first) and treat a push that never lands as a
+        # hard failure instead of a silent no-op.
+        pushed = False
+        for attempt in range(1, 4):
+            result = subprocess.run(["git", "push"])
+            if result.returncode == 0:
+                pushed = True
+                break
+            print(f"  git push failed (attempt {attempt}/3) — pulling and retrying...")
+            subprocess.run(["git", "pull", "--rebase"])
+        if pushed:
+            print("  Pushed.")
+        else:
+            print("  git push failed after 3 attempts — today's scraped data and "
+                  ".scrape_complete markers were NOT saved. Failing this run so "
+                  "it doesn't silently look healthy.")
+            failed.append("git-push")
 
     print("\nAll done.")
 
