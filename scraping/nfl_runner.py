@@ -93,7 +93,23 @@ def get_home_teams_tm(today: str) -> list[str]:
         home_slug = matches[0][1]
         print(f"  Home game: {name}  →  slug: {home_slug}")
         slugs.append(home_slug)
-    return slugs
+
+    # TM can list the same game as more than one matching event (e.g. a
+    # separate resale/VIP-package listing alongside the base event, both
+    # mentioning both team names). A team can only host one home game per
+    # day, so a repeated slug means one game got counted twice -- confirmed
+    # live 2026-09-20/21 (runs 35531541265/35549121946): "broncos" was
+    # returned twice, launching two subprocesses that raced on the same
+    # game.log/pre_game.csv/.scrape_complete files (interleaved, corrupted
+    # log output; a redundant duplicate scrape of the same event). De-dupe
+    # while preserving first-seen order.
+    seen = set()
+    deduped = []
+    for slug in slugs:
+        if slug not in seen:
+            seen.add(slug)
+            deduped.append(slug)
+    return deduped
 
 
 def launch_team(slug: str, today: str) -> tuple:
