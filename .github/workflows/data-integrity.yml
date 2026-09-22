@@ -1,0 +1,73 @@
+name: Data Integrity Check
+
+# Periodically scans Supabase for no_shows rows that violate a hard
+# invariant (a no-show can never exceed the smaller of the two snapshot
+# counts - see scraping/check_data_integrity.py for why) and cleans up
+# any it finds. Runs on a GitHub-hosted runner since this is just REST
+# calls to Supabase, not a Playwright scrape - no self-hosted runner
+# needed, and this repo is public so hosted-runner minutes are free.
+on:
+  schedule:
+    - cron: "0 */12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install supabase python-dotenv
+
+      - name: Run integrity check
+        id: check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          cd scraping
+          set +e
+          output=$(python check_data_integrity.py --league nfl 2>&1)
+          code=$?
+          set -e
+          echo "$output"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          {
+            echo "output<<EOF"
+            echo "$output"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: File an issue and notify (only if something was found)
+        if: steps.check.outputs.code != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --repo aaranguha/Fan_XP \
+            --title "[data-integrity] corrupted no_shows cleaned - $(date -u +%Y-%m-%d)" \
+            --body "$(cat <<EOF
+          The scheduled data integrity check found and cleaned no_shows rows
+          that violated the hard invariant (no_shows count can never exceed
+          the smaller of pre_game/halftime raw counts). Full output:
+
+          \`\`\`
+          ${{ steps.check.outputs.output }}
+          \`\`\`
+
+          If this keeps recurring, the insert-time gate in nfl_run_game.py
+          (search for "mathematically impossible for a real intersection")
+          may need attention - it should be preventing this at the source.
+          EOF
+          )"
+          gh workflow run notify.yml --repo aaranguha/Fan_XP \
+            -f message="Fan_XP data integrity check found and cleaned corrupted no_shows data - see the new GitHub issue for details."
