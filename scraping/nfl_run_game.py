@@ -344,12 +344,19 @@ def main():
         raise
 
     print("\nComparing snapshots...")
-    pre_rows = load_csv(pg_csv)
-    # save_csv() legitimately writes nothing when a scrape returns zero
-    # rows (confirmed live, 2026-09-09: the halftime scrape got back only
-    # 4 real seats from TM, well below the threshold below, and never even
-    # got that far because this used to crash on the missing file first) --
-    # a missing halftime.csv is now a valid, expected state, not an error.
+    # save_csv() legitimately writes nothing when a scrape returns zero rows
+    # (confirmed live, 2026-09-09: the halftime scrape got back only 4 real
+    # seats from TM, well below the threshold below, and never even got that
+    # far because this used to crash on the missing file first) -- a missing
+    # halftime.csv is a valid, expected state, not an error. The same is
+    # true of pre_game.csv, which this line used to load unconditionally:
+    # confirmed live 2026-09-20/21/22 (runs 35531541265, 35549121946,
+    # 35675895765) -- a pre-game scrape that legitimately found 0 listings
+    # (TM bot-pressure during a 13-game Sunday, or just an empty market)
+    # never wrote pre_game.csv, and the game still proceeded through the
+    # halftime wait/scrape only to crash here with an unhandled
+    # FileNotFoundError instead of completing with zero pre-game rows.
+    pre_rows = load_csv(pg_csv) if os.path.isfile(pg_csv) else []
     ht_rows = load_csv(ht_csv) if os.path.isfile(ht_csv) else []
 
     # Sanity gate: compare() treats every seat present in both snapshots as
