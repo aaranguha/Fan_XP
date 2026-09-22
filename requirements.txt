@@ -1,5 +1,6 @@
 requests
 python-dotenv
+pytest
 playwright==1.59.0
 playwright-stealth
 nba_api
