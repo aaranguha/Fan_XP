@@ -165,22 +165,15 @@ def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str, team_slug: 
     return rows
 
 
-def save_game_meta(event: dict, team: dict, gdir: str) -> dict:
+def save_game_meta(event: dict, team: dict, gdir: str, opponent: str) -> dict:
     path = os.path.join(gdir, "game_meta.json")
     if os.path.isfile(path):
         return json.load(open(path))
 
-    name    = event.get("name", "")
     game_dt = event.get("dates", {}).get("start", {}).get("localDate", "")
     local_t = event.get("dates", {}).get("start", {}).get("localTime", "")
     arena   = event.get("_embedded", {}).get("venues", [{}])[0].get("name", "")
     city    = event.get("_embedded", {}).get("venues", [{}])[0].get("city", {}).get("name", "")
-
-    opponent = ""
-    for sep in (" vs. ", " v. ", " vs ", " v ", " at "):
-        if sep in name:
-            opponent = name.split(sep, 1)[1].strip()
-            break
 
     day_of_week = ""
     if game_dt:
@@ -273,7 +266,7 @@ def main():
               f"scraped earlier today - skipping duplicate run.")
         return
 
-    meta    = save_game_meta(event, team, gdir)
+    meta    = save_game_meta(event, team, gdir, opponent)
     game_id = supabase_client.upsert_game(meta, league="nfl")
 
     kickoff       = get_kickoff_utc(event)
