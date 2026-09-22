@@ -374,6 +374,27 @@ def main():
         return
 
     no_shows = compare(pre_rows, ht_rows)
+
+    # A no-show is defined as a seat present in BOTH snapshots, so its count
+    # can never exceed the smaller of the two raw counts - this is a hard
+    # mathematical invariant, not a heuristic (unlike MIN_HALFTIME_RATIO
+    # above, which is a judgment call about market behavior). Confirmed
+    # live 2026-09-20: the git-push-failure incident inserted no_shows=1908
+    # against a pregame count of only 173 for one game - impossible under
+    # this product's own definition, and it slipped past MIN_HALFTIME_RATIO
+    # entirely because that gate only checks for the marketplace collapsing,
+    # not for two mismatched snapshots getting compared against each other.
+    if no_shows and len(no_shows) > min(len(pre_rows), len(ht_rows)):
+        msg = (f"{len(no_shows)} no-shows exceeds the smaller snapshot "
+               f"(pre-game {len(pre_rows)}, halftime {len(ht_rows)}) - "
+               f"mathematically impossible for a real intersection, almost "
+               f"certainly two mismatched/duplicate snapshots. Skipping "
+               f"no-show insert to avoid recording corrupted data.")
+        print(f"  {msg}")
+        notify_scrape_status(team["slug"], primetime, f"{team_label}: {msg}")
+        Path(done_marker).touch()
+        return
+
     save_no_shows(no_shows, ns_csv)
     supabase_client.insert_no_shows(game_id, no_shows, team["slug"], game_dt, league="nfl")
     print_report(pre_rows, ht_rows, no_shows, ns_csv)
