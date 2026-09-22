@@ -29,11 +29,16 @@ jobs:
           set +e
           problems=""
 
-          render_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://fanxp-api.onrender.com/)
-          # A 404 is fine - the Flask app has no root route. A timeout (curl
-          # exit non-zero, code stays "000"), 502, or 503 means it's down.
+          # Render's free tier cold-starts after inactivity - confirmed
+          # first request can take 30-60s (per CLAUDE.md). A 20s timeout
+          # produced a false "down" alert on this workflow's very first
+          # run when it was actually just cold-starting. 65s covers a
+          # real cold start; anything slower than that really is a problem.
+          render_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 65 https://fanxp-api.onrender.com/)
+          # A 404 is fine - the Flask app has no root route. "000" (timeout/
+          # connection failure) or 5xx means it's actually down.
           if [ "$render_code" = "000" ] || [ "$render_code" -ge 500 ]; then
-            problems="${problems}Render API (fanxp-api.onrender.com) returned HTTP ${render_code}.\n"
+            problems="${problems}Render API (fanxp-api.onrender.com) returned HTTP ${render_code} after a 65s timeout.\n"
           fi
 
           vercel_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://fan-xp.vercel.app/)
@@ -66,9 +71,18 @@ jobs:
         if: steps.check.outputs.found == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          existing=$(gh issue list --repo aaranguha/Fan_XP --state open --search "[site-health]" --json number --jq '.[0].number')
-          if [ -n "$existing" ]; then
+          # gh's --search does fuzzy full-text matching, not a literal
+          # substring match - confirmed live, it matched issue #4 (a
+          # *different*, already-existing issue whose title and body just
+          # happen to mention "site health" in prose) instead of finding
+          # no match. Filter by an exact title prefix instead.
+          existing=$(gh issue list --repo aaranguha/Fan_XP --state open --json number,title \
+            --jq '[.[] | select(.title | startswith("[site-health]"))][0].number')
+
+          if [ -n "$existing" ] && [ "$existing" != "null" ]; then
             gh issue comment "$existing" --repo aaranguha/Fan_XP --body "Still failing as of $(date -u +%Y-%m-%dT%H:%M:%SZ):
           ${{ steps.check.outputs.problems }}"
           else
@@ -78,5 +92,15 @@ jobs:
 
           Checked by the scheduled Site Health Check workflow."
           fi
-          gh workflow run notify.yml --repo aaranguha/Fan_XP \
-            -f message="Fan_XP site health check found a problem - see the [site-health] GitHub issue for details."
+
+          # Not routed through notify.yml/workflow_dispatch: the default
+          # per-run GITHUB_TOKEN is deliberately forbidden from triggering
+          # another workflow (GitHub's built-in anti-recursion guard, to
+          # stop workflows from chain-triggering each other) - confirmed
+          # live, this returned a 403 the first time this workflow ran.
+          # That bridge exists for the cloud agents, which have no secrets
+          # of their own; this workflow already has the real Telegram
+          # secrets directly, so it can just call the API itself.
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=Fan_XP site health check found a problem - see the [site-health] GitHub issue for details."
