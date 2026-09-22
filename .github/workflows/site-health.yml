@@ -1,0 +1,82 @@
+name: Site Health Check
+
+# Checks that the live product is actually reachable: the Render API and
+# the Vercel static site. Runs on a GitHub-hosted runner deliberately -
+# the QA cloud agent's sandbox has an organization network policy that
+# blocks egress to arbitrary external hosts (confirmed live: both curl
+# and WebFetch returned EGRESS_BLOCKED for fanxp-api.onrender.com and
+# fan-xp.vercel.app from that environment, see issue #4), so it could
+# never actually perform this check. GitHub Actions runners have normal
+# internet access, so this lives here instead.
+on:
+  schedule:
+    - cron: "0 */12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Render API and Vercel site
+        id: check
+        run: |
+          set +e
+          problems=""
+
+          render_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://fanxp-api.onrender.com/)
+          # A 404 is fine - the Flask app has no root route. A timeout (curl
+          # exit non-zero, code stays "000"), 502, or 503 means it's down.
+          if [ "$render_code" = "000" ] || [ "$render_code" -ge 500 ]; then
+            problems="${problems}Render API (fanxp-api.onrender.com) returned HTTP ${render_code}.\n"
+          fi
+
+          vercel_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://fan-xp.vercel.app/)
+          if [ "$vercel_code" != "200" ]; then
+            problems="${problems}Vercel site (fan-xp.vercel.app) returned HTTP ${vercel_code} instead of 200.\n"
+          fi
+
+          # Spot-check that the homepage actually contains real content, not
+          # an empty shell or a Vercel error page.
+          body=$(curl -s --max-time 20 https://fan-xp.vercel.app/)
+          if [ -z "$body" ] || echo "$body" | grep -qi "404: NOT_FOUND\|This page could not be found"; then
+            problems="${problems}Vercel homepage body looks broken/empty, not real content.\n"
+          fi
+
+          set -e
+          if [ -n "$problems" ]; then
+            echo "found=1" >> "$GITHUB_OUTPUT"
+            {
+              echo "problems<<EOF"
+              echo -e "$problems"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            echo -e "PROBLEMS FOUND:\n$problems"
+          else
+            echo "found=0" >> "$GITHUB_OUTPUT"
+            echo "Render: ${render_code}, Vercel: ${vercel_code} - both healthy."
+          fi
+
+      - name: File an issue and notify (only if something was found)
+        if: steps.check.outputs.found == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          existing=$(gh issue list --repo aaranguha/Fan_XP --state open --search "[site-health]" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo aaranguha/Fan_XP --body "Still failing as of $(date -u +%Y-%m-%dT%H:%M:%SZ):
+          ${{ steps.check.outputs.problems }}"
+          else
+            gh issue create --repo aaranguha/Fan_XP \
+              --title "[site-health] Live site unreachable - $(date -u +%Y-%m-%d)" \
+              --body "${{ steps.check.outputs.problems }}
+
+          Checked by the scheduled Site Health Check workflow."
+          fi
+          gh workflow run notify.yml --repo aaranguha/Fan_XP \
+            -f message="Fan_XP site health check found a problem - see the [site-health] GitHub issue for details."
