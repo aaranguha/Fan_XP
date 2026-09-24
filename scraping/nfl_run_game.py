@@ -210,6 +210,25 @@ def notify_scrape_status(team_slug: str, primetime: bool, message: str) -> None:
         send_telegram(message)
 
 
+def parse_opponent_name(event_name: str) -> str:
+    """Extract the opponent's name from a TM event name like "Kansas City
+    Chiefs vs. Denver Broncos".
+
+    TM's own event names are inconsistent about this separator: "vs.",
+    "vs", "v.", or a bare "v"/"V" (confirmed live: "Kansas City Chiefs v
+    Denver Broncos" and "Los Angeles Chargers V Arizona Cardinals" both
+    slipped through the old literal-substring check, which required a
+    period or trailing "s" and was case-sensitive, leaving `opponent` as
+    the entire unparsed event name). Match case-insensitively as a
+    standalone word instead of a fixed literal list. If no separator is
+    found, the whole event name is returned unchanged.
+    """
+    sep_match = re.search(r"\s+(?:vs\.?|v\.?|at)\s+", event_name, re.IGNORECASE)
+    if sep_match:
+        return event_name[sep_match.end():].strip()
+    return event_name
+
+
 def main():
     if len(sys.argv) not in (2, 3):
         print("Usage: python nfl_run_game.py <team_slug> [YYYY-MM-DD]")
@@ -230,17 +249,7 @@ def main():
             raise RuntimeError("Event has no URL or ID in TM API response.")
         url = f"https://www.ticketmaster.com/event/{event_id}"
 
-    # TM's own event names are inconsistent about this separator: "vs.",
-    # "vs", "v.", or a bare "v"/"V" (confirmed live: "Kansas City Chiefs v
-    # Denver Broncos" and "Los Angeles Chargers V Arizona Cardinals" both
-    # slipped through the old literal-substring check, which required a
-    # period or trailing "s" and was case-sensitive, leaving `opponent` as
-    # the entire unparsed event name). Match case-insensitively as a
-    # standalone word instead of a fixed literal list.
-    opponent = name
-    sep_match = re.search(r"\s+(?:vs\.?|v\.?|at)\s+", name, re.IGNORECASE)
-    if sep_match:
-        opponent = name[sep_match.end():].strip()
+    opponent = parse_opponent_name(name)
 
     gdir    = nfl_game_dir(team["slug"], game_dt, opponent)
     pg_csv  = os.path.join(gdir, "pre_game.csv")
