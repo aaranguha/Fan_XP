@@ -71,8 +71,6 @@ jobs:
         if: steps.check.outputs.found == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           # gh's --search does fuzzy full-text matching, not a literal
           # substring match - confirmed live, it matched issue #4 (a
@@ -93,14 +91,6 @@ jobs:
           Checked by the scheduled Site Health Check workflow."
           fi
 
-          # Not routed through notify.yml/workflow_dispatch: the default
-          # per-run GITHUB_TOKEN is deliberately forbidden from triggering
-          # another workflow (GitHub's built-in anti-recursion guard, to
-          # stop workflows from chain-triggering each other) - confirmed
-          # live, this returned a 403 the first time this workflow ran.
-          # That bridge exists for the cloud agents, which have no secrets
-          # of their own; this workflow already has the real Telegram
-          # secrets directly, so it can just call the API itself.
-          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-            --data-urlencode "text=Fan_XP site health check found a problem - see the [site-health] GitHub issue for details."
+          # No Telegram alert here: the founder wants Telegram limited to
+          # per-game scrape outcomes (nfl_run_game.py). The GitHub issue above
+          # is the alert.

@@ -11,8 +11,7 @@ Covers:
   - parse_clock_minutes(): ESPN live-clock string parsing used by
     wait_for_halftime() to decide when Q2 has ≤2 min left.
   - get_kickoff_utc(): pulls the kickoff datetime out of a TM event dict.
-  - is_primetime() / notify_scrape_status(): the Telegram alert-scoping
-    logic (49ers games and 7pm-ET-or-later kickoffs only).
+  - notify_scrape_status(): the per-game Telegram outcome message.
 """
 
 from datetime import datetime, timezone
@@ -23,7 +22,6 @@ from nfl_run_game import (
     parse_opponent_name,
     parse_clock_minutes,
     get_kickoff_utc,
-    is_primetime,
     notify_scrape_status,
 )
 
@@ -115,67 +113,15 @@ def test_get_kickoff_utc_raises_on_empty_event():
         get_kickoff_utc({})
 
 
-# ── is_primetime() ───────────────────────────────────────────────────────────
-
-def test_1pm_et_sunday_kickoff_is_not_primetime():
-    # 17:00 UTC = 1:00 PM EDT (UTC-4 in September).
-    kickoff = datetime(2026, 9, 13, 17, 0, 0, tzinfo=timezone.utc)
-
-    assert is_primetime(kickoff) is False
-
-
-def test_425pm_et_kickoff_is_not_primetime():
-    # 20:25 UTC = 4:25 PM EDT — last of the standard Sunday afternoon slate.
-    kickoff = datetime(2026, 9, 13, 20, 25, 0, tzinfo=timezone.utc)
-
-    assert is_primetime(kickoff) is False
-
-
-def test_7pm_et_kickoff_is_primetime():
-    # 23:00 UTC = 7:00 PM EDT exactly — the boundary is inclusive.
-    kickoff = datetime(2026, 9, 13, 23, 0, 0, tzinfo=timezone.utc)
-
-    assert is_primetime(kickoff) is True
-
-
-def test_snf_820pm_et_kickoff_is_primetime():
-    # 00:20 UTC the next day = 8:20 PM EDT — a typical SNF kickoff, and a
-    # case where the UTC date has already rolled over to the next day.
-    kickoff = datetime(2026, 9, 14, 0, 20, 0, tzinfo=timezone.utc)
-
-    assert is_primetime(kickoff) is True
-
-
 # ── notify_scrape_status() ───────────────────────────────────────────────────
 
-def test_49ers_game_always_notifies_even_if_not_primetime(monkeypatch):
+def test_notify_sends_for_any_team(monkeypatch):
+    # One outcome message per game, for every team (not just 49ers/primetime).
     import nfl_run_game
 
     sent = []
     monkeypatch.setattr(nfl_run_game, "send_telegram", lambda msg: sent.append(msg))
 
-    notify_scrape_status("49ers", primetime=False, message="pregame ok")
+    notify_scrape_status("✅ Packers vs Atlanta Falcons (2026-09-24): scraped.")
 
-    assert sent == ["pregame ok"]
-
-
-def test_primetime_game_notifies_regardless_of_team(monkeypatch):
-    import nfl_run_game
-
-    sent = []
-    monkeypatch.setattr(nfl_run_game, "send_telegram", lambda msg: sent.append(msg))
-
-    notify_scrape_status("packers", primetime=True, message="halftime ok")
-
-    assert sent == ["halftime ok"]
-
-
-def test_non_49ers_non_primetime_game_does_not_notify(monkeypatch):
-    import nfl_run_game
-
-    sent = []
-    monkeypatch.setattr(nfl_run_game, "send_telegram", lambda msg: sent.append(msg))
-
-    notify_scrape_status("packers", primetime=False, message="pregame ok")
-
-    assert sent == []
+    assert sent == ["✅ Packers vs Atlanta Falcons (2026-09-24): scraped."]

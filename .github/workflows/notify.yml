@@ -1,69 +1,33 @@
 name: Notify
 
-# Lets something without access to repo secrets (e.g. the monitoring cloud
-# agents) send a Telegram message through this repo's existing bot, without
-# ever handing them the actual token. It just triggers this workflow with a
-# message; the secret stays inside GitHub Actions the whole time.
+# Bridge the cloud agents (QA, pitch-readiness, nightly digest) call to
+# "send" an alert without holding any secrets.
+#
+# It no longer forwards to Telegram: the founder asked (2026-09-24) for
+# Telegram to carry only per-game scrape outcomes, which nfl_run_game.py
+# sends directly. Agent messages are written to this run's job summary
+# instead (Actions tab -> Notify -> run), so nothing is lost and the agents'
+# dispatch calls keep succeeding.
 on:
   workflow_dispatch:
     inputs:
       message:
-        description: "Message to send to the Fan XP Telegram chat"
+        description: "Message from an agent (logged, not sent to Telegram)"
         required: true
 
-permissions:
-  issues: write
+permissions: {}
 
 jobs:
-  send:
+  log:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Telegram message
-        id: send
+      - name: Record message
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-          MESSAGE:             ${{ github.event.inputs.message }}
+          MESSAGE: ${{ github.event.inputs.message }}
         run: |
-          # Every agent/workflow in this repo funnels its Telegram alerts
-          # through this one bridge - if a delivery failure here goes
-          # unnoticed, ALL of them go silently dark at once with no
-          # indication anything's wrong. `curl -sS` alone still exits 0 on
-          # a Telegram API error (bad token, chat not found, rate limit) -
-          # it only fails on a transport-level problem, not an API-level
-          # one - so this checks the actual response body instead of
-          # trusting curl's exit code.
-          resp=$(curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-            --data-urlencode "text=${MESSAGE}")
-          echo "$resp"
-          if echo "$resp" | grep -q '"ok":true'; then
-            echo "delivered=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "delivered=0" >> "$GITHUB_OUTPUT"
-            {
-              echo "resp<<EOF"
-              echo "$resp"
-              echo "EOF"
-            } >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: File an issue if delivery actually failed
-        if: steps.send.outputs.delivered != '1'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh issue create --repo aaranguha/Fan_XP \
-            --title "[notify] Telegram delivery failed - $(date -u +%Y-%m-%d)" \
-            --body "The Telegram bridge failed to deliver a message. Since \
-          this is the only alert channel every agent/workflow uses, a failure \
-          here means ALL of them are currently unable to notify you - check \
-          this bot/chat's configuration directly.
-
-          Attempted message: ${{ github.event.inputs.message }}
-
-          Telegram API response:
-          \`\`\`
-          ${{ steps.send.outputs.resp }}
-          \`\`\`"
-          exit 1
+          echo "$MESSAGE"
+          {
+            echo "### Agent message"
+            echo
+            echo "$MESSAGE"
+          } >> "$GITHUB_STEP_SUMMARY"

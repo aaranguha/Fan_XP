@@ -21,7 +21,6 @@ import sys
 import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import requests
 from dotenv import load_dotenv
@@ -43,6 +42,12 @@ import supabase_client
 load_dotenv()
 
 PRE_GAME_OFFSET_MIN  = 60    # scrape this many minutes before kick-off
+# A "pre-game" baseline taken closer to kick-off than this is not a baseline:
+# fans are already seated and TM's resale page is winding down, so diffing it
+# against a halftime scrape minutes later fabricates a near-100% no-show rate
+# (happened 2026-09-14 Chiefs and 2026-09-17 Bills, when the workflow fired
+# ~2h late and both scrapes ran 2 minutes apart after kick-off).
+MIN_PREGAME_LEAD_MIN = 20
 HALFTIME_FALLBACK_MIN = 45   # fallback: minutes after kick-off if live clock unavailable.
                               # Was 70 (aimed at actual halftime), lowered after the
                               # 2026-09-09 Seahawks game: TM listings had already
@@ -64,11 +69,6 @@ HALFTIME_FALLBACK_MIN = 45   # fallback: minutes after kick-off if live clock un
 Q2_TRIGGER_MIN        = 2    # trigger halftime scrape when Q2 ≤ this many minutes
 POLL_INTERVAL_SEC     = 30
 
-EASTERN = ZoneInfo("America/New_York")
-PRIMETIME_ET_HOUR = 19  # 7 PM ET or later kickoff -- covers SNF/MNF/TNF and
-                         # one-off nationally-televised evening games, while
-                         # excluding the standard 1 PM / 4:05 / 4:25 PM ET
-                         # Sunday afternoon slate.
 
 
 def get_kickoff_utc(event: dict) -> datetime:
@@ -198,16 +198,11 @@ def save_game_meta(event: dict, team: dict, gdir: str, opponent: str) -> dict:
     return meta
 
 
-def is_primetime(kickoff_utc: datetime) -> bool:
-    return kickoff_utc.astimezone(EASTERN).hour >= PRIMETIME_ET_HOUR
-
-
-def notify_scrape_status(team_slug: str, primetime: bool, message: str) -> None:
-    """Telegram status ping for 49ers games and primetime games (evening
-    kickoffs), so there's visibility into scrape health for every game
-    worth watching without checking every single one manually."""
-    if team_slug == "49ers" or primetime:
-        send_telegram(message)
+def notify_scrape_status(message: str) -> None:
+    """Telegram ping with a game's final outcome: scraped or not, and why.
+    Exactly one per game, for every game (the founder asked for only this,
+    not step-by-step progress). Intermediate successes are not reported."""
+    send_telegram(message)
 
 
 def parse_opponent_name(event_name: str) -> str:
@@ -280,14 +275,15 @@ def main():
 
     kickoff       = get_kickoff_utc(event)
     pre_game_time = kickoff - timedelta(minutes=PRE_GAME_OFFSET_MIN)
-    primetime     = is_primetime(kickoff)
+    team_label    = team["slug"].title()
+    game_label    = f"{team_label} vs {opponent} ({game_dt})"
 
     print(f"\n  Game:            {name}  ({game_dt})")
     print(f"  Kick-off:        {kickoff.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Pre-game scrape: {pre_game_time.strftime('%H:%M UTC')}  ({PRE_GAME_OFFSET_MIN} min before kick-off)")
     print(f"  Halftime scrape: Live clock (Q2 ≤{Q2_TRIGGER_MIN} min)  |  fallback: {HALFTIME_FALLBACK_MIN} min after kick-off")
     print(f"  Data folder:     {gdir}/")
-    print(f"  Telegram alerts: {'yes (49ers or primetime)' if (team['slug'] == '49ers' or primetime) else 'no'}\n")
+    print(f"  Telegram alert:  one outcome message when the game finishes\n")
 
     sleep_until(pre_game_time, "pre_game")
     if os.path.isfile(done_marker):
@@ -306,22 +302,28 @@ def main():
     # 30-second slice. There's no timing pressure here (60 min of buffer
     # before kick-off), so spread further to keep simultaneous browser
     # launches to a handful instead of most of them at once.
-    jitter = random.randint(0, 480)
+    # Never let the jitter itself push the scrape inside MIN_PREGAME_LEAD_MIN.
+    lead_s = (kickoff - datetime.now(timezone.utc)).total_seconds() - MIN_PREGAME_LEAD_MIN * 60
+    if lead_s <= 0:
+        mins_late = (datetime.now(timezone.utc) - pre_game_time).total_seconds() / 60
+        msg = (f"{game_label}: NOT scraped. The runner started {mins_late:.0f} min after the "
+               f"pre-game window (kick-off {kickoff.strftime('%H:%M UTC')}), too late for a "
+               f"real baseline. Nothing recorded.")
+        print(f"  {msg}")
+        notify_scrape_status(f"❌ {msg}")
+        # Mark complete so no later trigger retries it even later.
+        open(done_marker, "w").close()
+        return
+    jitter = random.randint(0, min(480, int(lead_s)))
     if jitter:
         print(f"  [jitter] Waiting {jitter}s before scrape...")
         time.sleep(jitter)
 
-    team_label = team["slug"].title()
-
     try:
         pre_rows = run_snapshot(event, url, "pre_game", pg_csv, team["slug"])
         supabase_client.insert_listings(game_id, pre_rows, "pre_game", team["slug"], game_dt, league="nfl")
-        priced = sum(1 for r in pre_rows if r.get("price_usd") is not None)
-        notify_scrape_status(team["slug"], primetime,
-            f"{team_label} pregame scrape done: {len(pre_rows)} seats found, {priced} priced. "
-            f"vs {opponent} ({game_dt}).")
     except Exception as e:
-        notify_scrape_status(team["slug"], primetime, f"{team_label} pregame scrape FAILED: {e}")
+        notify_scrape_status(f"❌ {game_label}: NOT scraped. Pre-game scrape failed: {e}")
         raise
 
     print("\nWaiting for halftime...")
@@ -344,12 +346,8 @@ def main():
     try:
         ht_rows = run_snapshot(event, url, "halftime", ht_csv, team["slug"])
         supabase_client.insert_listings(game_id, ht_rows, "halftime", team["slug"], game_dt, league="nfl")
-        priced = sum(1 for r in ht_rows if r.get("price_usd") is not None)
-        notify_scrape_status(team["slug"], primetime,
-            f"{team_label} halftime scrape done: {len(ht_rows)} seats still listed, {priced} priced. "
-            f"vs {opponent} ({game_dt}).")
     except Exception as e:
-        notify_scrape_status(team["slug"], primetime, f"{team_label} halftime scrape FAILED: {e}")
+        notify_scrape_status(f"❌ {game_label}: NOT scraped. Halftime scrape failed: {e}")
         raise
 
     print("\nComparing snapshots...")
@@ -378,6 +376,12 @@ def main():
     # a first estimate for "this isn't real attendance signal anymore", not
     # a measured value -- revisit once more real games establish what a
     # normal halftime listing count actually looks like relative to pre-game.
+    if not pre_rows:
+        notify_scrape_status(f"❌ {game_label}: NOT scraped. Pre-game scrape found 0 listings "
+                             f"(page off-sale or blocked). Nothing recorded.")
+        Path(done_marker).touch()
+        return
+
     MIN_HALFTIME_RATIO = 0.15
     if pre_rows and len(ht_rows) < len(pre_rows) * MIN_HALFTIME_RATIO:
         msg = (f"Halftime listings collapsed to {len(ht_rows)} from {len(pre_rows)} pre-game "
@@ -385,7 +389,8 @@ def main():
                f"listings, not real no-shows. Skipping no-show insert to avoid recording "
                f"fabricated data.")
         print(f"  {msg}")
-        notify_scrape_status(team["slug"], primetime, f"{team_label}: {msg}")
+        notify_scrape_status(f"⚠️ {game_label}: scraped ({len(pre_rows)} pre-game, "
+                             f"{len(ht_rows)} halftime) but no-shows NOT recorded. {msg}")
         Path(done_marker).touch()
         return
 
@@ -407,13 +412,16 @@ def main():
                f"certainly two mismatched/duplicate snapshots. Skipping "
                f"no-show insert to avoid recording corrupted data.")
         print(f"  {msg}")
-        notify_scrape_status(team["slug"], primetime, f"{team_label}: {msg}")
+        notify_scrape_status(f"⚠️ {game_label}: scraped ({len(pre_rows)} pre-game, "
+                             f"{len(ht_rows)} halftime) but no-shows NOT recorded. {msg}")
         Path(done_marker).touch()
         return
 
     save_no_shows(no_shows, ns_csv)
     supabase_client.insert_no_shows(game_id, no_shows, team["slug"], game_dt, league="nfl")
     print_report(pre_rows, ht_rows, no_shows, ns_csv)
+    notify_scrape_status(f"✅ {game_label}: scraped. {len(pre_rows):,} seats listed pre-game, "
+                         f"{len(ht_rows):,} at halftime, {len(no_shows):,} no-shows recorded.")
     Path(done_marker).touch()
 
 

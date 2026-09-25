@@ -2,16 +2,26 @@ name: NFL Game Runner
 
 on:
   schedule:
-    # Sunday 5 PM UTC = noon ET — catches 1 PM ET afternoon games
-    - cron: "0 17 * * 0"
-    # 11 PM UTC = 6 PM ET, every day of the week — catches any evening
-    # kick-off (SNF, MNF, TNF, and one-off games on other days). Previously
-    # only Sun/Mon/Thu/Fri/Sat were listed and it missed real games twice:
-    # a preseason Fri/Sat game (2026-08-28) and a Wednesday regular-season
-    # game (2026-09-09) that the old schedule had no trigger for at all.
-    # Firing every day is cheap -- nfl_runner.py checks for a home game via
-    # the Ticketmaster API and exits immediately if there isn't one.
-    - cron: "0 23 * * *"
+    # ONE trigger per day, at 10 AM UTC = 6 AM ET, every day of the week.
+    # The runner finds all of today's home games and each game subprocess
+    # sleeps until its own kickoff - 60 min, so an early start costs nothing.
+    #
+    # This replaced "0 17 * * 0" + "0 23 * * *", which were set to fire right
+    # around the pre-game window and in practice fired ~2 hours late EVERY
+    # time (observed 2026-09-13 through 09-24: the 23:00 trigger landed at
+    # 00:46-01:28 UTC, the Sunday 17:00 one at ~19:10). That put the
+    # "pre-game" scrape after kickoff for every primetime game and every
+    # 1 PM ET Sunday game: the 9/14 Chiefs and 9/17 Bills "pre-game" and
+    # "halftime" scrapes ran 2 minutes apart (fabricated ~100% no-show
+    # rates), 9/20's 1 PM games all got 0 listings (page already off-sale),
+    # and 9/21 MNF / 9/24 TNF got nothing. Even an on-time 17:00 was too
+    # late: 1 PM ET kickoff is 17:00 UTC, so its pre-game was due at 16:00.
+    # Keep this trigger hours ahead of the earliest kickoff so a multi-hour
+    # scheduler delay still lands before any pre-game scrape. Longest day
+    # (SNF ~00:20 UTC kickoff + 45 min) is ~16h from 10:00 UTC, inside the
+    # 24h timeout below. Firing every day is cheap -- nfl_runner.py exits
+    # immediately if there is no home game.
+    - cron: "0 10 * * *"
   workflow_dispatch:
 
 permissions:

@@ -51,8 +51,6 @@ jobs:
         if: steps.check.outputs.code != '0'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           gh issue create \
             --repo aaranguha/Fan_XP \
@@ -71,11 +69,6 @@ jobs:
           may need attention - it should be preventing this at the source.
           EOF
           )"
-          # Not routed through notify.yml/workflow_dispatch: the default
-          # per-run GITHUB_TOKEN can't trigger another workflow (GitHub's
-          # anti-recursion guard) - confirmed live on site-health.yml's
-          # identical pattern, a 403. This workflow already has the real
-          # Telegram secrets directly, so it just calls the API itself.
-          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-            --data-urlencode "text=Fan_XP data integrity check found and cleaned corrupted no_shows data - see the new GitHub issue for details."
+          # No Telegram alert here: the founder wants Telegram limited to
+          # per-game scrape outcomes (nfl_run_game.py). The GitHub issue above
+          # is the alert.
