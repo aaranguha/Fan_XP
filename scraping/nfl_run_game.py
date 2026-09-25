@@ -229,6 +229,54 @@ def parse_opponent_name(event_name: str) -> str:
     return event_name
 
 
+MIN_HALFTIME_RATIO = 0.15
+
+
+class SnapshotEvaluation:
+    """Result of evaluate_snapshot_quality(): `verdict` is one of
+    "no_pregame", "marketplace_collapsed", "impossible_no_shows", or "ok".
+    `no_shows` is only populated once compare() has actually run (i.e. not
+    for "no_pregame"/"marketplace_collapsed", where comparing would be
+    meaningless)."""
+
+    def __init__(self, verdict: str, no_shows: list):
+        self.verdict = verdict
+        self.no_shows = no_shows
+
+
+def evaluate_snapshot_quality(pre_rows: list[dict], ht_rows: list[dict]) -> SnapshotEvaluation:
+    """Decide whether a pre-game/halftime snapshot pair is trustworthy enough
+    to record as no-shows, and run compare() only once it's clear doing so
+    is meaningful.
+
+    Three gates, checked in order (each is a real incident, see CLAUDE.md
+    §4.2/§4.3):
+    1. No pre-game listings at all -> no baseline to compare against.
+    2. Halftime listings collapsed to below MIN_HALFTIME_RATIO of pre-game
+       (confirmed live: 181 pre-game -> 4 at halftime, ~98% "no-show") --
+       this reflects TM's own resale marketplace emptying out as an event
+       proceeds, not real fan no-shows. Recording it would fabricate a
+       near-100% no-show rate.
+    3. no_shows count exceeding the smaller snapshot -- mathematically
+       impossible for a real intersection (a no-show is a seat present in
+       BOTH snapshots), almost certainly two mismatched/duplicate snapshots
+       getting compared (confirmed live 2026-09-20: no_shows=1908 against a
+       pre-game count of only 173, from a git-push-failure incident).
+    """
+    if not pre_rows:
+        return SnapshotEvaluation("no_pregame", [])
+
+    if len(ht_rows) < len(pre_rows) * MIN_HALFTIME_RATIO:
+        return SnapshotEvaluation("marketplace_collapsed", [])
+
+    no_shows = compare(pre_rows, ht_rows)
+
+    if no_shows and len(no_shows) > min(len(pre_rows), len(ht_rows)):
+        return SnapshotEvaluation("impossible_no_shows", no_shows)
+
+    return SnapshotEvaluation("ok", no_shows)
+
+
 def main():
     if len(sys.argv) not in (2, 3):
         print("Usage: python nfl_run_game.py <team_slug> [YYYY-MM-DD]")
@@ -370,24 +418,17 @@ def main():
     pre_rows = load_csv(pg_csv) if os.path.isfile(pg_csv) else []
     ht_rows = load_csv(ht_csv) if os.path.isfile(ht_csv) else []
 
-    # Sanity gate: compare() treats every seat present in both snapshots as
-    # a no-show. If the halftime listing count has collapsed far below
-    # pre-game (confirmed live: 181 pre-game -> 4 at halftime, ~98% "no-show"),
-    # that is not real fan behavior -- it means TM's own resale marketplace
-    # emptied out the listings, not that fans failed to show up. Inserting
-    # that as if it were real no-show data would be actively misleading
-    # (a fabricated ~98% no-show rate is worse than no data at all). 15% is
-    # a first estimate for "this isn't real attendance signal anymore", not
-    # a measured value -- revisit once more real games establish what a
-    # normal halftime listing count actually looks like relative to pre-game.
-    if not pre_rows:
+    # See evaluate_snapshot_quality() for what each verdict means and the
+    # real incidents behind each gate.
+    evaluation = evaluate_snapshot_quality(pre_rows, ht_rows)
+
+    if evaluation.verdict == "no_pregame":
         notify_scrape_status(f"❌ {game_label}: NOT scraped. Pre-game scrape found 0 listings "
                              f"(page off-sale or blocked). Nothing recorded.")
         Path(done_marker).touch()
         return
 
-    MIN_HALFTIME_RATIO = 0.15
-    if pre_rows and len(ht_rows) < len(pre_rows) * MIN_HALFTIME_RATIO:
+    if evaluation.verdict == "marketplace_collapsed":
         msg = (f"Halftime listings collapsed to {len(ht_rows)} from {len(pre_rows)} pre-game "
                f"(below {MIN_HALFTIME_RATIO:.0%}) -- likely TM's marketplace closing out "
                f"listings, not real no-shows. Skipping no-show insert to avoid recording "
@@ -398,18 +439,9 @@ def main():
         Path(done_marker).touch()
         return
 
-    no_shows = compare(pre_rows, ht_rows)
+    no_shows = evaluation.no_shows
 
-    # A no-show is defined as a seat present in BOTH snapshots, so its count
-    # can never exceed the smaller of the two raw counts - this is a hard
-    # mathematical invariant, not a heuristic (unlike MIN_HALFTIME_RATIO
-    # above, which is a judgment call about market behavior). Confirmed
-    # live 2026-09-20: the git-push-failure incident inserted no_shows=1908
-    # against a pregame count of only 173 for one game - impossible under
-    # this product's own definition, and it slipped past MIN_HALFTIME_RATIO
-    # entirely because that gate only checks for the marketplace collapsing,
-    # not for two mismatched snapshots getting compared against each other.
-    if no_shows and len(no_shows) > min(len(pre_rows), len(ht_rows)):
+    if evaluation.verdict == "impossible_no_shows":
         msg = (f"{len(no_shows)} no-shows exceeds the smaller snapshot "
                f"(pre-game {len(pre_rows)}, halftime {len(ht_rows)}) - "
                f"mathematically impossible for a real intersection, almost "
