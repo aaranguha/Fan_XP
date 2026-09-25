@@ -438,10 +438,6 @@ sufficient for that.
 - 45-min halftime fallback looks fine where pre-game ran on time (9/13:
   halftime kept 30-90% of pre-game listings). Watch the first Sunday on the
   new 10:00 UTC trigger (2026-09-27).
-- Fabricated 9/14 Chiefs (game 1287) and 9/17 Bills (1288) captures still
-  need deleting from Supabase + their `scraping/data/nfl/` folders, then
-  dashboards regenerated (blocked by auto-mode permission on 2026-09-24,
-  handed to founder).
 - Unexplained: Titans 9/13 and Cardinals 9/20 had 814/439 halftime listings
   but 0 no-shows; Vikings 9/13 only 49 of 659. Possible seat-join mismatch in
   `compare()` - not yet investigated.
