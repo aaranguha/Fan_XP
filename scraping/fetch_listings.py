@@ -215,6 +215,11 @@ def parse_seats(all_facets, places_facets, offer_price_map, scraped_at):
 
 # ── Event discovery ───────────────────────────────────────────────────────────
 
+NON_GAME_EVENT_MARKERS = (
+    "not a game ticket", "club pass", "hotel package", "parking", "tailgate pass",
+)
+
+
 def find_next_home_game(tm_keyword: str, game_date: str | None = None, classification: str = "Basketball") -> dict:
     """
     Return the home game for the given team via TM Discovery API.
@@ -248,6 +253,18 @@ def find_next_home_game(tm_keyword: str, game_date: str | None = None, classific
         ]
         if not events:
             raise RuntimeError(f"No home game found for '{tm_keyword}' on {game_date}.")
+
+    # TM lists paid add-ons as separate same-day events under the team's
+    # keyword (confirmed live: Steelers "1933 Club Pass (NOT A GAME TICKET)"
+    # was picked over the real game on 2026-09-13 and again queued for
+    # 09-27; Raiders "Official Hotel Packages" on 09-13). Their resale pages
+    # have no seat inventory, so drop them before choosing.
+    events = [
+        e for e in events
+        if not any(m in e.get("name", "").lower() for m in NON_GAME_EVENT_MARKERS)
+    ]
+    if not events:
+        raise RuntimeError(f"Only non-game add-on events found for '{tm_keyword}' on {game_date or 'upcoming dates'}.")
 
     # Filter out G-League affiliates
     keyword_lower = tm_keyword.lower()

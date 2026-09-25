@@ -217,10 +217,15 @@ def parse_opponent_name(event_name: str) -> str:
     the entire unparsed event name). Match case-insensitively as a
     standalone word instead of a fixed literal list. If no separator is
     found, the whole event name is returned unchanged.
+
+    Promo suffixes after " - " or ": " are dropped (confirmed live:
+    "San Francisco 49ers vs. Arizona Cardinals - George Kittle Bobblehead"),
+    since no NFL team name contains either.
     """
     sep_match = re.search(r"\s+(?:vs\.?|v\.?|at)\s+", event_name, re.IGNORECASE)
     if sep_match:
-        return event_name[sep_match.end():].strip()
+        opponent = event_name[sep_match.end():]
+        return re.split(r"\s+-\s+|:\s+", opponent, maxsplit=1)[0].strip()
     return event_name
 
 
@@ -253,10 +258,9 @@ def main():
     done_marker = os.path.join(gdir, ".scrape_complete")
     os.makedirs(gdir, exist_ok=True)
 
-    # nfl.yml fires twice on a Sunday: once at noon ET (for 1pm ET games)
-    # and again at 6pm ET (to catch SNF). The 6pm trigger re-discovers every
-    # home game "today" via the TM API, including ones the noon trigger
-    # already fully handled - confirmed live 2026-09-13: the Giants' pregame
+    # Guards against a second same-day run (a manual re-run, or a restart
+    # after a code fix) re-scraping a game that's already done. Originally
+    # added when nfl.yml fired twice on Sundays - confirmed live 2026-09-13: the Giants' pregame
     # scrape ran fine at the noon trigger, then the 6pm trigger launched a
     # SECOND giants subprocess that tried to "pre-game" scrape a game that
     # was already at/past halftime, timing out against the live event page.

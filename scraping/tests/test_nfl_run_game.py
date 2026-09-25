@@ -65,6 +65,12 @@ def test_does_not_false_positive_on_letter_v_inside_a_word():
     assert parse_opponent_name("Vikings vs. Ravens") == "Ravens"
 
 
+def test_promo_suffix_after_dash_is_dropped():
+    assert parse_opponent_name(
+        "San Francisco 49ers vs. Arizona Cardinals - George Kittle Bobblehead"
+    ) == "Arizona Cardinals"
+
+
 # ── parse_clock_minutes() ────────────────────────────────────────────────────
 
 def test_espn_pt_format_minutes_and_seconds():
