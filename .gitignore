@@ -29,3 +29,5 @@ output/
 
 # Claude
 .claude/
+
+.claude/settings.local.json
