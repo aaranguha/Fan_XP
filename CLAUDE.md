@@ -294,6 +294,15 @@ GitHub's own hosted-runner IP ranges, confirmed via a live 403):
   though since a self-hosted runner only handles one job at a time, testing
   this way means briefly canceling any in-progress real job and re-triggering
   it afterward (`gh workflow run nfl.yml` again) once the smoke test finishes.
+- **Scheduled triggers fire late (~2h, consistently)**: observed every day
+  2026-09-13 to 09-24. The old `0 23 * * *` / Sunday `0 17 * * 0` triggers
+  landed after kickoff, so "pre-game" scrapes ran after kickoff for every
+  primetime and 1 PM ET game (fake ~100% no-show rates for 9/14 Chiefs and
+  9/17 Bills; 0 listings for all 9/20 1 PM games). `nfl.yml` now has ONE
+  trigger, `0 10 * * *` (6 AM ET), hours ahead of any kickoff; each game
+  sleeps until kickoff - 60 min. `nfl_run_game.py` also refuses to take a
+  pre-game baseline within `MIN_PREGAME_LEAD_MIN = 20` of kickoff. **Never
+  schedule a trigger close to the window it needs to hit.**
 - **Job timeout lesson**: `nfl.yml`'s `timeout-minutes` has been raised twice
   — 360 → 720 → 1440 (24h). Each time, a real scenario killed the job before
   it reached its actual work: first a late-firing scheduled trigger, then a
@@ -365,12 +374,15 @@ own real lead time, start it well before it's actually needed.
 
 **Telegram bot** (`t.me/FanXP_bot`): two features, both wired into the
 existing pieces above rather than being a separate system —
-1. **Scrape status alerts**, sent from `nfl_run_game.py` at the pregame and
-   halftime steps. Scoped to: any 49ers game, OR any "primetime" game
-   (kickoff ≥ 7 PM ET, covers SNF/MNF/TNF and one-off evening games like the
-   season-opening Wednesday game) for *any* team. Reports success (seat/price
-   counts) or the actual error on failure. See `notify_scrape_status()` /
-   `is_primetime()` in `nfl_run_game.py`.
+1. **Scrape outcome alerts**, sent from `nfl_run_game.py`: exactly ONE
+   message per game, for every team, when the game's run ends: ✅ scraped
+   (pre-game/halftime/no-show counts), ❌ not scraped (and why), or ⚠️
+   scraped but no-shows rejected by a sanity gate. **Founder's standing
+   preference (2026-09-24): Telegram carries only these scrape outcomes.**
+   No step-by-step progress pings. `notify.yml` (the secrets-free bridge the
+   cloud QA/pitch-readiness/digest agents dispatch to) now only logs to the
+   job summary, and `data-integrity.yml` / `site-health.yml` alert via GitHub
+   issues only. Don't add new Telegram senders without asking.
 2. **Natural-language Q&A** about empty seats ("what are the best sections?",
    "what's open in 101-104?") via a webhook (`/webhooks/telegram` in
    `fanxp_api.py`) that Telegram calls when a message arrives. Pulls real
@@ -421,10 +433,22 @@ sufficient for that.
 
 ---
 
-## 9. Open items (accurate as of 2026-09-10)
+## 9. Open items (accurate as of 2026-09-24)
 
-- Confirm whether the 45-minute NFL halftime fallback and the 15% plausibility
-  gate are working well after 2026-09-13 (first real multi-game NFL Sunday).
+- 45-min halftime fallback looks fine where pre-game ran on time (9/13:
+  halftime kept 30-90% of pre-game listings). Watch the first Sunday on the
+  new 10:00 UTC trigger (2026-09-27).
+- Fabricated 9/14 Chiefs (game 1287) and 9/17 Bills (1288) captures still
+  need deleting from Supabase + their `scraping/data/nfl/` folders, then
+  dashboards regenerated (blocked by auto-mode permission on 2026-09-24,
+  handed to founder).
+- Unexplained: Titans 9/13 and Cardinals 9/20 had 814/439 halftime listings
+  but 0 no-shows; Vikings 9/13 only 49 of 659. Possible seat-join mismatch in
+  `compare()` - not yet investigated.
+- NBA Launchpad (launchpad.nba.com) 2027 cohort, Fan Connection track:
+  applications close 2026-10-16. Founder plans to apply. Fix pitch-readiness
+  issues #5 (stale capability statement) and #11 (terms.html says "bid")
+  first.
 - Repo public/private decision (§5) — still undecided.
 - MLB historical no-show data may still contain corrupted rows from the
   duplicate-insert bug (§4.3) — not yet cleaned up.
