@@ -132,7 +132,10 @@ def launch_team(slug: str, today: str) -> tuple:
 
 
 def main():
-    today = datetime.now(EASTERN).strftime("%Y-%m-%d")
+    # NFL_GAME_DATE lets a manual dispatch start the night before a game day
+    # (see nfl.yml's game_date input) instead of relying on the scheduled
+    # trigger, which has fired 2-5h late.
+    today = os.getenv("NFL_GAME_DATE", "").strip() or datetime.now(EASTERN).strftime("%Y-%m-%d")
     print(f"[{today}] Checking today's NFL schedule...")
 
     try:

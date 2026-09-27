@@ -2,7 +2,10 @@ name: NFL Game Runner
 
 on:
   schedule:
-    # ONE trigger per day, at 10 AM UTC = 6 AM ET, every day of the week.
+    # ONE trigger per day, at 05:30 UTC = 1:30 AM ET, every day of the week.
+    # (Was 10:00 UTC; it then fired 4-5h late on 9/25 and 9/26, too close to
+    # a 1 PM ET game's noon pre-game scrape. For a big game day, also start
+    # it by hand the night before: gh workflow run nfl.yml -f game_date=YYYY-MM-DD)
     # The runner finds all of today's home games and each game subprocess
     # sleeps until its own kickoff - 60 min, so an early start costs nothing.
     #
@@ -18,11 +21,16 @@ on:
     # late: 1 PM ET kickoff is 17:00 UTC, so its pre-game was due at 16:00.
     # Keep this trigger hours ahead of the earliest kickoff so a multi-hour
     # scheduler delay still lands before any pre-game scrape. Longest day
-    # (SNF ~00:20 UTC kickoff + 45 min) is ~16h from 10:00 UTC, inside the
-    # 24h timeout below. Firing every day is cheap -- nfl_runner.py exits
+    # (SNF ~00:20 UTC kickoff + 45 min) is ~20h from 05:30 UTC, inside the
+    # timeout below. Firing every day is cheap -- nfl_runner.py exits
     # immediately if there is no home game.
-    - cron: "0 10 * * *"
+    - cron: "30 5 * * *"
   workflow_dispatch:
+    inputs:
+      game_date:
+        description: "Game day to run (YYYY-MM-DD, ET). Blank = today in ET."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -39,7 +47,9 @@ jobs:
     # ~8h-late fire). 1440 (24h) covers both a late-firing trigger and a
     # same-day restart well before a late kickoff, plus the wait for
     # halftime after.
-    timeout-minutes: 1440
+    # 1800 (30h, self-hosted runners allow up to 5 days): a night-before
+    # manual start for a Sunday with a late SNF kickoff needs ~24h.
+    timeout-minutes: 1800
 
     env:
       TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
@@ -52,6 +62,7 @@ jobs:
       GIT_USER_EMAIL:       "github-actions[bot]@users.noreply.github.com"
       HEADLESS_BROWSER:     "0"
       PYTHONUNBUFFERED:     "1"
+      NFL_GAME_DATE:        ${{ github.event.inputs.game_date }}
 
     steps:
       - name: Checkout repo

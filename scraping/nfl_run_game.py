@@ -322,6 +322,9 @@ def main():
               f"scraped earlier today - skipping duplicate run.")
         return
 
+    # A game this runner already attempted earlier (e.g. a later queued run
+    # re-discovering it) shouldn't send a second "NOT scraped" alert.
+    attempted_before = os.path.isfile(os.path.join(gdir, "game_meta.json"))
     meta    = save_game_meta(event, team, gdir, opponent)
     game_id = supabase_client.upsert_game(meta, league="nfl")
 
@@ -362,7 +365,8 @@ def main():
                f"pre-game window (kick-off {kickoff.strftime('%H:%M UTC')}), too late for a "
                f"real baseline. Nothing recorded.")
         print(f"  {msg}")
-        notify_scrape_status(f"❌ {msg}")
+        if not attempted_before:
+            notify_scrape_status(f"❌ {msg}")
         # Mark complete so no later trigger retries it even later.
         open(done_marker, "w").close()
         return
