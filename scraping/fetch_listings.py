@@ -36,7 +36,7 @@ from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from collections import Counter
 from datetime import datetime, timezone
 from dotenv import load_dotenv
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from playwright_stealth import Stealth
 from teams import get_team, game_dir, pre_game_csv, halftime_csv, data_dir
 
@@ -320,6 +320,30 @@ def close_browser_session(pw, ctx) -> None:
     pw.stop()
 
 
+def _goto_with_retry(page, url: str, timeout: int = 45000, retries: int = 2) -> None:
+    """
+    page.goto() with a couple of retries on a bare navigation timeout.
+    A cluster of teams re-navigating for their halftime scrape within the
+    same short jitter window (see nfl_run_game.py's ht_jitter) overloads the
+    single runner machine's several simultaneous real (non-headless) Chrome
+    instances enough that a plain page load can time out with no bot-block
+    involved -- confirmed live 2026-09-27 (run 36287218818): 8 teams' Sunday
+    halftime scrapes died on an unretried Page.goto timeout during that
+    wave, losing halftime data for all of them. Unlike the "no inventory
+    captured" retry loop in scrape_listings(), the navigation call itself
+    previously had no retry at all.
+    """
+    for attempt in range(retries + 1):
+        try:
+            page.goto(url, wait_until="load", timeout=timeout)
+            return
+        except PlaywrightTimeoutError:
+            if attempt == retries:
+                raise
+            print(f"  [goto] navigation timed out — retrying ({attempt + 1}/{retries})...")
+            page.wait_for_timeout(5000)
+
+
 def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "default", session=None, save_endpoints_path: str | None = None) -> tuple[list[dict], dict, list[dict], list[dict]]:
     """
     Load the TM event page, intercept three XHR calls:
@@ -408,7 +432,7 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
 
         try:
             print(f"  Loading: {event_url}")
-            page.goto(event_url, wait_until="load", timeout=45000)
+            _goto_with_retry(page, event_url)
             human_browse(page)
             page.wait_for_timeout(WAIT_MS)
 
@@ -425,7 +449,7 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
                 captured["inventory"] = None
                 captured["pricing"]   = None
                 captured["places"]    = None
-                page.goto(event_url, wait_until="load", timeout=45000)
+                _goto_with_retry(page, event_url)
                 human_browse(page)
                 page.wait_for_timeout(WAIT_MS)
                 if is_bot_blocked(page):

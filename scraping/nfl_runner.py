@@ -231,6 +231,18 @@ def main():
         subprocess.run(["git", "add", "data/", "../docs/"], check=True)
         subprocess.run(["git", "commit", "-m", f"NFL auto-update {date_str}: {teams_str}"], check=True)
 
+        # A big Sunday's commit (dozens of teams' CSVs plus several
+        # multi-MB regenerated seatmap HTML pages) can push tens of MB in
+        # one go, well past git's default 1 MiB http.postBuffer -- surfaces
+        # as "RPC failed; HTTP 400" + "unexpected disconnect while reading
+        # sideband packet" on every retry below, not a stale-ref problem the
+        # rebase can fix. Confirmed live 2026-09-27 (run 36287218818): a
+        # 75-file push failed all 3 retries this way, losing that day's
+        # scraped data for 5 teams even though the retry-with-rebase logic
+        # itself worked correctly. Raise it well above what one day's push
+        # could ever need.
+        subprocess.run(["git", "config", "http.postBuffer", "524288000"], check=True)
+
         # A silent push failure here used to just print a message and move
         # on, leaving the whole run reporting "success" while actually
         # losing the commit (including every .scrape_complete marker just
