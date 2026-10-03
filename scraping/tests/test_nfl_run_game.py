@@ -17,8 +17,19 @@ Covers:
     collapse gate, and §4.3's impossible-no_shows invariant, applied here as
     a pre-insert gate rather than the post-hoc corruption check that
     check_data_integrity.py runs).
+  - save_game_meta(): NFL's version of the game_meta.json writer that
+    test_mlb_run_game.py and test_wnba_run_game.py already cover for MLB and
+    WNBA. NFL's own copy had NO test at all before this file — unlike MLB's
+    and WNBA's, it takes an already-parsed `opponent` string as its own
+    4th argument (the caller does `opponent = parse_opponent_name(name)`
+    first, see nfl_run_game.py:300/328) rather than re-parsing the event
+    name internally, so it needs its own coverage for its own behavior:
+    field population and the existing-file short-circuit (matches MLB's
+    behavior, not WNBA's "always recompute" behavior — see
+    test_wnba_run_game.py's test_save_game_meta_does_not_reuse_existing_file).
 """
 
+import json
 from datetime import datetime, timezone
 
 import pytest
@@ -29,6 +40,7 @@ from nfl_run_game import (
     get_kickoff_utc,
     notify_scrape_status,
     evaluate_snapshot_quality,
+    save_game_meta,
     MIN_HALFTIME_RATIO,
 )
 
@@ -235,3 +247,114 @@ def test_impossible_no_shows_boundary_equal_to_smaller_snapshot_is_ok():
 
     assert result.verdict == "ok"
     assert len(result.no_shows) == 5
+
+
+# ── save_game_meta() ─────────────────────────────────────────────────────────
+
+def _event(
+    name="Kansas City Chiefs vs. Denver Broncos",
+    local_date="2026-09-13",
+    local_time="13:00:00",
+    venue="GEHA Field at Arrowhead Stadium",
+    city="Kansas City",
+):
+    return {
+        "name": name,
+        "dates": {"start": {"localDate": local_date, "localTime": local_time}},
+        "_embedded": {"venues": [{"name": venue, "city": {"name": city}}]},
+    }
+
+
+def _team():
+    return {"slug": "chiefs"}
+
+
+def test_save_game_meta_fields(tmp_path):
+    meta = save_game_meta(_event(), _team(), str(tmp_path), "Denver Broncos")
+
+    assert meta["home_team"] == "chiefs"
+    assert meta["opponent"] == "Denver Broncos"
+    assert meta["game_date"] == "2026-09-13"
+    assert meta["day_of_week"] == "Sunday"
+    assert meta["tipoff_local"] == "13:00"
+    assert meta["arena"] == "GEHA Field at Arrowhead Stadium"
+    assert meta["city"] == "Kansas City"
+    assert meta["league"] == "nfl"
+
+
+def test_save_game_meta_takes_opponent_verbatim_not_reparsed(tmp_path):
+    # Unlike mlb_run_game.py/wnba_run_game.py's save_game_meta(), NFL's
+    # version does no separator parsing of its own — the caller already did
+    # that via parse_opponent_name() (see nfl_run_game.py main(), line 300)
+    # and passes the result straight through. Whatever string is passed as
+    # `opponent` is stored as-is, even if it wouldn't itself look like a
+    # clean opponent name.
+    meta = save_game_meta(_event(), _team(), str(tmp_path), "Some Weird Preseason Event Title")
+
+    assert meta["opponent"] == "Some Weird Preseason Event Title"
+
+
+def test_save_game_meta_persists_and_reuses_existing_file(tmp_path):
+    # Matches mlb_run_game.py's short-circuit behavior (test_mlb_run_game.py's
+    # test_save_game_meta_persists_and_reuses_existing_file), NOT
+    # wnba_run_game.py's "always recompute" behavior — a second call for the
+    # same game folder must return the FIRST call's saved meta unchanged, not
+    # silently overwrite it with a different event/opponent.
+    first = save_game_meta(_event(), _team(), str(tmp_path), "Denver Broncos")
+
+    second = save_game_meta(
+        _event(name="Kansas City Chiefs vs. Buffalo Bills"),
+        _team(),
+        str(tmp_path),
+        "Buffalo Bills",
+    )
+
+    assert second == first
+    assert second["opponent"] == "Denver Broncos"
+
+
+def test_save_game_meta_writes_json_file_to_gdir(tmp_path):
+    save_game_meta(_event(), _team(), str(tmp_path), "Denver Broncos")
+
+    on_disk = json.load(open(tmp_path / "game_meta.json"))
+    assert on_disk["opponent"] == "Denver Broncos"
+
+
+def test_save_game_meta_missing_venue_fields_default_to_empty_strings(tmp_path):
+    event = {
+        "name": "Kansas City Chiefs vs. Denver Broncos",
+        "dates": {"start": {"localDate": "2026-09-13", "localTime": "13:00:00"}},
+        "_embedded": {"venues": [{}]},
+    }
+
+    meta = save_game_meta(event, _team(), str(tmp_path), "Denver Broncos")
+
+    assert meta["arena"] == ""
+    assert meta["city"] == ""
+
+
+def test_save_game_meta_missing_dates_default_to_empty_and_no_day_of_week(tmp_path):
+    event = {
+        "name": "Kansas City Chiefs vs. Denver Broncos",
+        "dates": {},
+        "_embedded": {"venues": [{"name": "Arrowhead Stadium", "city": {"name": "Kansas City"}}]},
+    }
+
+    meta = save_game_meta(event, _team(), str(tmp_path), "Denver Broncos")
+
+    assert meta["game_date"] == ""
+    assert meta["tipoff_local"] == ""
+    assert meta["day_of_week"] == ""
+
+
+def test_save_game_meta_malformed_game_date_does_not_raise(tmp_path):
+    # game_dt comes straight from TM's API response — if it's ever not a
+    # clean YYYY-MM-DD string, datetime.strptime() raises ValueError, which
+    # save_game_meta() catches so one bad date doesn't crash the whole run;
+    # day_of_week is just left empty rather than guessed at.
+    event = _event(local_date="not-a-date")
+
+    meta = save_game_meta(event, _team(), str(tmp_path), "Denver Broncos")
+
+    assert meta["game_date"] == "not-a-date"
+    assert meta["day_of_week"] == ""
