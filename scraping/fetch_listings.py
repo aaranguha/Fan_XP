@@ -320,18 +320,22 @@ def close_browser_session(pw, ctx) -> None:
     pw.stop()
 
 
-def _goto_with_retry(page, url: str, timeout: int = 45000, retries: int = 2) -> None:
+def _goto_with_retry(page, url: str, timeout: int = 45000, retries: int = 3) -> None:
     """
-    page.goto() with a couple of retries on a bare navigation timeout.
+    page.goto() with a few retries on a bare navigation timeout.
     A cluster of teams re-navigating for their halftime scrape within the
     same short jitter window (see nfl_run_game.py's ht_jitter) overloads the
     single runner machine's several simultaneous real (non-headless) Chrome
     instances enough that a plain page load can time out with no bot-block
-    involved -- confirmed live 2026-09-27 (run 36287218818): 8 teams' Sunday
-    halftime scrapes died on an unretried Page.goto timeout during that
-    wave, losing halftime data for all of them. Unlike the "no inventory
-    captured" retry loop in scrape_listings(), the navigation call itself
-    previously had no retry at all.
+    involved -- confirmed live 2026-09-27 (run 36287218818, 8 teams) and
+    again 2026-10-04 (run 37198112276, 7 teams sharing a 1 PM ET kickoff).
+    The first fix (2 retries, fixed 5s backoff) wasn't enough: every
+    contending team hits this loop within the same few seconds and backs
+    off by the same fixed amount, so they stay in lockstep and keep
+    re-colliding on every retry instead of spreading apart. Backoff is now
+    randomized (and widened) so contending teams desynchronize across
+    retries, and one more retry is added for extra headroom under a full
+    13-game Sunday slate.
     """
     for attempt in range(retries + 1):
         try:
@@ -340,8 +344,10 @@ def _goto_with_retry(page, url: str, timeout: int = 45000, retries: int = 2) -> 
         except PlaywrightTimeoutError:
             if attempt == retries:
                 raise
-            print(f"  [goto] navigation timed out — retrying ({attempt + 1}/{retries})...")
-            page.wait_for_timeout(5000)
+            backoff_ms = random.randint(5000, 20000)
+            print(f"  [goto] navigation timed out — retrying ({attempt + 1}/{retries}) "
+                  f"after {backoff_ms // 1000}s...")
+            page.wait_for_timeout(backoff_ms)
 
 
 def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "default", session=None, save_endpoints_path: str | None = None) -> tuple[list[dict], dict, list[dict], list[dict]]:
