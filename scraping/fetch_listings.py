@@ -336,6 +336,12 @@ def _goto_with_retry(page, url: str, timeout: int = 45000, retries: int = 3) -> 
     randomized (and widened) so contending teams desynchronize across
     retries, and one more retry is added for extra headroom under a full
     13-game Sunday slate.
+
+    That second fix still wasn't enough on its own -- recurred a third time
+    2026-10-11 (run 38135994235, 7 teams). Retrying harder can't fully fix a
+    problem that's really about how many teams start navigating at once; see
+    nfl_run_game.py's ht_jitter (widened 90s -> 240s) for the actual thinning
+    of concurrent halftime browser launches.
     """
     for attempt in range(retries + 1):
         try:
