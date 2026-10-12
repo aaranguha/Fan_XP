@@ -317,3 +317,90 @@ def test_fetch_no_shows_for_game_empty_when_client_not_configured(monkeypatch):
     monkeypatch.setattr(sc, "_get_client", lambda: None)
 
     assert sc.fetch_no_shows_for_game(1) == []
+
+
+# ── fetch_games_for_team() ───────────────────────────────────────────────────
+#
+# Called by all four leagues' dashboard generators (generate_nfl_story.py,
+# generate_mlb_story.py, generate_wnba_story.py, generate_nba_dashboard.py) to
+# pull every captured game for a team before computing no-show/phantom-revenue
+# stats. Had zero test coverage despite that fan-out — a regression here would
+# silently empty every dashboard on the site.
+
+class RaisingClient:
+    """A client whose .table() blows up, to exercise the except branch."""
+    def table(self, _name):
+        raise RuntimeError("simulated network failure")
+
+
+def test_fetch_games_for_team_returns_empty_when_client_not_configured(monkeypatch):
+    monkeypatch.setattr(sc, "_get_client", lambda: None)
+
+    assert sc.fetch_games_for_team("49ers", league="nfl") == []
+
+
+def test_fetch_games_for_team_filters_by_home_team_and_league(monkeypatch):
+    games = [
+        {"id": 1, "home_team": "49ers", "league": "nfl", "game_date": "2026-09-13"},
+        {"id": 2, "home_team": "seahawks", "league": "nfl", "game_date": "2026-09-14"},
+        # Same home_team, different league — must not leak across leagues
+        # since nfl/mlb/wnba/nba all share the same 'games' table.
+        {"id": 3, "home_team": "49ers", "league": "mlb", "game_date": "2026-06-01"},
+    ]
+    client = FakeClient(store={"games": games})
+    monkeypatch.setattr(sc, "_get_client", lambda: client)
+
+    result = sc.fetch_games_for_team("49ers", league="nfl")
+
+    assert [g["id"] for g in result] == [1]
+
+
+def test_fetch_games_for_team_default_league_is_mlb(monkeypatch):
+    # fetch_games_for_team() predates the multi-league split and still
+    # defaults to league="mlb" when a caller doesn't pass one explicitly.
+    games = [
+        {"id": 1, "home_team": "dbacks", "league": "mlb", "game_date": "2026-06-01"},
+        {"id": 2, "home_team": "dbacks", "league": "nfl", "game_date": "2026-09-13"},
+    ]
+    client = FakeClient(store={"games": games})
+    monkeypatch.setattr(sc, "_get_client", lambda: client)
+
+    result = sc.fetch_games_for_team("dbacks")
+
+    assert [g["id"] for g in result] == [1]
+
+
+def test_fetch_games_for_team_returns_empty_list_when_no_games_match(monkeypatch):
+    client = FakeClient(store={"games": [
+        {"id": 1, "home_team": "seahawks", "league": "nfl", "game_date": "2026-09-13"},
+    ]})
+    monkeypatch.setattr(sc, "_get_client", lambda: client)
+
+    assert sc.fetch_games_for_team("49ers", league="nfl") == []
+
+
+def test_fetch_games_for_team_returns_empty_list_instead_of_none_data(monkeypatch):
+    # result.data can come back None (not just []) from the real client —
+    # fetch_games_for_team() must fall back to [] either way, since callers
+    # iterate the return value directly without a None-check of their own.
+    class NoneDataClient:
+        def table(self, _name):
+            class Q:
+                def select(self, *_a, **_k): return self
+                def eq(self, *_a): return self
+                def order(self, *_a): return self
+                def execute(self): return FakeResult(data=None)
+            return Q()
+
+    monkeypatch.setattr(sc, "_get_client", lambda: NoneDataClient())
+
+    assert sc.fetch_games_for_team("49ers", league="nfl") == []
+
+
+def test_fetch_games_for_team_swallows_exceptions(monkeypatch, capsys):
+    monkeypatch.setattr(sc, "_get_client", lambda: RaisingClient())
+
+    result = sc.fetch_games_for_team("49ers", league="nfl")  # must not raise
+
+    assert result == []
+    assert "fetch_games_for_team failed" in capsys.readouterr().out
