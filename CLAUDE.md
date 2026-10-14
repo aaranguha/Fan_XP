@@ -172,6 +172,17 @@ re-triggering TM bot detection by reloading the page.
   for precise live-clock detection, always fall back to their fixed-minute
   timer in practice. Only MLB gets real live-clock detection, because it uses
   `statsapi.mlb.com` instead of ESPN.
+- **Halftime concurrency cap (2026-10-14)**: on 1 PM Sundays 7-9 games hit
+  their halftime scrape within minutes, each opening a full Chrome on the one
+  runner Mac; 7-8 teams per Sunday lost their halftime snapshot to
+  `Page.goto` timeouts (9/27, 10/4, 10/11). Jitter/retry tweaks didn't fix
+  it. `fetch_listings.browser_slot()` now caps concurrent browsers machine-wide
+  (`BROWSER_SLOTS`, default 3, fcntl file locks under
+  `~/.tm_chrome_profile/.slots`, auto-released if a process dies). Load-tested
+  on the runner via `smoke-test.yml` (`parallel=9`): uncapped 8/9 succeeded,
+  every scrape ~4x slower, one TM bot block; capped 9/9 in under 5 min.
+  Halftime jitter went back to 0-45s. Re-run that load test before changing
+  the cap.
 - A **plausibility gate** now exists in `nfl_run_game.py`
   (`MIN_HALFTIME_RATIO = 0.15`): if the halftime listing count is below 15%
   of the pre-game count, the code treats this as "marketplace collapsed, not
@@ -207,24 +218,27 @@ re-triggering TM bot detection by reloading the page.
   with `.data = None`) when zero rows match. `fanxp_app/fanxp_api.py` has a
   `fetch_one()` helper that handles this correctly — use it, don't call
   `.maybe_single().execute().data` directly, it will crash on a miss.
-- **Seat-map section click-through gaps**: the interactive seat-map pages
-  (`docs/nfl_{slug}_seatmap.html`) used to try to color/attach click handlers
-  to Ticketmaster's own background SVG art by matching section names against
-  element `id`s. TM's own SVG export turned out to use *several different,
-  inconsistent* id schemes across sections in the same venue (plain `"116"`,
-  `"Shape116"`, `"116 lvl"`, or split into unlabeled multi-fragment paths like
-  `"340X96"`/`"340X155"` for large curved sections) — and for roughly a third
-  of real sections, no shape existed in their art at all. **The fix, now the
-  permanent architecture**: `extract_stadium_geo.py` computes each section's
-  own shape directly from its real seat coordinates (a minimum-area bounding
-  rectangle around a convex hull of the seats, with a small outward pad), and
-  `build_stadium_seatmap.py` draws these as our own SVG paths, completely
-  independent of Ticketmaster's background art id scheme. Verified via a real
-  headless browser (not assumption) at 100% section coverage for two
-  different venues (Lumen Field, Lambeau Field) after this change. **Do not
-  go back to id-matching against TM's background art** — it fundamentally
-  cannot reach 100% coverage because the art itself is missing shapes for
-  real sections, not because the matching logic was incomplete.
+- **Seat-map section shapes (NFL)** -- *updated 2026-09-27*: the interactive seat-map
+  pages (`docs/nfl_{slug}_seatmap.html`) now draw **Ticketmaster's own section outlines
+  and labels**, so they look exactly like TM's seat map. Source: every section segment in
+  TM's geometry JSON (`data/{slug}/seatmap_geo.json`, the `placeDetailNoKeys` response)
+  carries `shapes[].path` (the exact polygon TM draws, in the same 10240x7680 space as the
+  seats and the background art) and `shapes[].labels` (text, x, y, size, angle). These are
+  keyed by section **name**, so they cover every section: verified 7051/7051 across all 32
+  NFL venues, and a real headless browser confirmed every section clickable on all 32 pages.
+  `extract_stadium_geo.py` (`tm_outlines()`) writes them as `outlines`, and
+  `build_stadium_seatmap.py` draws them over TM's art (`arena_full.svg`).
+  - The page shows the full 10240x7680 canvas, like TM. Sections with open seats are TM blue
+    (`#026cdf`) with white labels; others stay art-gray with dark labels.
+  - A zoomed section turns white, with blue open-seat dots and gray taken-seat dots.
+  - One outline can cover several sections (clubs, SRO); clicking it zooms to all of them.
+  - Some sections have 2+ outline pieces with their own labels (e.g. Lumen 116-125,
+    Gillette 300s). TM's map shows the same duplicates.
+  - History: an earlier version matched section names against TM's *background-art* SVG ids.
+    Those use inconsistent id schemes and are missing ~1/3 of sections, so that approach is
+    still off-limits. Its replacement (min-area rectangles around each section's seats) looked
+    blocky and unlike TM; it's now only a fallback in `hulls` for any section without an
+    outline, which is currently none.
 
 ### 4.4 Dashboards and seat maps (generated output)
 
@@ -245,14 +259,23 @@ re-triggering TM bot detection by reloading the page.
   when NBA got its own dashboard generator, specifically so the existing,
   working interactive visualization wouldn't be disturbed.
 - `extract_stadium_geo.py` + `build_stadium_seatmap.py` — NFL's interactive
-  seat map (`docs/nfl_{slug}_seatmap.html`). See §4.3 for the section-shape
-  architecture. When a team has no real completed game yet, sections render
+  seat map (`docs/nfl_{slug}_seatmap.html`), drawn with TM's own section outlines. See
+  §4.3 for the section-shape architecture. When a team has no real completed game yet, sections render
   in a clearly-labeled **preview state** — a deterministic (seeded), honest
   spread of ~22% of lower-bowl sections marked "open," with a legend that
   explicitly says "Empty — preview only" and copy stating "availability shown
   is a preview." **Never remove that labeling** — it's the line between an
   honest placeholder and a page that looks like it's showing real fan data
   when it isn't.
+  - **Live per-game data (2026-10-14)**: the runner only commits/rebuilds
+    pages after *every* game that day ends (~9:30 PM ET on Sundays), far too
+    late for second-half claims. So the seat map now loads each game's open
+    seats from the API (`GET /api/nfl/{slug}/games`, `/seats?date=`), which
+    reads Supabase directly: halftime no-shows (with real listed prices) plus
+    seats owners released. A game picker switches games; today's game polls
+    every 60s. The baked-in seats are only a fallback if the API is down, and
+    the preview stays when a team has no real game yet. Verified in a real
+    browser: 10/11 Steelers matched 2,810 of 2,811 no-shows to seats.
 - `generate_capability_statement.py` — the one-page sales collateral
   (`capability_statement.html`, root of repo, NOT in docs/). Fully generic
   (no team name baked in — this was explicitly requested after an earlier
@@ -294,7 +317,11 @@ GitHub's own hosted-runner IP ranges, confirmed via a live 403):
   though since a self-hosted runner only handles one job at a time, testing
   this way means briefly canceling any in-progress real job and re-triggering
   it afterward (`gh workflow run nfl.yml` again) once the smoke test finishes.
-- **Scheduled triggers fire late (~2h, consistently)**: observed every day
+- **Scheduled triggers fire late, by 2-8h**: the trigger moved to `30 5 * * *`
+  (1:30 AM ET) on 9/26 and still lands 6:30-9:30 AM ET. Fine for a noon
+  pre-game, but for a big game day it's safer to start the night before:
+  `gh workflow run nfl.yml -f game_date=YYYY-MM-DD` (timeout is 1800 min).
+  Earlier history: observed every day
   2026-09-13 to 09-24. The old `0 23 * * *` / Sunday `0 17 * * 0` triggers
   landed after kickoff, so "pre-game" scrapes ran after kickoff for every
   primetime and 1 PM ET game (fake ~100% no-show rates for 9/14 Chiefs and
@@ -355,6 +382,31 @@ whether to make it private; flag this to the founder if it comes up again.
    `/nfl/respond/<id>`, part of `/webhooks/twilio/sms`,
    `/webhooks/stripe`) — this is the **real, current product**, backing
    `docs/nfl_{slug}_seatmap.html`. This is what should be demoed.
+
+**Accounts and buyer/seller pathways (2026-10-14)**, in
+`fanxp_app/fanxp_accounts.py` (Flask blueprint) and `docs/account.html`,
+`buy.html`, `sell.html`, `fanxp-auth.js`, `fanxp-account.css`:
+- Accounts are **Supabase Auth** users, created/signed in *through our API*
+  with the service-role client (`auth.admin.create_user` with
+  `email_confirm=True`, sign-in on a throwaway client so the service client
+  never picks up a user session). The browser never holds a Supabase key; it
+  stores our API's access/refresh tokens in localStorage and sends
+  `Authorization: Bearer`. Name, phone and roles (`buyer`, `seller`, or both)
+  live in `user_metadata`. No email verification or password reset yet.
+- **Buyer**: picks a team, claims on the seat map (name/phone prefilled), sees
+  requests and pass codes on buy.html.
+- **Seller**: registers seats they hold (`seller_seats`, one owner per seat),
+  releases them for a game date at their own price (`seat_releases`; shows as
+  open on that game's map), approves requests on sell.html or by SMS. A claim
+  on a registered seat routes to that seller (their own `nfl_sellers` row,
+  `user_id` set) instead of the demo `STH_PHONE` seller. Payout: release price
+  for a release, flat `CREDIT_OFFER` for a no-show.
+- **For a real game the claim price is looked up server-side**
+  (`lookup_open_seat`): a seller release beats a no-show, and an unlisted seat
+  gets a 409. The browser price is only used on the preview map.
+- Schema: `fanxp_app/migrations/2026-10-14_accounts.sql`, run by hand in the
+  Supabase SQL editor (the API can't run DDL). The public seat endpoints and
+  the claim flow tolerate the tables being absent.
 
 **Payment flow**: Stripe Checkout Session created with `capture_method:
 manual` — the fan's card is authorized immediately but not charged. Only
@@ -433,11 +485,15 @@ sufficient for that.
 
 ---
 
-## 9. Open items (accurate as of 2026-09-24)
+## 9. Open items (accurate as of 2026-10-14)
 
-- 45-min halftime fallback looks fine where pre-game ran on time (9/13:
-  halftime kept 30-90% of pre-game listings). Watch the first Sunday on the
-  new 10:00 UTC trigger (2026-09-27).
+- First Sunday with the browser-slot cap is 2026-10-18 (11 home games): check
+  that the 1 PM games all get a halftime snapshot.
+- Accounts: run `migrations/2026-10-14_accounts.sql` in Supabase before
+  sellers can add seats. Later: email verification + password reset (needs
+  real SMTP in Supabase), seller payouts beyond stadium credit.
+- Bad 9/13 rows from the add-on-page bug (Steelers club pass, game 1235;
+  Raiders hotel package, 1243) are still in Supabase; the API hides them.
 - Unexplained: Titans 9/13 and Cardinals 9/20 had 814/439 halftime listings
   but 0 no-shows; Vikings 9/13 only 49 of 659. Possible seat-join mismatch in
   `compare()` - not yet investigated.
