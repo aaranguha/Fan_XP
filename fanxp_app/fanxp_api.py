@@ -447,8 +447,29 @@ def request_nfl_seat(slug):
           .execute()
     ).data[0]
 
-    stripe = get_stripe()
-    session = stripe.checkout.Session.create(
+    try:
+        stripe = get_stripe()
+        session = create_checkout_session(stripe, slug, section, row_label, seat_num,
+                                          total_cents, return_to_url, row["id"])
+    except Exception as e:
+        # The request never became real without a checkout, so don't leave
+        # it behind, and say why instead of returning a bare HTML 500
+        # (that's how a checkout failure looked on 2026-10-14).
+        sb.table("nfl_seat_requests").delete().eq("id", row["id"]).execute()
+        msg = getattr(e, "user_message", None) or str(e)
+        app.logger.error(f"Stripe checkout failed for request {row['id']}: {e}")
+        return jsonify({"error": f"Couldn't start payment: {msg}"}), 502
+
+    sb.table("nfl_seat_requests").update({
+        "stripe_session_id": session.id,
+        "updated_at":        "now()",
+    }).eq("id", row["id"]).execute()
+
+    return jsonify({"request_id": row["id"], "checkout_url": session.url})
+
+
+def create_checkout_session(stripe, slug, section, row_label, seat_num, total_cents, return_to_url, request_id):
+    return stripe.checkout.Session.create(
         mode="payment",
         payment_intent_data={"capture_method": "manual"},
         # Card only: BNPL/wallet methods (Klarna, Affirm, Cash App Pay,
@@ -470,17 +491,10 @@ def request_nfl_seat(slug):
             },
             "quantity": 1,
         }],
-        success_url=f"{return_to_url}?request_id={row['id']}",
-        cancel_url=f"{return_to_url}?cancelled_request_id={row['id']}",
-        metadata={"request_id": str(row["id"])},
+        success_url=f"{return_to_url}?request_id={request_id}",
+        cancel_url=f"{return_to_url}?cancelled_request_id={request_id}",
+        metadata={"request_id": str(request_id)},
     )
-
-    sb.table("nfl_seat_requests").update({
-        "stripe_session_id": session.id,
-        "updated_at":        "now()",
-    }).eq("id", row["id"]).execute()
-
-    return jsonify({"request_id": row["id"], "checkout_url": session.url})
 
 
 @app.route("/webhooks/stripe", methods=["POST"])

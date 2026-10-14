@@ -8,6 +8,6 @@ supabase>=2.0.0
 flask
 flask-cors
 twilio
-stripe
+stripe==15.6.1  # 16.0.0 arrived unpinned in the 2026-10-14 deploy and claims began failing at checkout; pin to the last known-good
 openai
 gunicorn

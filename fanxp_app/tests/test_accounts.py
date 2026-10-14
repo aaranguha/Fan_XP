@@ -312,3 +312,20 @@ def test_claim_for_seat_not_open_is_refused(db):
 def test_payout_is_release_price_or_flat_credit():
     assert fanxp_api.seller_payout({"release_id": 3, "price_usd": "90.00"}) == 90.0
     assert fanxp_api.seller_payout({"release_id": None, "price_usd": "120"}) == fanxp_api.CREDIT_OFFER
+
+
+def test_checkout_failure_returns_reason_and_removes_the_request(db, monkeypatch):
+    seed_game(db)
+    monkeypatch.setenv("STH_PHONE", "+15555550123")  # seat 5 has no owner -> demo seller
+
+    def boom(**kw):
+        raise RuntimeError("Received unknown parameter: managed_payments")
+    monkeypatch.setattr(fanxp_api, "get_stripe", lambda: SimpleNamespace(
+        checkout=SimpleNamespace(Session=SimpleNamespace(create=boom))))
+
+    code, body = call("POST", "/api/nfl/giants/request", token="tok-buyer", json={
+        "section": "115", "row": "B", "seat": "5", "game_date": "2026-10-18",
+        "return_to_url": "https://x"})
+
+    assert code == 502 and "managed_payments" in body["error"]
+    assert db.tables.get("nfl_seat_requests") == []
