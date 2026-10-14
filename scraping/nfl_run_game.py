@@ -389,22 +389,13 @@ def main():
               f"run while this one was waiting - skipping.")
         return
 
-    # Same clustering problem as the pre-game scrape. TM's own listings are
-    # actively collapsing as the game proceeds (see HALFTIME_FALLBACK_MIN
-    # comment above), so we still can't spread as wide as the pre-game
-    # scrape's 480s -- but a 90s window turned out too narrow: it still let
-    # most of a full Sunday slate pile their real (non-headless) Chrome
-    # launches into roughly the same half-minute, overloading the single
-    # runner machine enough that even _goto_with_retry's 3 retries with
-    # randomized 5-20s backoff weren't enough -- confirmed live 2026-09-27
-    # (run 36287218818, 8 teams), 2026-10-04 (run 37198112276, 7 teams), and
-    # again 2026-10-11 (run 38135994235, 7 teams: commanders, titans,
-    # saints, jets, packers, patriots, dolphins). Widened to 240s (4 min) --
-    # still a small fraction of the ~45 min halftime-timing budget and the
-    # MIN_HALFTIME_RATIO plausibility gate guards against any resulting
-    # staleness -- to actually thin out how many teams are mid-navigation on
-    # the runner at once, instead of just retrying the collision harder.
-    ht_jitter = random.randint(0, 240)
+    # Concurrency is now capped by fetch_listings.browser_slot() (at most
+    # BROWSER_SLOTS Chrome windows on the runner at once), which is what
+    # actually fixes the 1 PM-slate halftime timeouts of 9/27, 10/4 and 10/11
+    # (7-8 teams each). Widening this jitter 90s -> 240s only spread the
+    # collisions and cost data, since TM's listings shrink as the game goes
+    # on, so it's back to a short window that just staggers process wake-ups.
+    ht_jitter = random.randint(0, 45)
     if ht_jitter:
         print(f"  [jitter] Waiting {ht_jitter}s before halftime scrape...")
         time.sleep(ht_jitter)

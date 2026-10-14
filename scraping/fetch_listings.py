@@ -28,12 +28,15 @@ import base64
 import json
 import os
 import csv
+import fcntl
 import random
 import shutil
 import sys
+import time
 import requests
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from collections import Counter
+from contextlib import contextmanager, ExitStack
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
@@ -320,6 +323,55 @@ def close_browser_session(pw, ctx) -> None:
     pw.stop()
 
 
+# Max real Chrome windows scraping at once on this machine, across every
+# per-team subprocess. Each NFL game runs as its own process, so on a 1 PM
+# Sunday 7-9 of them reach their halftime scrape within the same few minutes
+# and all open a full (non-headless) Chrome at once; the runner can't load
+# that many TM pages together and Page.goto times out -- 7-8 teams lost their
+# halftime snapshot on 9/27, 10/4 and 10/11 (runs 36287218818, 37198112276,
+# 38135994235). Jitter and goto retries only spread the collisions out; this
+# caps them. Extra scrapes wait for a slot instead (each holds one ~1 min).
+BROWSER_SLOTS          = int(os.getenv("BROWSER_SLOTS", "3"))
+BROWSER_SLOT_MAX_WAIT_S = 20 * 60
+SLOT_DIR               = os.path.join(CHROME_PROFILE_BASE, ".slots")
+
+
+@contextmanager
+def browser_slot(label: str = ""):
+    """Hold one of BROWSER_SLOTS machine-wide browser slots for the duration.
+    Uses fcntl file locks, which the OS releases if the holder dies, so a
+    crashed scrape can never leave a slot stuck. After BROWSER_SLOT_MAX_WAIT_S
+    it proceeds anyway rather than lose the snapshot entirely."""
+    os.makedirs(SLOT_DIR, exist_ok=True)
+    start = time.monotonic()
+    announced = False
+    while True:
+        for i in range(BROWSER_SLOTS):
+            fh = open(os.path.join(SLOT_DIR, f"slot{i}.lock"), "w")
+            try:
+                fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                fh.close()
+                continue
+            waited = time.monotonic() - start
+            if announced:
+                print(f"  [slot] {label} got browser slot {i} after {waited:.0f}s")
+            try:
+                yield
+            finally:
+                fcntl.flock(fh, fcntl.LOCK_UN)
+                fh.close()
+            return
+        if time.monotonic() - start > BROWSER_SLOT_MAX_WAIT_S:
+            print(f"  [slot] {label} waited {BROWSER_SLOT_MAX_WAIT_S // 60} min for a browser slot -- proceeding without one")
+            yield
+            return
+        if not announced:
+            print(f"  [slot] all {BROWSER_SLOTS} browser slots busy -- {label} waiting...")
+            announced = True
+        time.sleep(random.uniform(2, 4))
+
+
 def _goto_with_retry(page, url: str, timeout: int = 45000, retries: int = 3) -> None:
     """
     page.goto() with a few retries on a bare navigation timeout.
@@ -379,8 +431,14 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
     offer_price_map: dict[str, float] = {}
     owns_browser = session is None
 
+    slot = ExitStack()
     if owns_browser:
-        pw, ctx, page = launch_browser_session(team_slug)
+        slot.enter_context(browser_slot(team_slug))
+        try:
+            pw, ctx, page = launch_browser_session(team_slug)
+        except BaseException:
+            slot.close()
+            raise
     else:
         pw, ctx, page = session
 
@@ -591,8 +649,11 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
 
     finally:
         if owns_browser:
-            ctx.close()
-            pw.stop()
+            try:
+                ctx.close()
+                pw.stop()
+            finally:
+                slot.close()
 
     print(f"  Price map built for {len(offer_price_map)} offers.")
     return all_facets, offer_price_map, all_places_facets, embedded_offers

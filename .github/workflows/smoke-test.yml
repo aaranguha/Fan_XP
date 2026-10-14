@@ -7,6 +7,14 @@ on:
         description: "Ticketmaster event URL to test-scrape"
         required: true
         default: "https://www.ticketmaster.com/seattle-seahawks-vs-new-england-patriots-seattle-washington-09-09-2026/event/0F006482E67E7496"
+      parallel:
+        description: "Concurrent scrapes to launch (1 = plain smoke test; 9 = a 1 PM Sunday halftime)"
+        required: false
+        default: "1"
+      browser_slots:
+        description: "BROWSER_SLOTS cap for this test (blank = the default)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -14,11 +22,12 @@ permissions:
 jobs:
   smoke-test:
     runs-on: [self-hosted, nfl-runner]
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     env:
       HEADLESS_BROWSER: "0"
       PYTHONUNBUFFERED: "1"
+      BROWSER_SLOTS:    ${{ github.event.inputs.browser_slots || '3' }}
 
     steps:
       - name: Checkout repo
@@ -35,4 +44,4 @@ jobs:
       - name: Run smoke test
         run: |
           cd scraping
-          ../.venv/bin/python smoke_test_runner.py "${{ github.event.inputs.event_url }}"
+          ../.venv/bin/python smoke_test_runner.py "${{ github.event.inputs.event_url }}" --parallel "${{ github.event.inputs.parallel || '1' }}"
