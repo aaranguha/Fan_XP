@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buy a seat | Fan XP</title>
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="fanxp-account.css" />
+</head>
+<body>
+<header class="site">
+  <div class="wrap nav-row">
+    <a href="index.html" class="wordmark">Fan<span class="xp">XP</span></a>
+    <nav class="nav-links">
+      <a href="buy.html" class="on">Buy</a>
+      <a href="sell.html">Sell</a>
+      <button onclick="FanXP.signOut()">Sign out</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="eyebrow">Buy a seat</p>
+  <h1 id="hello">Find a better seat</h1>
+  <p class="lead">Pick your team to see the seats that are empty for the second half. You're only charged if the seat's owner says yes.</p>
+
+  <div class="card">
+    <h2>Where are you?</h2>
+    <p class="sub">Choose the home team for the game you're at.</p>
+    <div class="row-fields" style="grid-template-columns:1fr auto;align-items:end">
+      <div><select id="team" aria-label="Home team"></select></div>
+      <div><button class="btn" onclick="goToMap()">See open seats</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+      <h2>My seats</h2>
+      <button class="btn ghost small" onclick="loadRequests()">Refresh</button>
+    </div>
+    <p class="sub">Seats you've asked for. Show the pass code at the gate once a seat is confirmed.</p>
+    <ul class="list" id="requests"><li class="waking">Loading...</li></ul>
+  </div>
+
+  <p class="sub" id="seller-hint" style="display:none">Hold seats you sometimes can't use? <a href="sell.html">Start selling</a>.</p>
+</main>
+
+<script src="fanxp-auth.js"></script>
+<script>
+  if (FanXP.requireSignIn()) {
+    const u = FanXP.user();
+    document.getElementById('hello').textContent = 'Hi, ' + (u.full_name || '').split(' ')[0];
+    if (!u.roles.includes('seller')) document.getElementById('seller-hint').style.display = '';
+
+    const sel = document.getElementById('team');
+    const last = (() => { try { return localStorage.getItem('fanxp_last_team'); } catch (e) { return null; } })();
+    sel.innerHTML = Object.entries(FanXP.NFL_TEAMS)
+      .map(([slug, name]) => `<option value="${slug}" ${slug === last ? 'selected' : ''}>${FanXP.esc(name)}</option>`).join('');
+    loadRequests();
+  }
+
+  function goToMap() {
+    const slug = document.getElementById('team').value;
+    try { localStorage.setItem('fanxp_last_team', slug); } catch (e) {}
+    location.href = `nfl_${slug}_seatmap.html`;
+  }
+
+  const LABEL = { requested: 'Awaiting payment', seller_pinged: 'Waiting on owner', confirmed: 'Confirmed',
+                  declined: 'Declined', expired: 'Expired' };
+
+  async function loadRequests() {
+    const ul = document.getElementById('requests');
+    try {
+      const rows = await FanXP.api('/api/me/requests');
+      if (!rows.length) { ul.innerHTML = '<li class="empty">No seats yet. Pick a team above to find one.</li>'; return; }
+      ul.innerHTML = rows.map(r => `
+        <li>
+          <div>
+            <div class="what">${FanXP.esc(FanXP.NFL_TEAMS[r.team_slug] || r.team_slug)}: Sec ${FanXP.esc(r.section)}, Row ${FanXP.esc(r.row)}, Seat ${FanXP.esc(r.seat)}</div>
+            <div class="meta">${r.game_date ? FanXP.esc(r.game_date) + ' &middot; ' : ''}<span class="mono">$${r.price.toFixed(0)}</span>
+              ${r.pass_code ? ' &middot; Pass code <span class="pass">' + FanXP.esc(r.pass_code) + '</span>' : ''}</div>
+          </div>
+          <span class="badge ${r.status}">${LABEL[r.status] || r.status}</span>
+        </li>`).join('');
+    } catch (err) {
+      if (err.status === 401) return FanXP.requireSignIn();
+      ul.innerHTML = `<li class="empty">${FanXP.esc(err.message)}</li>`;
+    }
+  }
+</script>
+</body>
+</html>

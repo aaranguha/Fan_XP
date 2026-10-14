@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Fan XP account</title>
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="fanxp-account.css" />
+</head>
+<body>
+<header class="site">
+  <div class="wrap nav-row">
+    <a href="index.html" class="wordmark">Fan<span class="xp">XP</span></a>
+    <nav class="nav-links"><a href="nfl.html">NFL seats</a></nav>
+  </div>
+</header>
+
+<main class="wrap" style="max-width:480px">
+  <div id="signed-in" style="display:none">
+    <p class="eyebrow">Signed in</p>
+    <h1 id="hello">Welcome back</h1>
+    <p class="lead">Where to?</p>
+    <div class="paths" id="where"></div>
+    <button class="btn ghost full" onclick="FanXP.signOut()">Sign out</button>
+  </div>
+
+  <div id="forms">
+    <p class="eyebrow">Fan XP account</p>
+    <h1 id="title">Get a seat, or fill yours</h1>
+    <p class="lead">One account for both. Buy an empty seat for the second half, or let fans take the seats you can't use.</p>
+
+    <div class="tabs" role="tablist">
+      <button id="tab-up" class="on" onclick="show('up')">Create account</button>
+      <button id="tab-in" onclick="show('in')">Sign in</button>
+    </div>
+
+    <form class="card" id="form-up" onsubmit="return signUp(event)">
+      <label>What do you want to do?</label>
+      <div class="paths">
+        <label class="path"><input type="checkbox" name="role" value="buyer" checked /><b>Buy a seat</b><span>Find an empty seat at a game you're at</span></label>
+        <label class="path"><input type="checkbox" name="role" value="seller" /><b>Sell my seats</b><span>Release seats you hold and get paid</span></label>
+      </div>
+      <label for="up-name">Your name</label>
+      <input id="up-name" autocomplete="name" required />
+      <label for="up-email">Email</label>
+      <input id="up-email" type="email" autocomplete="email" required />
+      <label for="up-phone">Mobile number <span class="opt" id="phone-opt">(optional for buyers)</span></label>
+      <input id="up-phone" type="tel" autocomplete="tel" placeholder="(555) 555-0100" />
+      <label for="up-pass">Password</label>
+      <input id="up-pass" type="password" autocomplete="new-password" minlength="8" required placeholder="At least 8 characters" />
+      <button class="btn full" id="up-btn">Create account</button>
+      <div class="msg err" id="up-msg"></div>
+    </form>
+
+    <form class="card" id="form-in" onsubmit="return signIn(event)" style="display:none">
+      <label for="in-email">Email</label>
+      <input id="in-email" type="email" autocomplete="email" required />
+      <label for="in-pass">Password</label>
+      <input id="in-pass" type="password" autocomplete="current-password" required />
+      <button class="btn full" id="in-btn">Sign in</button>
+      <div class="msg err" id="in-msg"></div>
+    </form>
+    <p class="sub">By creating an account you agree to the <a href="terms.html">terms</a> and <a href="privacy.html">privacy policy</a>.</p>
+  </div>
+</main>
+
+<script src="fanxp-auth.js"></script>
+<script>
+  const next = new URLSearchParams(location.search).get('next');
+
+  function show(which) {
+    document.getElementById('form-up').style.display = which === 'up' ? '' : 'none';
+    document.getElementById('form-in').style.display = which === 'in' ? '' : 'none';
+    document.getElementById('tab-up').classList.toggle('on', which === 'up');
+    document.getElementById('tab-in').classList.toggle('on', which === 'in');
+  }
+
+  // Only same-site relative pages are allowed as a return target.
+  function home(user) {
+    if (next && /^[\w.-]+\.html(\?[\w=&%.-]*)?$/.test(next)) return next;
+    return user.roles.includes('buyer') ? 'buy.html' : 'sell.html';
+  }
+
+  function busy(btn, on, label) {
+    btn.disabled = on;
+    btn.textContent = on ? 'One moment...' : label;
+    if (on) setTimeout(() => { if (btn.disabled) btn.textContent = 'Waking up the server, this can take a minute...'; }, 4000);
+  }
+
+  function fail(id, err) {
+    const el = document.getElementById(id);
+    el.textContent = err.message || String(err);
+    el.classList.add('show');
+  }
+
+  const roleBoxes = () => [...document.querySelectorAll('input[name=role]')];
+  roleBoxes().forEach(b => b.addEventListener('change', () => {
+    const seller = roleBoxes().some(x => x.checked && x.value === 'seller');
+    document.getElementById('phone-opt').textContent = seller ? '(sellers: we text you when a fan wants your seat)' : '(optional for buyers)';
+    document.getElementById('up-phone').required = seller;
+  }));
+
+  async function signUp(e) {
+    e.preventDefault();
+    const btn = document.getElementById('up-btn');
+    document.getElementById('up-msg').classList.remove('show');
+    const roles = roleBoxes().filter(b => b.checked).map(b => b.value);
+    if (!roles.length) { fail('up-msg', new Error('Pick buying, selling, or both.')); return false; }
+    busy(btn, true);
+    try {
+      const s = await FanXP.api('/api/auth/register', { method: 'POST', body: JSON.stringify({
+        full_name: document.getElementById('up-name').value,
+        email: document.getElementById('up-email').value,
+        phone: document.getElementById('up-phone').value,
+        password: document.getElementById('up-pass').value,
+        roles,
+      }) });
+      FanXP.save(s);
+      location.href = home(s.user);
+    } catch (err) { fail('up-msg', err); busy(btn, false, 'Create account'); }
+    return false;
+  }
+
+  async function signIn(e) {
+    e.preventDefault();
+    const btn = document.getElementById('in-btn');
+    document.getElementById('in-msg').classList.remove('show');
+    busy(btn, true);
+    try {
+      const s = await FanXP.api('/api/auth/login', { method: 'POST', body: JSON.stringify({
+        email: document.getElementById('in-email').value,
+        password: document.getElementById('in-pass').value,
+      }) });
+      FanXP.save(s);
+      location.href = home(s.user);
+    } catch (err) { fail('in-msg', err); busy(btn, false, 'Sign in'); }
+    return false;
+  }
+
+  const u = FanXP.user();
+  if (u && next) {
+    location.replace(home(u));
+  } else if (u) {
+    document.getElementById('forms').style.display = 'none';
+    document.getElementById('signed-in').style.display = '';
+    document.getElementById('hello').textContent = 'Hi, ' + (u.full_name || '').split(' ')[0];
+    document.getElementById('where').innerHTML =
+      '<a class="path" href="buy.html" style="padding-left:14px"><b>Buy a seat</b><span>Find a seat and see your passes</span></a>' +
+      '<a class="path" href="sell.html" style="padding-left:14px"><b>Sell my seats</b><span>Your seats, releases and requests</span></a>';
+  } else if (new URLSearchParams(location.search).get('mode') === 'signin' || next) {
+    show('in');
+  }
+</script>
+</body>
+</html>

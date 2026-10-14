@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sell my seats | Fan XP</title>
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="fanxp-account.css" />
+</head>
+<body>
+<header class="site">
+  <div class="wrap nav-row">
+    <a href="index.html" class="wordmark">Fan<span class="xp">XP</span></a>
+    <nav class="nav-links">
+      <a href="buy.html">Buy</a>
+      <a href="sell.html" class="on">Sell</a>
+      <button onclick="FanXP.signOut()">Sign out</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="eyebrow">Sell my seats</p>
+  <h1 id="hello">Fill the seats you can't use</h1>
+  <p class="lead">Add the seats you hold, then put them up for any game you'll miss. When a fan claims one, we text you and you approve it here or by text.</p>
+
+  <!-- Shown when this account hasn't turned on selling yet -->
+  <form class="card" id="enable" style="display:none" onsubmit="return enableSelling(event)">
+    <h2>Turn on selling</h2>
+    <p class="sub">We text this number when a fan wants one of your seats.</p>
+    <label for="en-phone">Mobile number</label>
+    <input id="en-phone" type="tel" autocomplete="tel" required placeholder="(555) 555-0100" />
+    <button class="btn full">Start selling</button>
+    <div class="msg err" id="en-msg"></div>
+  </form>
+
+  <div id="seller" style="display:none">
+    <div class="stat-row">
+      <div><div class="n" id="st-credit">$0</div><div class="l">Earned so far</div></div>
+      <div><div class="n" id="st-seats">0</div><div class="l">Seats on file</div></div>
+      <div><div class="n" id="st-rel">0</div><div class="l">Up for upcoming games</div></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+        <h2>Requests for your seats</h2>
+        <button class="btn ghost small" onclick="loadRequests()">Refresh</button>
+      </div>
+      <p class="sub">A fan's card is held until you answer. Requests expire after 30 minutes.</p>
+      <ul class="list" id="requests"><li class="waking">Loading...</li></ul>
+    </div>
+
+    <form class="card" onsubmit="return releaseSeats(event)">
+      <h2>Put seats up for a game</h2>
+      <p class="sub">Pick the seats and the game date. They show as open on that game's seat map at your price.</p>
+      <label>Seats</label>
+      <div class="checks" id="rel-seats"><span class="empty">Add a seat below first.</span></div>
+      <div class="row-fields">
+        <div><label for="rel-date">Game date</label><input id="rel-date" type="date" required /></div>
+        <div><label for="rel-price">Your price per seat ($)</label><input id="rel-price" type="number" min="1" max="5000" step="1" required placeholder="85" /></div>
+      </div>
+      <button class="btn full">Put up for this game</button>
+      <div class="msg" id="rel-msg"></div>
+      <ul class="list" id="releases" style="margin-top:14px"></ul>
+    </form>
+
+    <form class="card" onsubmit="return addSeats(event)">
+      <h2>Your seats</h2>
+      <p class="sub">Add each seat you hold. Use a range like 5-8 for seats next to each other.</p>
+      <ul class="list" id="seats"><li class="waking">Loading...</li></ul>
+      <div class="row-fields four">
+        <div><label for="s-team">Team</label><select id="s-team"></select></div>
+        <div><label for="s-sec">Section</label><input id="s-sec" required placeholder="115" /></div>
+        <div><label for="s-row">Row</label><input id="s-row" required placeholder="B" /></div>
+        <div><label for="s-seats">Seats</label><input id="s-seats" required placeholder="5-8" /></div>
+      </div>
+      <button class="btn full">Add seats</button>
+      <div class="msg" id="s-msg"></div>
+    </form>
+  </div>
+</main>
+
+<script src="fanxp-auth.js"></script>
+<script>
+  const { esc, NFL_TEAMS } = FanXP;
+  let mySeats = [];
+
+  function note(id, text, ok) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'msg show ' + (ok ? 'ok' : 'err');
+  }
+
+  if (FanXP.requireSignIn()) start();
+
+  function start() {
+    const u = FanXP.user();
+    document.getElementById('hello').textContent = 'Hi, ' + (u.full_name || '').split(' ')[0];
+    if (!u.roles.includes('seller')) {
+      document.getElementById('enable').style.display = '';
+      if (u.phone) document.getElementById('en-phone').value = u.phone;
+      return;
+    }
+    document.getElementById('seller').style.display = '';
+    document.getElementById('s-team').innerHTML = Object.entries(NFL_TEAMS)
+      .map(([slug, name]) => `<option value="${slug}">${esc(name)}</option>`).join('');
+    const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    document.getElementById('rel-date').min = today;
+    loadAll();
+    setInterval(loadRequests, 20000);
+  }
+
+  async function enableSelling(e) {
+    e.preventDefault();
+    const u = FanXP.user();
+    try {
+      const updated = await FanXP.api('/api/me', { method: 'PATCH', body: JSON.stringify({
+        phone: document.getElementById('en-phone').value,
+        roles: [...new Set([...u.roles, 'seller'])],
+      }) });
+      FanXP.setUser(updated);
+      location.reload();
+    } catch (err) { note('en-msg', err.message); }
+    return false;
+  }
+
+  function loadAll() { loadMe(); loadSeats(); loadReleases(); loadRequests(); }
+
+  async function loadMe() {
+    try {
+      const me = await FanXP.api('/api/me');
+      document.getElementById('st-credit').textContent = '$' + Math.round(me.credit_balance || 0);
+    } catch (err) {}
+  }
+
+  const seatLabel = s => `${NFL_TEAMS[s.team_slug] || s.team_slug}: Sec ${s.section}, Row ${s.row}, Seat ${s.seat}`;
+
+  async function loadSeats() {
+    const ul = document.getElementById('seats');
+    try {
+      mySeats = await FanXP.api('/api/seller/seats');
+      document.getElementById('st-seats').textContent = mySeats.length;
+      ul.innerHTML = mySeats.length ? mySeats.map(s => `
+        <li><div class="what">${esc(seatLabel(s))}</div>
+          <div class="actions"><button type="button" class="btn danger small" onclick="removeSeat(${s.id})">Remove</button></div></li>`).join('')
+        : '<li class="empty">No seats yet.</li>';
+      document.getElementById('rel-seats').innerHTML = mySeats.length ? mySeats.map(s => `
+        <label><input type="checkbox" value="${s.id}" />${esc(NFL_TEAMS[s.team_slug] || s.team_slug)} ${esc(s.section)}-${esc(s.row)}-${esc(s.seat)}</label>`).join('')
+        : '<span class="empty">Add a seat below first.</span>';
+    } catch (err) { ul.innerHTML = `<li class="empty">${esc(err.message)}</li>`; }
+  }
+
+  async function addSeats(e) {
+    e.preventDefault();
+    try {
+      const added = await FanXP.api('/api/seller/seats', { method: 'POST', body: JSON.stringify({
+        team_slug: document.getElementById('s-team').value,
+        section: document.getElementById('s-sec').value,
+        row: document.getElementById('s-row').value,
+        seats: document.getElementById('s-seats').value,
+      }) });
+      note('s-msg', `Added ${added.length} seat${added.length === 1 ? '' : 's'}.`, true);
+      ['s-sec', 's-row', 's-seats'].forEach(id => document.getElementById(id).value = '');
+      loadSeats();
+    } catch (err) { note('s-msg', err.message); }
+    return false;
+  }
+
+  async function removeSeat(id) {
+    if (!confirm('Remove this seat from your account? Any game it is up for is withdrawn too.')) return;
+    try { await FanXP.api('/api/seller/seats/' + id, { method: 'DELETE' }); loadSeats(); loadReleases(); }
+    catch (err) { alert(err.message); }
+  }
+
+  async function loadReleases() {
+    const ul = document.getElementById('releases');
+    try {
+      const rows = await FanXP.api('/api/seller/releases');
+      document.getElementById('st-rel').textContent = rows.filter(r => r.status === 'available').length;
+      ul.innerHTML = rows.map(r => `
+        <li><div><div class="what">${esc(seatLabel(r))}</div>
+          <div class="meta">${esc(r.game_date)} &middot; <span class="mono">$${r.price.toFixed(0)}</span></div></div>
+          <div class="actions"><span class="badge ${r.status}">${r.status === 'available' ? 'Up for grabs' : r.status}</span>
+          ${r.status === 'available' ? `<button type="button" class="btn danger small" onclick="withdraw(${r.id})">Withdraw</button>` : ''}</div></li>`).join('');
+    } catch (err) { ul.innerHTML = `<li class="empty">${esc(err.message)}</li>`; }
+  }
+
+  async function releaseSeats(e) {
+    e.preventDefault();
+    const ids = [...document.querySelectorAll('#rel-seats input:checked')].map(b => Number(b.value));
+    try {
+      const rows = await FanXP.api('/api/seller/releases', { method: 'POST', body: JSON.stringify({
+        seat_ids: ids,
+        game_date: document.getElementById('rel-date').value,
+        price: document.getElementById('rel-price').value,
+      }) });
+      note('rel-msg', `${rows.length} seat${rows.length === 1 ? ' is' : 's are'} up for ${rows[0].game_date}.`, true);
+      loadReleases();
+    } catch (err) { note('rel-msg', err.message); }
+    return false;
+  }
+
+  async function withdraw(id) {
+    try { await FanXP.api('/api/seller/releases/' + id, { method: 'DELETE' }); loadReleases(); }
+    catch (err) { alert(err.message); }
+  }
+
+  const LABEL = { seller_pinged: 'Needs your answer', confirmed: 'Released', declined: 'Kept', expired: 'Expired' };
+
+  async function loadRequests() {
+    const ul = document.getElementById('requests');
+    try {
+      const rows = await FanXP.api('/api/seller/requests');
+      ul.innerHTML = rows.length ? rows.map(r => `
+        <li><div><div class="what">${esc(seatLabel(r))}</div>
+          <div class="meta">${esc(r.fan_first_name || 'A fan')} &middot; <span class="mono">$${r.price.toFixed(0)}</span>${r.game_date ? ' &middot; ' + esc(r.game_date) : ''}</div></div>
+          <div class="actions">${r.status === 'seller_pinged'
+            ? `<button type="button" class="btn small" onclick="respond(${r.id},'YES')">Release it</button>
+               <button type="button" class="btn ghost small" onclick="respond(${r.id},'NO')">Keep it</button>`
+            : `<span class="badge ${r.status}">${LABEL[r.status] || r.status}</span>`}</div></li>`).join('')
+        : '<li class="empty">No requests yet. They show up here the moment a fan claims one of your seats.</li>';
+    } catch (err) {
+      if (err.status === 401) return FanXP.requireSignIn();
+      ul.innerHTML = `<li class="empty">${esc(err.message)}</li>`;
+    }
+  }
+
+  async function respond(id, decision) {
+    try {
+      await FanXP.api(`/api/seller/requests/${id}/respond`, { method: 'POST', body: JSON.stringify({ decision }) });
+      loadRequests(); loadMe(); loadReleases();
+    } catch (err) { alert(err.message); }
+  }
+</script>
+</body>
+</html>

@@ -215,3 +215,7 @@ ALTER TABLE nfl_seat_requests ADD COLUMN IF NOT EXISTS stripe_session_id        
 ALTER TABLE nfl_seat_requests ADD COLUMN IF NOT EXISTS stripe_payment_intent_id  TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_nfl_requests_stripe_session ON nfl_seat_requests(stripe_session_id);
+
+-- Accounts + buyer/seller pathways (2026-10-14): see
+-- migrations/2026-10-14_accounts.sql for seller_seats, seat_releases and
+-- the nfl_sellers / nfl_seat_requests columns that tie requests to accounts.

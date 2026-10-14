@@ -34,6 +34,16 @@ from fanxp_common import (
     send_telegram,
 )
 
+import fanxp_accounts
+from fanxp_accounts import (
+    current_user,
+    find_seat_owner,
+    get_or_create_account_seller,
+    norm,
+    profile_of,
+    seat_key,
+)
+
 app = Flask(__name__)
 CORS(app)
 
@@ -307,6 +317,12 @@ def expire_if_stale(sb, req):
     ).data[0]
 
 
+def seller_payout(req) -> float:
+    """What the seller is credited on YES: their own asking price for a seat
+    they released for this game, else the flat no-show credit."""
+    return float(req["price_usd"]) if req.get("release_id") else CREDIT_OFFER
+
+
 def ping_nfl_seller(sb, req):
     """Texts the seller and flips the request to 'seller_pinged'. Called
     from the Stripe webhook once the card hold is authorized."""
@@ -314,12 +330,48 @@ def ping_nfl_seller(sb, req):
         sb.table("nfl_sellers").select("*").eq("id", req["seller_id"]).single().execute()
     ).data
     twilio = get_twilio()
-    message = send_nfl_seller_sms(twilio, seller, req, os.getenv("API_PUBLIC_URL", request.url_root), CREDIT_OFFER)
+    message = send_nfl_seller_sms(twilio, seller, req, os.getenv("API_PUBLIC_URL", request.url_root),
+                                  round(seller_payout(req)))
     sb.table("nfl_seat_requests").update({
         "status":      "seller_pinged",
         "message_sid": message.sid,
         "updated_at":  "now()",
     }).eq("id", req["id"]).execute()
+
+
+def lookup_open_seat(sb, slug, game_date, section, row_label, seat_num):
+    """This seat's live listing for one game, checked server-side so the
+    price a fan pays never comes from the browser: a seller release (their
+    price) wins over a confirmed no-show (its resale price). None if the
+    seat isn't open for that game."""
+    want = seat_key(section, row_label, seat_num)
+    try:
+        releases = (
+            sb.table("seat_releases").select(fanxp_accounts.RELEASE_SELECT)
+              .eq("seller_seats.team_slug", slug).eq("game_date", game_date)
+              .eq("status", "available").eq("seller_seats.seat_num", norm(seat_num))
+              .execute()
+        ).data or []
+    except Exception:
+        releases = []  # accounts migration not applied yet
+    for r in releases:
+        s = r["seller_seats"]
+        if seat_key(s["section"], s["row_label"], s["seat_num"]) == want:
+            return {"price": float(r["price_usd"]), "release_id": r["id"]}
+
+    game = (
+        sb.table("games").select("id").eq("league", "nfl").eq("home_team", slug)
+          .eq("game_date", game_date).limit(1).execute()
+    ).data
+    if not game:
+        return None
+    for r in (
+        sb.table("no_shows").select("section, row, seat, price_usd")
+          .eq("game_id", game[0]["id"]).eq("seat", str(seat_num).strip()).execute()
+    ).data or []:
+        if seat_key(r["section"], r["row"], r["seat"]) == want and r.get("price_usd") not in (None, ""):
+            return {"price": float(r["price_usd"]), "release_id": None}
+    return None
 
 
 @app.route("/api/nfl/<slug>/request", methods=["POST"])
@@ -329,36 +381,69 @@ def request_nfl_seat(slug):
     row_label     = str(body.get("row") or "").strip()
     seat_num      = str(body.get("seat") or "").strip()
     price         = body.get("price")
+    game_date     = str(body.get("game_date") or "").strip()
     fan_name      = (body.get("fan_name") or "").strip()
     fan_phone     = (body.get("fan_phone") or "").strip()
     return_to_url = (body.get("return_to_url") or "").strip()
 
-    if not section or not row_label or not seat_num or price is None:
+    # A signed-in buyer's request is tied to their account (shows up under
+    # "My seats") and their saved name/phone fill in anything left blank.
+    buyer = current_user() if request.headers.get("Authorization") else None
+    if buyer:
+        prof = profile_of(buyer)
+        fan_name = fan_name or prof["full_name"]
+        fan_phone = fan_phone or prof["phone"]
+
+    # Price is only taken from the browser for the preview seat map (no real
+    # game data yet); for a real game it's looked up server-side below.
+    if not section or not row_label or not seat_num or (price is None and not game_date):
         return jsonify({"error": "section, row, seat, and price are required"}), 400
     if not fan_name or not fan_phone:
         return jsonify({"error": "fan_name and fan_phone are required"}), 400
     if not return_to_url:
         return jsonify({"error": "return_to_url is required"}), 400
 
+    sb = get_supabase()
+    release_id = None
+    if game_date:
+        live = lookup_open_seat(sb, slug, game_date, section, row_label, seat_num)
+        if not live:
+            return jsonify({"error": "That seat isn't open for this game anymore. Pick another one."}), 409
+        price, release_id = live["price"], live["release_id"]
+
     price = float(price)
     fee = round(price * SERVICE_FEE_RATE, 2)
     total_cents = round((price + fee) * 100)
 
-    sb = get_supabase()
-    seller = get_or_create_nfl_seller(sb, slug, section)
+    try:
+        owner = find_seat_owner(sb, slug, section, row_label, seat_num)
+    except Exception:
+        owner = None  # accounts migration not applied yet
+    if owner:
+        seller = get_or_create_account_seller(sb, owner["user_id"], slug)
+    else:
+        seller = get_or_create_nfl_seller(sb, slug, section)
+
+    insert = {
+        "team_slug": slug,
+        "section":   section,
+        "row_label": row_label,
+        "seat_num":  seat_num,
+        "price_usd": price,
+        "fan_name":  fan_name,
+        "fan_phone": fan_phone,
+        "seller_id": seller["id"],
+    }
+    if buyer:
+        insert["buyer_user_id"] = buyer.id
+    if game_date:
+        insert["game_date"] = game_date
+    if release_id:
+        insert["release_id"] = release_id
 
     row = (
         sb.table("nfl_seat_requests")
-          .insert({
-              "team_slug": slug,
-              "section":   section,
-              "row_label": row_label,
-              "seat_num":  seat_num,
-              "price_usd": price,
-              "fan_name":  fan_name,
-              "fan_phone": fan_phone,
-              "seller_id": seller["id"],
-          })
+          .insert(insert)
           .execute()
     ).data[0]
 
@@ -478,8 +563,11 @@ def resolve_nfl_seat_request(sb, req, seller, decision):
         }).eq("id", req["id"]).execute()
 
         sb.table("nfl_sellers").update({
-            "credit_balance": float(seller["credit_balance"]) + CREDIT_OFFER,
+            "credit_balance": float(seller["credit_balance"]) + seller_payout(req),
         }).eq("id", seller["id"]).execute()
+
+        if req.get("release_id"):
+            sb.table("seat_releases").update({"status": "claimed"}).eq("id", req["release_id"]).execute()
 
         send_or_log_sms(
             get_twilio(),
@@ -633,6 +721,9 @@ def nfl_respond_link(request_id):
                                         body="We couldn't complete the payment on our end. Please tap the link again in a moment."), 502
     return NFL_RESPOND_PAGE.format(icon="\U0001F44D", heading="Got it, seat kept",
                                     body="We let the fan know it's not available.")
+
+
+fanxp_accounts.register(app, expire_if_stale, apply_nfl_response)
 
 
 @app.route("/webhooks/twilio/sms", methods=["POST"])
