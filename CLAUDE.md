@@ -94,6 +94,10 @@ fanxp_app/requirements.txt  SEPARATE deps file, actually used by Render for
                            it must go in BOTH files, or Render won't have it.
                            (Confirmed the hard way: stripe was missing from
                            this file and briefly wasn't in the root one either.)
+                           Render reinstalls on every deploy, so an unpinned
+                           package can change underneath you: stripe jumped to
+                           16.0.0 on 2026-10-14 and every seat claim failed at
+                           checkout until it was pinned back to 15.6.1.
 
 .github/workflows/  4 league scrapers (nfl.yml, mlb.yml, wnba.yml, nba.yml,
                      the last 3 currently disabled) + smoke-test.yml (see §5).
@@ -489,9 +493,11 @@ sufficient for that.
 
 - First Sunday with the browser-slot cap is 2026-10-18 (11 home games): check
   that the 1 PM games all get a halftime snapshot.
-- Accounts: run `migrations/2026-10-14_accounts.sql` in Supabase before
-  sellers can add seats. Later: email verification + password reset (needs
-  real SMTP in Supabase), seller payouts beyond stadium credit.
+- Accounts: migration applied 2026-10-14 and the full seller -> buyer flow
+  verified on the live API. Later: email verification + password reset
+  (needs real SMTP in Supabase), seller payouts beyond stadium credit.
+  Running a future migration needs the founder (SQL editor) or a
+  `SUPABASE_DB_URL` in `.env`; the service key can't run DDL.
 - Bad 9/13 rows from the add-on-page bug (Steelers club pass, game 1235;
   Raiders hotel package, 1243) are still in Supabase; the API hides them.
 - Unexplained: Titans 9/13 and Cardinals 9/20 had 814/439 halftime listings
