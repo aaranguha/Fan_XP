@@ -153,6 +153,51 @@ def min_area_rect(hull):
     return best_rect if best_rect else hull
 
 
+def section_names(seg):
+    """Every SECTION-level name inside a segment (a club/SRO outline can cover several)."""
+    if seg.get("segmentCategory") == "SECTION":
+        return [seg["name"]]
+    return [n for ch in seg.get("segments", []) if ch.get("segmentCategory") != "ROW"
+            for n in section_names(ch)]
+
+
+def tm_outlines(page):
+    """
+    Ticketmaster's OWN section outlines and labels, exactly as their seat map
+    draws them: every section segment in the geometry JSON carries
+    shapes[].path (the polygon, in the same 10240x7680 space as the seats and
+    the background art) plus shapes[].labels (text, position, size, angle).
+    These are keyed by section *name*, so unlike TM's background-art SVG ids
+    (inconsistent, a third missing) they cover every section. Verified
+    7051/7051 sections across all 32 NFL venues.
+
+    Returns a list of {"d": path, "secs": [section names], "label": {...}|None}.
+    """
+    out = []
+
+    def visit(seg):
+        for sh in seg.get("shapes", []):
+            if not sh.get("path"):
+                continue
+            lab = (sh.get("labels") or [None])[0]
+            out.append({
+                "d": sh["path"],
+                "secs": section_names(seg),
+                "label": None if not lab else {
+                    "text": lab.get("text", ""), "x": lab.get("x", 0), "y": lab.get("y", 0),
+                    "size": lab.get("size", 100), "angle": lab.get("angle", 0),
+                    "style": lab.get("styleId", "nroot"),
+                },
+            })
+        for ch in seg.get("segments", []):
+            if ch.get("segmentCategory") != "ROW":
+                visit(ch)
+
+    for seg in page.get("segments", []):
+        visit(seg)
+    return out
+
+
 def find_sections(seg, out):
     if seg.get("segmentCategory", "") == "SECTION":
         out.append(seg)
@@ -262,10 +307,16 @@ def main():
             ]
             hulls[name] = padded
 
+    # Ticketmaster's own outlines, limited to ones that cover a section we have seats for.
+    outlines = [o for o in tm_outlines(page) if any(n in secs for n in o["secs"])]
+    for o in outlines:
+        o["secs"] = [n for n in o["secs"] if n in secs]
+
     out = {
         "tiers": tiers,
         "centroids": centroids,
-        "hulls": hulls,
+        "hulls": hulls,           # fallback only (should be unused: TM outlines cover every section)
+        "outlines": outlines,
         "secs": secs,
         "data_source": "real" if using_real_data else "simulated",
         "game_date": game_date,
@@ -276,6 +327,8 @@ def main():
 
     sz = os.path.getsize(out_path)
     source_label = f"REAL ({game_date})" if using_real_data else "simulated"
+    covered = {n for o in outlines for n in o["secs"]}
+    print(f"[{slug}] TM outlines: {len(outlines)} covering {len(covered)}/{len(secs)} sections")
     print(f"[{slug}] sections: {len(secs)}  seats: {total_seats}  open: {total_open}  source: {source_label}  "
           f"-> {out_path} ({sz/1024/1024:.2f} MB)")
 

@@ -2,8 +2,8 @@
 build_stadium_seatmap.py
 
 Turns a team's data/{slug}/seatmap_extract.json + arena_full.svg into the
-interactive seat-map page (flat colored section overview, click a section to
-zoom in and see real individual seats, red = confirmed empty right now).
+interactive seat-map page, drawn exactly like Ticketmaster's: their arena art, their own
+section outlines and labels (blue = has open seats), click a section to see its real seats.
 
 Usage:
     python3 build_stadium_seatmap.py <team_slug>
@@ -48,7 +48,8 @@ def main():
     extract = json.load(open(extract_path))
     FULL_JSON = json.dumps({"secs": extract["secs"]}, separators=(",", ":"))
     META_JSON = json.dumps(
-        {"tiers": extract["tiers"], "centroids": extract["centroids"], "hulls": extract.get("hulls", {})},
+        {"tiers": extract["tiers"], "centroids": extract["centroids"], "hulls": extract.get("hulls", {}),
+         "outlines": extract.get("outlines", [])},
         separators=(",", ":"),
     )
 
@@ -56,14 +57,14 @@ def main():
     if using_real_data:
         subline = (
             f"Confirmed empty seats from the {extract.get('game_date', 'most recent')} game. "
-            f"Tap a red section to zoom in and see the exact open seats."
+            f"Tap a blue section to zoom in and see the exact open seats."
         )
         cart_note = "Built from real confirmed no-shows — claiming a seat sends a real request."
         legend_dot_label = "Empty &mdash; confirmed no-show"
     else:
         subline = (
             "This team hasn't had a home game yet, so these are illustrative open seats, "
-            "not confirmed no-shows. Tap a red section to zoom in."
+            "not confirmed no-shows. Tap a blue section to zoom in."
         )
         cart_note = "Built from real seat data, but availability shown is a preview — claiming a seat still sends a real request."
         legend_dot_label = "Empty &mdash; preview only"
@@ -94,6 +95,10 @@ def main():
         vb_h = vb_w / TARGET_ASPECT
     vb_x, vb_y = cx - vb_w / 2, cy - vb_h / 2
 
+    # Ticketmaster frames the whole 10240x7680 map canvas (their art is drawn for exactly that box),
+    # so the overview shows the full canvas too -- identical framing to TM's own seat map.
+    if extract.get("outlines"):
+        vb_x, vb_y, vb_w, vb_h = 0, 0, 10240, 7680
     full_vb = {
         "x": round(vb_x, 1), "y": round(vb_y, 1),
         "w": round(vb_w, 1), "h": round(vb_h, 1),
@@ -114,7 +119,9 @@ def main():
     team_color = NFL_COLORS.get(slug, "#aa0000")
     team_color_dark = darken(team_color)
 
-    HTML = """<title>Second Half Seats</title>
+    HTML = """<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Second Half Seats</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#e8e9ec">
@@ -144,6 +151,11 @@ def main():
   --gray-dot:#c7cbd3;
   --sec-standard:#2f66e0;
   --sec-premium:#a9c0ef;
+  /* Ticketmaster seat-map colors */
+  --tm-blue:#026cdf;
+  --tm-blue-hover:#024ea3;
+  --tm-label-on:#ffffff;
+  --tm-label-off:#404040;
 }
 html,body{background:var(--bg);color:var(--text);font-family:var(--font);height:100%;-webkit-font-smoothing:antialiased;}
 body{min-height:100vh;}
@@ -176,6 +188,13 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;}
   border:1px solid var(--border);padding:7px 14px;border-radius:8px;flex:none;
 }
 #resetbtn.show{display:block;}
+#gamebar{display:none;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;}
+#gamebar.show{display:flex;}
+#gamebar label{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+#gamepick{font:inherit;font-size:.82rem;font-weight:600;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);max-width:100%;}
+#topright{display:flex;align-items:center;gap:12px;flex:none;}
+#acct{font-size:.76rem;font-weight:600;color:var(--brand);text-decoration:none;white-space:nowrap;}
+#livepill.off{display:none;}
 #seclabel{display:none;font-size:.85rem;font-weight:800;margin-top:2px;}
 #seclabel.show{display:block;}
 
@@ -197,12 +216,24 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;}
 .sec-path.faded{fill-opacity:.16 !important;}
 
 .section-label{font-family:var(--font);font-size:92px;font-weight:800;fill:#fff;text-anchor:middle;pointer-events:none;}
+/* Ticketmaster-style overlay: their exact section outlines on top of their art */
+.tm-sec{stroke:#ffffff;stroke-width:8;transition:fill .12s,fill-opacity .15s;}
+.tm-sec.tm-open{fill:var(--tm-blue);}
+.tm-sec.tm-open:hover{fill:var(--tm-blue-hover);}
+.tm-sec.tm-closed{fill:#000;fill-opacity:0;stroke:none;}
+.tm-sec.tm-closed:hover{fill:var(--tm-blue);fill-opacity:.12;}
+.tm-sec.faded{fill-opacity:.12 !important;}
+/* the section you're looking into: light background so the seat dots stand out (as on TM) */
+.tm-sec.zoomed{fill:#ffffff !important;fill-opacity:1 !important;stroke:var(--tm-blue) !important;stroke-width:6 !important;}
+.tm-label{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-weight:700;text-anchor:middle;pointer-events:none;}
+.tm-label.on{fill:var(--tm-label-on);}
+.tm-label.off{fill:var(--tm-label-off);}
 .section-badge{pointer-events:none;}
 .section-badge circle{fill:var(--team);stroke:#fff;stroke-width:8;}
 .section-badge text{font-family:var(--font);font-size:44px;font-weight:800;fill:#fff;text-anchor:middle;}
 
 circle.dot-gray{fill:var(--gray-dot);}
-circle.dot-open{fill:var(--team);cursor:pointer;}
+circle.dot-open{fill:var(--tm-blue);cursor:pointer;}
 circle.dot-open:hover{fill:var(--team-dark);}
 circle.dot-picked{fill:var(--good) !important;}
 
@@ -265,7 +296,10 @@ circle.dot-picked{fill:var(--good) !important;}
     <h1>__TEAM_NAME__ — Second Half Seats</h1>
     <p>__ARENA_NAME__ &middot; __CITY__</p>
   </div>
-  <div id="livepill"><span class="livedot"></span>2nd Half &middot; Live</div>
+  <div id="topright">
+    <div id="livepill" class="off"><span class="livedot"></span>2nd Half &middot; Live</div>
+    <a id="acct" href="account.html">Sign in</a>
+  </div>
 </div>
 
 <div id="shell">
@@ -274,15 +308,16 @@ circle.dot-picked{fill:var(--good) !important;}
       <div>
         <h2 id="headline">Claim an empty seat</h2>
         <p id="subline">__SUBLINE__</p>
+        <div id="gamebar"><label for="gamepick">Game</label><select id="gamepick"></select></div>
         <div id="seclabel"></div>
       </div>
       <button id="resetbtn">&larr; All sections</button>
     </div>
 
     <div id="legend">
-      <div class="legend-item"><span class="legend-swatch" style="background:var(--sec-standard)"></span>Standard seating</div>
-      <div class="legend-item"><span class="legend-swatch" style="background:var(--sec-premium)"></span>Club &amp; VIP</div>
-      <div class="legend-item"><span class="legend-swatch dot" style="background:var(--team)"></span>__LEGEND_DOT_LABEL__</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--tm-blue)"></span>Sections with open seats</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:#e9e9e9;border:1px solid #d4d4d4"></span>No openings</div>
+      <div class="legend-item"><span class="legend-swatch dot" style="background:var(--tm-blue)"></span>__LEGEND_DOT_LABEL__</div>
     </div>
 
     <div id="mapwrap">
@@ -300,12 +335,12 @@ __ARENA_INNER__
 
   <div id="cart">
     <h4>Your selection</h4>
-    <div id="cart-empty">Tap a section, then tap a red seat to select it.</div>
+    <div id="cart-empty">Tap a section, then tap a blue seat to select it.</div>
     <div id="cart-item">
       <div class="seatname" id="cart-seatname">&mdash;</div>
       <div class="secname" id="cart-secname">&mdash;</div>
       <div id="cart-divider"></div>
-      <div id="cart-row"><span>Face value</span><span id="cart-face">$0</span></div>
+      <div id="cart-row"><span id="cart-price-label">Seat price</span><span id="cart-face">$0</span></div>
       <div id="cart-row"><span>Service fee</span><span id="cart-fee">$0</span></div>
       <div id="cart-total"><span>Total</span><span id="cart-total-amt">$0</span></div>
     </div>
@@ -321,16 +356,21 @@ __ARENA_INNER__
 
 <div id="toast"><span class="dot"></span><span id="toast-text"></span></div>
 
+<script src="fanxp-auth.js"></script>
 <script>
-const SECS = __FULL_JSON__.secs;      // name -> [[x,y,row,seat,level,isOpen], ...]
+const SECS = __FULL_JSON__.secs;      // name -> [[x,y,row,seat,level,isOpen,price?,source?], ...]
 const META = __META_JSON__;           // {tiers, centroids}
 const ARENA_NAME = __ARENA_NAME_JSON__;
 const DEFAULT_SUBLINE = document.getElementById('subline').textContent;
 const TEAM_SLUG = __TEAM_SLUG_JSON__;
-const API_BASE = __API_BASE_JSON__; // TODO: point at the deployed Railway API URL
+const API_BASE = __API_BASE_JSON__;
 const svgNS = 'http://www.w3.org/2000/svg';
 const PRICE_MAP = {'80':64,'90':78,'140':118,'160':142,'180':168,'200':195,'220':225,'260':275,'300':320};
 function priceFor(level){ return PRICE_MAP[level] || 95; }
+// A real game's seats carry their own listed price (d[6]); the preview map
+// falls back to an estimate by seating level.
+const seatPrice = d => (d[6] != null ? d[6] : priceFor(d[4]));
+let currentGame = null;   // {date, opponent, live, ...} once a real game is selected
 
 const svg = document.getElementById('bowlsvg');
 const badgesG = document.getElementById('badges');
@@ -342,7 +382,7 @@ let curVB = {...FULL_VB};
 let zoomedSec = null;
 let pickedSeat = null;
 
-// ── Step 1 (default state): flat, tier-colored section shapes ──
+// ── Step 1 (default state): Ticketmaster's own section outlines ──
 // These are drawn directly from real seat coordinates (a convex hull
 // around every real seat in the section, computed in
 // extract_stadium_geo.py), not matched against Ticketmaster's own
@@ -355,40 +395,81 @@ let pickedSeat = null;
 // that problem entirely and gets every section with real seat data.
 const sectionsG = document.getElementById('sections');
 
+const OUTLINES = META.outlines || [];
+const openIn = name => (SECS[name] || []).filter(d => d[5]).length;
+const outlined = new Set();
+
+// Ticketmaster's exact section outlines and labels, from their own geometry
+// file (shapes[].path / shapes[].labels) -- the same polygons TM draws.
+OUTLINES.forEach(o => {
+  const names = o.secs;
+  names.forEach(n => outlined.add(n));
+  const hasOpen = names.some(n => openIn(n) > 0);
+
+  const path = document.createElementNS(svgNS, 'path');
+  path.setAttribute('d', o.d);
+  path.dataset.secName = names[0];
+  path.dataset.secs = names.join('|');
+  path.classList.add('tm-sec', 'sec-path', 'clickable', hasOpen ? 'tm-open' : 'tm-closed');
+  path.addEventListener('click', () => zoomToSections(names, o.label ? o.label.text : names.join(' / ')));
+  sectionsG.appendChild(path);
+  o._path = path;
+
+  if (o.label && o.label.text) {
+    // Same as TM's own markup: a <text font-size=size> whose lines hang below (x, y) via dy="Nem".
+    const t = document.createElementNS(svgNS, 'text');
+    t.setAttribute('font-size', o.label.size);
+    t.setAttribute('class', 'tm-label ' + (hasOpen ? 'on' : 'off'));
+    if (o.label.angle) t.setAttribute('transform', `rotate(${o.label.angle} ${o.label.x} ${o.label.y})`);
+    String(o.label.text).split('\\n').forEach((line, i) => {
+      const ts = document.createElementNS(svgNS, 'tspan');
+      ts.setAttribute('x', o.label.x); ts.setAttribute('y', o.label.y);
+      ts.setAttribute('dy', `${i + 1}em`);
+      ts.textContent = line;
+      t.appendChild(ts);
+    });
+    labelsG.appendChild(t);
+    o._label = t;
+  }
+});
+
+function refreshSectionColors(){
+  OUTLINES.forEach(o => {
+    const hasOpen = o.secs.some(n => openIn(n) > 0);
+    o._path.classList.toggle('tm-open', hasOpen);
+    o._path.classList.toggle('tm-closed', !hasOpen);
+    if (o._label) o._label.setAttribute('class', 'tm-label ' + (hasOpen ? 'on' : 'off'));
+  });
+  document.querySelectorAll('.sec-path').forEach(el => {
+    if (el.dataset.secs && el.dataset.secs.includes('|')) return;
+    if (OUTLINES.some(o => o._path === el)) return;
+    const open = openIn(el.dataset.secName) > 0;
+    el.classList.toggle('tm-open', open);
+    el.classList.toggle('tm-closed', !open);
+  });
+}
+
+// Fallback: any section TM has no outline for gets a shape from its own seats (expected: none).
 Object.keys(SECS).forEach(name => {
+  if (outlined.has(name)) return;
   const hull = (META.hulls || {})[name];
   if (!hull || hull.length < 3) return;
-  const tier = META.tiers[name];
-
   const path = document.createElementNS(svgNS, 'path');
   path.setAttribute('d', 'M' + hull.map(p => p.join(',')).join('L') + 'Z');
   path.dataset.secName = name;
-  path.classList.add((tier === 'club' || tier === 'suite') ? 'sec-premium' : 'sec-standard');
-  path.classList.add('sec-path', 'clickable');
-  path.addEventListener('click', () => zoomToSection(name));
+  path.dataset.secs = name;
+  path.classList.add('tm-sec', 'sec-path', 'clickable', openIn(name) > 0 ? 'tm-open' : 'tm-closed');
+  path.addEventListener('click', () => zoomToSections([name], name));
   sectionsG.appendChild(path);
-
-  if (SECS[name].length > 60) {
-    const [lcx, lcy] = META.centroids[name] || [0,0];
-    const label = document.createElementNS(svgNS, 'text');
-    label.setAttribute('x', lcx); label.setAttribute('y', lcy + 15);
-    label.setAttribute('class', 'section-label');
-    label.textContent = name;
-    labelsG.appendChild(label);
-  }
-
-  // No per-section open-seat-count badge at the overview level anymore --
-  // TM's own chart doesn't show one either, and ours rendered too small to
-  // actually read, just adding clutter. Open seats are still fully visible
-  // once you tap into a section (buildDots below).
 });
 
 const tipEl = document.getElementById('tip');
-function showTip(e, secName, rowLabel, num, price){
+function showTip(e, secName, rowLabel, num, price, source){
+  const tag = source === 'release' ? 'Released by the seat owner' : (currentGame ? 'Empty, confirmed no-show' : 'Empty, preview');
   tipEl.innerHTML =
     `<div class="tip-sec">Sec ${secName} · Row ${rowLabel} · Seat ${num}</div>` +
-    `<div class="tip-tag">Empty — open now</div>` +
-    `<div class="tip-price">Face value <strong>$${price}</strong></div>`;
+    `<div class="tip-tag">${tag}</div>` +
+    `<div class="tip-price">${currentGame ? 'Price' : 'Est. price'} <strong>$${price}</strong></div>`;
   tipEl.classList.add('show');
   moveTip(e);
 }
@@ -421,13 +502,18 @@ function animVB(from, to, dur, onDone){
 }
 
 // ── Step 2: on click, zoom in AND reveal that section's exact seats ──
-function zoomToSection(name){
-  const dots = SECS[name];
-  if (!dots || !dots.length) return;
-  zoomedSec = name;
+function zoomToSection(name){ zoomToSections([name], name); }
+
+function zoomToSections(names, title){
+  const dots = names.flatMap(n => (SECS[n] || []).map(d => d));
+  if (!dots.length) return;
+  zoomedSec = names;
 
   document.querySelectorAll('.sec-path').forEach(el => {
-    el.classList.toggle('faded', el.dataset.secName !== name);
+    const mine = (el.dataset.secs || el.dataset.secName || '').split('|');
+    const isMine = mine.some(n => names.includes(n));
+    el.classList.toggle('faded', !isMine);
+    el.classList.toggle('zoomed', isMine);
   });
   badgesG.style.display = 'none';
   labelsG.style.display = 'none';
@@ -442,28 +528,29 @@ function zoomToSection(name){
   const tx = (minX + maxX) / 2 - w / 2, ty = (minY + maxY) / 2 - h / 2;
 
   dotsGray.innerHTML = ''; dotsOpen.innerHTML = '';
-  animVB(curVB, {x: tx, y: ty, w, h}, 380, () => buildDots(name));
+  animVB(curVB, {x: tx, y: ty, w, h}, 380, () => names.forEach(n => buildDots(n)));
 
   const openCount = dots.filter(d => d[5]).length;
   document.getElementById('resetbtn').classList.add('show');
-  document.getElementById('headline').textContent = 'Section ' + name;
+  document.getElementById('headline').textContent = 'Section ' + title;
   const lbl = document.getElementById('seclabel');
   lbl.textContent = `${dots.length} seats · ${openCount} open now`;
   lbl.classList.add('show');
   document.getElementById('subline').textContent =
-    openCount > 0 ? 'Tap a red seat to select it.' : 'No confirmed openings in this section yet.';
+    openCount > 0 ? 'Tap a blue seat to select it.' : 'No openings in this section for this game.';
 }
 
 function buildDots(name){
   SECS[name].forEach(d => {
     const [x, y, row, num, level, isOpen] = d;
+    const price = seatPrice(d), source = d[7];
     const c = document.createElementNS(svgNS, 'circle');
     c.setAttribute('cx', x); c.setAttribute('cy', y);
     if (isOpen) {
       c.setAttribute('r', 5.5);
       c.setAttribute('class', 'dot-open');
-      c.addEventListener('click', (e) => { e.stopPropagation(); pickSeat(c, name, row, num, priceFor(level)); });
-      c.addEventListener('mouseenter', (e) => showTip(e, name, row, num, priceFor(level)));
+      c.addEventListener('click', (e) => { e.stopPropagation(); pickSeat(c, name, row, num, price); });
+      c.addEventListener('mouseenter', (e) => showTip(e, name, row, num, price, source));
       c.addEventListener('mousemove', moveTip);
       c.addEventListener('mouseleave', hideTip);
       dotsOpen.appendChild(c);
@@ -478,14 +565,14 @@ function buildDots(name){
 function resetView(){
   zoomedSec = null;
   dotsGray.innerHTML = ''; dotsOpen.innerHTML = '';
-  document.querySelectorAll('.sec-path').forEach(el => el.classList.remove('faded'));
+  document.querySelectorAll('.sec-path').forEach(el => el.classList.remove('faded', 'zoomed'));
   badgesG.style.display = '';
   labelsG.style.display = '';
   animVB(curVB, FULL_VB, 360);
   document.getElementById('resetbtn').classList.remove('show');
   document.getElementById('seclabel').classList.remove('show');
   document.getElementById('headline').textContent = 'Claim an empty seat';
-  document.getElementById('subline').textContent = DEFAULT_SUBLINE;
+  document.getElementById('subline').textContent = gameSubline();
 }
 
 document.getElementById('resetbtn').addEventListener('click', resetView);
@@ -590,7 +677,7 @@ document.getElementById('claimbtn').addEventListener('click', async () => {
   if (!pickedSeat) return;
   const fanName = document.getElementById('fan-name').value.trim();
   const fanPhone = document.getElementById('fan-phone').value.trim();
-  if (!fanName || !fanPhone) {
+  if ((!fanName || !fanPhone) && !FanXP.user()) {
     showToast('Enter your name and phone number to claim this seat.', true);
     return;
   }
@@ -601,25 +688,26 @@ document.getElementById('claimbtn').addEventListener('click', async () => {
 
   try {
     const returnToUrl = window.location.href.split('?')[0];
-    const res = await fetch(`${API_BASE}/api/nfl/${TEAM_SLUG}/request`, {
+    // Signed in: the request is tied to the account (see buy.html). For a
+    // real game the server prices the seat itself from game_date.
+    const data = await FanXP.api(`/api/nfl/${TEAM_SLUG}/request`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         section: pickedSeat.secName,
         row: pickedSeat.rowLabel,
         seat: pickedSeat.num,
         price: pickedSeat.price,
+        game_date: currentGame ? currentGame.date : undefined,
         fan_name: fanName,
         fan_phone: fanPhone,
         return_to_url: returnToUrl,
       }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request failed');
     btn.textContent = 'Redirecting to payment…';
     window.location.href = data.checkout_url;
   } catch (err) {
-    showToast(`Couldn't send request — is the API running at ${API_BASE}?`, true);
+    showToast(err.status ? err.message : `Couldn't reach Fan XP. Check your connection and try again.`, true);
+    if (err.status === 409) loadGameSeats(currentGame);
     btn.disabled = false;
     btn.textContent = 'Claim this seat';
   }
@@ -652,8 +740,94 @@ async function resumeFromCheckoutReturn(){
   }
 }
 
+// ── Live per-game seat data ──
+// The seats baked into this page are only a fallback (the latest game, or a
+// labeled preview). Each game's real open seats -- halftime no-shows plus
+// seats owners released -- load from the API, so a game in progress shows
+// up here as soon as its halftime scrape lands, not when the site rebuilds.
+const SEAT_INDEX = {};
+Object.entries(SECS).forEach(([name, dots]) => dots.forEach(d => {
+  SEAT_INDEX[[name, d[2], d[3]].map(v => String(v).trim().toUpperCase()).join('|')] = d;
+}));
+const gamePick = document.getElementById('gamepick');
+let games = [], livePoll = null;
+
+function fmtDate(iso){
+  return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
+}
+
+function gameSubline(){
+  if (!currentGame) return DEFAULT_SUBLINE;
+  const n = Object.values(SECS).flat().filter(d => d[5]).length;
+  const vs = currentGame.opponent ? ` vs ${currentGame.opponent}` : '';
+  if (currentGame.live && !n) return `Today${vs}. Empty seats appear here about 45 minutes after kickoff.`;
+  if (!n) return `No open seats for ${fmtDate(currentGame.date)}${vs}.`;
+  return `${n.toLocaleString()} open seats for ${currentGame.live ? 'today' : fmtDate(currentGame.date)}${vs}. Tap a blue section to see them.`;
+}
+
+function applySeats(list){
+  Object.values(SECS).flat().forEach(d => { d[5] = false; d[6] = null; d[7] = null; });
+  let matched = 0;
+  list.forEach(([sec, row, seat, price, source]) => {
+    const d = SEAT_INDEX[[sec, row, seat].map(v => String(v).trim().toUpperCase()).join('|')];
+    if (!d) return;
+    d[5] = true; d[6] = price; d[7] = source; matched++;
+  });
+  refreshSectionColors();
+  if (zoomedSec) { const z = zoomedSec; resetView(); zoomToSections(z, z.join(' / ')); }
+  document.getElementById('subline').textContent = gameSubline();
+  return matched;
+}
+
+async function loadGameSeats(game){
+  if (!game) return;
+  currentGame = game;
+  document.getElementById('livepill').classList.toggle('off', !game.live);
+  document.getElementById('cart-price-label').textContent = 'Seat price';
+  try {
+    const res = await fetch(`${API_BASE}/api/nfl/${TEAM_SLUG}/seats?date=${game.date}`);
+    const data = await res.json();
+    if (res.ok && currentGame === game) applySeats(data.seats || []);
+  } catch (e) { /* keep whatever is showing; next poll retries */ }
+}
+
+async function loadGames(){
+  try {
+    const res = await fetch(`${API_BASE}/api/nfl/${TEAM_SLUG}/games`);
+    if (!res.ok) return;
+    games = await res.json();
+  } catch (e) { return; }  // API unreachable: the baked fallback stays up
+  if (!games.length) return;  // no real game yet: keep the labeled preview
+  gamePick.innerHTML = games.map((g, i) => {
+    const what = g.live ? 'Today' : fmtDate(g.date);
+    const vs = g.opponent ? ` vs ${g.opponent}` : '';
+    const n = g.no_shows + g.releases;
+    return `<option value="${i}">${what}${vs}${n ? ` · ${n.toLocaleString()} open` : ''}</option>`;
+  }).join('');
+  document.getElementById('gamebar').classList.add('show');
+  document.querySelectorAll('.legend-item')[2].lastChild.textContent = 'Open seat (confirmed empty or released by its owner)';
+  const start = Math.max(0, games.findIndex(g => g.live || g.no_shows + g.releases > 0));
+  gamePick.value = String(start);
+  loadGameSeats(games[start]);
+  if (livePoll) clearInterval(livePoll);
+  livePoll = setInterval(() => { if (currentGame && currentGame.live) loadGameSeats(currentGame); }, 60000);
+}
+gamePick.addEventListener('change', () => loadGameSeats(games[Number(gamePick.value)]));
+
+// Signed-in fans don't retype their name and number.
+(function account(){
+  const u = FanXP.user();
+  const link = document.getElementById('acct');
+  if (!u) { link.href = 'account.html?next=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
+  link.textContent = (u.full_name || 'Account').split(' ')[0];
+  link.href = 'buy.html';
+  if (u.full_name) document.getElementById('fan-name').value = u.full_name;
+  if (u.phone) document.getElementById('fan-phone').value = u.phone;
+})();
+
 setVB(FULL_VB);
 resumeFromCheckoutReturn();
+loadGames();
 </script>
 """
 
