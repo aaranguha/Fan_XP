@@ -329,3 +329,20 @@ def test_checkout_failure_returns_reason_and_removes_the_request(db, monkeypatch
 
     assert code == 502 and "managed_payments" in body["error"]
     assert db.tables.get("nfl_seat_requests") == []
+
+
+def test_google_start_redirects_only_back_to_our_account_page(db, monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://proj.supabase.co")
+    client = fanxp_api.app.test_client()
+    ok = client.get("/api/auth/google?redirect_to=https%3A%2F%2Ffan-xp.vercel.app%2Faccount.html%3Fnext%3Dbuy.html")
+    assert ok.status_code == 302
+    assert ok.headers["Location"].startswith("https://proj.supabase.co/auth/v1/authorize?provider=google&redirect_to=https%3A%2F%2Ffan-xp.vercel.app%2Faccount.html")
+    assert client.get("/api/auth/google?redirect_to=https%3A%2F%2Fevil.example%2Faccount.html").status_code == 400
+    assert client.get("/api/auth/google?redirect_to=https%3A%2F%2Ffan-xp.vercel.app%2Fother.html").status_code == 400
+
+
+def test_google_user_without_roles_needs_setup():
+    google_user = SimpleNamespace(id="g1", email="g@x.com", user_metadata={"name": "Gia Google", "avatar_url": "x"})
+    prof = fanxp_accounts.profile_of(google_user)
+    assert prof["needs_setup"] is True and prof["full_name"] == "Gia Google"
+    assert fanxp_accounts.profile_of(make_user("u", ["buyer"]))["needs_setup"] is False

@@ -7,6 +7,7 @@ with the service-role client, so the browser never holds a Supabase key.
 Name, phone and roles ("buyer", "seller") live in the user's
 user_metadata. Signed-in calls send `Authorization: Bearer <access_token>`.
 
+  GET    /api/auth/google?redirect_to=   start "Continue with Google"
   POST   /api/auth/register              create an account and sign in
   POST   /api/auth/login                 email + password -> session
   POST   /api/auth/refresh               refresh_token -> new session
@@ -34,9 +35,10 @@ import os
 import re
 from datetime import datetime
 from functools import wraps
+from urllib.parse import quote, urlparse
 from zoneinfo import ZoneInfo
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, g, jsonify, redirect, request
 
 from fanxp_common import get_supabase
 
@@ -44,6 +46,10 @@ bp = Blueprint("accounts", __name__)
 
 EASTERN = ZoneInfo("America/New_York")
 ROLES = {"buyer", "seller"}
+
+# Where "Continue with Google" may send people back to. Supabase also checks
+# its own allow-list (Authentication > URL Configuration > Redirect URLs).
+OAUTH_RETURN_HOSTS = {"fan-xp.vercel.app", "localhost", "127.0.0.1"}
 
 # The 32 slugs the seat maps use (docs/nfl_{slug}_seatmap.html). Mirrors
 # scraping/nfl_teams.py, which this service can't import (Render deploys
@@ -124,9 +130,12 @@ def profile_of(user) -> dict:
     return {
         "id":        user.id,
         "email":     user.email,
-        "full_name": meta.get("full_name", ""),
+        "full_name": meta.get("full_name") or meta.get("name") or "",
         "phone":     meta.get("phone", ""),
         "roles":     [r for r in meta.get("roles", ["buyer"]) if r in ROLES],
+        # A Google sign-up arrives with only Google's name/email/photo; they
+        # still need to pick buying/selling (and a phone, to sell).
+        "needs_setup": "roles" not in meta,
     }
 
 
@@ -197,6 +206,21 @@ def _validated_profile(body: dict, partial: bool = False) -> tuple[dict, str | N
             return {}, "That phone number doesn't look right."
         out["phone"] = phone
     return out, None
+
+
+@bp.route("/api/auth/google")
+def google_start():
+    """Sends the browser to Supabase's Google sign-in. Supabase sends it back
+    to `redirect_to` with the session in the URL fragment (#access_token=...),
+    which account.html reads; from there it's the same session as an email
+    sign-in, so /api/me, refresh, etc. all work unchanged."""
+    back = (request.args.get("redirect_to") or "").strip()
+    parsed = urlparse(back)
+    if parsed.scheme not in ("https", "http") or parsed.hostname not in OAUTH_RETURN_HOSTS \
+            or not parsed.path.endswith("/account.html"):
+        return jsonify({"error": "bad redirect_to"}), 400
+    base = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+    return redirect(f"{base}/auth/v1/authorize?provider=google&redirect_to={quote(back, safe='')}")
 
 
 @bp.route("/api/auth/register", methods=["POST"])

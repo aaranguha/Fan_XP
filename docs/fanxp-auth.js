@@ -61,7 +61,9 @@
 
   // Sends people to sign in, then back here.
   function requireSignIn() {
-    if (user()) return true;
+    const u = user();
+    if (u && !u.needs_setup) return true;
+    // Not signed in, or a first Google sign-in that hasn't picked buy/sell yet.
     const here = location.pathname.split('/').pop() + location.search;
     location.href = 'account.html?next=' + encodeURIComponent(here);
     return false;

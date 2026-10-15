@@ -75,10 +75,11 @@
     .nav-links a { font-size: .85rem; font-weight: 500; color: var(--muted); }
     .nav-links a:hover { color: var(--text); }
     .nav-links .cta {
-      color: var(--text); font-weight: 600; padding: 7px 16px;
+      color: var(--surface); background: var(--text); font-weight: 600; padding: 7px 16px;
       border: 1px solid var(--text); border-radius: 6px;
+      transition: background .15s, border-color .15s, transform .15s;
     }
-    .nav-links .cta:hover { background: var(--text); color: var(--surface); }
+    .nav-links .cta:hover { background: var(--accent); border-color: var(--accent); color: var(--surface); transform: translateY(-1px); }
 
     .hamburger { display: none; flex-direction: column; gap: 4px; background: none; border: none; padding: 4px; }
     .hamburger span { width: 20px; height: 1.5px; background: var(--text); }
