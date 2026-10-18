@@ -281,6 +281,42 @@ def test_count_no_shows_zero_when_client_not_configured(monkeypatch):
     assert sc.count_no_shows(1) == 0
 
 
+def test_count_no_shows_zero_when_game_id_none(monkeypatch):
+    client = FakeClient(store={"no_shows": [{"id": 1, "game_id": 1}]})
+    monkeypatch.setattr(sc, "_get_client", lambda: client)
+
+    assert sc.count_no_shows(None) == 0
+
+
+def test_count_no_shows_counts_rows_for_the_given_game_only(monkeypatch):
+    # This is the exact guard insert_no_shows() calls (supabase_client.py:231)
+    # before inserting — it's what the fix for the real Diamondbacks
+    # duplicate-insert incident (105,192 no-show rows for one game, CLAUDE.md
+    # §4.3) relies on to detect "this game already has data". A count that
+    # leaked across game_ids would make the guard either skip games that
+    # genuinely have no rows yet, or (worse) fail to skip a real duplicate
+    # call for a different game that happens to share the table.
+    no_shows = (
+        [{"id": i, "game_id": 7} for i in range(105192)]
+        + [{"id": 200000 + i, "game_id": 8} for i in range(3)]
+    )
+    client = FakeClient(store={"no_shows": no_shows})
+    monkeypatch.setattr(sc, "_get_client", lambda: client)
+
+    assert sc.count_no_shows(7) == 105192
+    assert sc.count_no_shows(8) == 3
+    assert sc.count_no_shows(9) == 0
+
+
+def test_count_no_shows_swallows_exceptions(monkeypatch, capsys):
+    monkeypatch.setattr(sc, "_get_client", lambda: RaisingClient())
+
+    result = sc.count_no_shows(1)  # must not raise
+
+    assert result == 0
+    assert "count_no_shows failed" in capsys.readouterr().out
+
+
 # ── upsert_game() ────────────────────────────────────────────────────────────
 
 def test_upsert_game_returns_none_when_client_not_configured(monkeypatch):
