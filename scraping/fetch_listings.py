@@ -331,7 +331,17 @@ def close_browser_session(pw, ctx) -> None:
 # halftime snapshot on 9/27, 10/4 and 10/11 (runs 36287218818, 37198112276,
 # 38135994235). Jitter and goto retries only spread the collisions out; this
 # caps them. Extra scrapes wait for a slot instead (each holds one ~1 min).
-BROWSER_SLOTS          = int(os.getenv("BROWSER_SLOTS", "3"))
+#
+# A cap of 3 was load-tested clean (smoke-test.yml, parallel=9) but still
+# lost 6 of 7 teams sharing an exact 1:00 PM ET kickoff on the first real
+# 11-home-game Sunday under it (2026-10-18, run 39116865407: eagles, browns,
+# patriots, colts, buccaneers, falcons all hit the same Page.goto 45s
+# timeout the cap was meant to prevent; only 1 of the 7 got through). The
+# smoke test re-loads one already-warm event page N times, which is cheaper
+# than N distinct cold TM pages competing for this one Mac's CPU/network --
+# 3 real concurrent cold loads is apparently still more than this machine
+# reliably handles. Lowered to 2 real Chrome windows at once.
+BROWSER_SLOTS          = int(os.getenv("BROWSER_SLOTS", "2"))
 BROWSER_SLOT_MAX_WAIT_S = 20 * 60
 SLOT_DIR               = os.path.join(CHROME_PROFILE_BASE, ".slots")
 
@@ -372,7 +382,7 @@ def browser_slot(label: str = ""):
         time.sleep(random.uniform(2, 4))
 
 
-def _goto_with_retry(page, url: str, timeout: int = 45000, retries: int = 3) -> None:
+def _goto_with_retry(page, url: str, timeout: int = 60000, retries: int = 3) -> None:
     """
     page.goto() with a few retries on a bare navigation timeout.
     A cluster of teams re-navigating for their halftime scrape within the
@@ -393,7 +403,18 @@ def _goto_with_retry(page, url: str, timeout: int = 45000, retries: int = 3) -> 
     2026-10-11 (run 38135994235, 7 teams). Retrying harder can't fully fix a
     problem that's really about how many teams start navigating at once; see
     nfl_run_game.py's ht_jitter (widened 90s -> 240s) for the actual thinning
-    of concurrent halftime browser launches.
+    of concurrent halftime browser launches, and browser_slot() above (added
+    2026-10-14) for the hard concurrency cap that followed.
+
+    Recurred a fourth time anyway 2026-10-18 (run 39116865407, 6 of 7 teams
+    sharing a 1:00 PM ET kickoff) *despite* that cap -- even a capped 2-3
+    real concurrent cold page loads on this one Mac can genuinely take
+    longer than 45s, with no bot-block or stuck page involved (every
+    contending team's log showed the same bare `Timeout 45000ms exceeded`
+    after exhausting all retries). 45s was simply too tight a margin for a
+    real, cold TM page load competing for this machine's CPU/network with
+    its slot-mates, however few; raised to 60s so a genuinely-slow-but-
+    still-loading page gets to finish instead of being killed mid-load.
     """
     for attempt in range(retries + 1):
         try:
