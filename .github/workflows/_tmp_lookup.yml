@@ -1,0 +1,26 @@
+name: _tmp Lookup Event URL
+
+on:
+  workflow_dispatch:
+    inputs:
+      team_keyword:
+        required: true
+      team_city:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  lookup:
+    runs-on: [self-hosted, nfl-runner]
+    timeout-minutes: 5
+    env:
+      TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cd scraping
+          python3 -m venv /tmp/_tmp_lookup_venv
+          /tmp/_tmp_lookup_venv/bin/pip install -q requests python-dotenv
+          /tmp/_tmp_lookup_venv/bin/python _tmp_find_url.py "${{ github.event.inputs.team_keyword }}" "${{ github.event.inputs.team_city }}"
