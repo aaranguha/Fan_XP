@@ -161,9 +161,13 @@ def test_validated_profile_partial_mode_still_rejects_bad_value_for_touched_fiel
 # ── profile_of(): pure, no I/O ──────────────────────────────────────────────
 
 def test_profile_of_defaults_missing_metadata_to_buyer_with_no_phone():
+    # needs_setup is True here: no "roles" key in metadata at all (not just
+    # defaulted to ["buyer"]) is exactly the signal profile_of() uses to
+    # flag a Google sign-up that still needs to pick buying/selling.
     user = SimpleNamespace(id="u1", email="a@b.com", user_metadata=None)
     assert fanxp_accounts.profile_of(user) == {
         "id": "u1", "email": "a@b.com", "full_name": "", "phone": "", "roles": ["buyer"],
+        "needs_setup": True,
     }
 
 
