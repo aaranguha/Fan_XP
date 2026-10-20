@@ -238,3 +238,33 @@ def test_send_telegram_raises_when_token_missing(monkeypatch):
 
     with pytest.raises(RuntimeError, match="TELEGRAM_BOT_TOKEN"):
         fanxp_common.send_telegram("12345", "hello")
+
+
+# ── get_openai(): the credential guard behind the Telegram Q&A bot's model ──
+#
+# Same shape as get_stripe()/get_twilio()/get_supabase() above (CLAUDE.md §6:
+# "the OpenAI key... live[s] in .env locally and as GitHub Actions / Render
+# secrets") but had no direct test despite its siblings all having one.
+
+def test_get_openai_raises_when_key_missing(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+        fanxp_common.get_openai()
+
+
+def test_get_openai_raises_when_key_is_blank(monkeypatch):
+    # Same regression guard as test_get_stripe_raises_when_key_is_blank: a
+    # key of whitespace-only must be treated as unusable, not "present".
+    monkeypatch.setenv("OPENAI_API_KEY", "   ")
+
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+        fanxp_common.get_openai()
+
+
+def test_get_openai_returns_client_built_from_the_env_key(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")
+
+    client = fanxp_common.get_openai()
+
+    assert client.api_key == "sk-test-not-a-real-key"
