@@ -126,3 +126,48 @@ def test_non_timeout_exceptions_are_not_retried():
 
     assert page.goto_calls == 1
     assert page.wait_calls == []
+
+
+def test_waits_for_dom_content_not_full_load(monkeypatch):
+    # Waiting on the full "load" event also waits on TM's trackers, which
+    # don't finish on a busy Sunday (root cause of the halftime timeouts).
+    seen = []
+
+    class P:
+        def goto(self, url, wait_until=None, timeout=None):
+            seen.append(wait_until)
+
+        def wait_for_timeout(self, ms):
+            pass
+
+    fetch_listings._goto_with_retry(P(), "https://example.com")
+    assert seen == ["domcontentloaded"]
+
+
+def test_timeout_is_not_fatal_once_listings_were_captured(monkeypatch):
+    # 10/18 Browns: inventory + places XHRs captured, then the scrape was
+    # discarded on a navigation timeout. It should keep the data instead.
+    calls = []
+
+    class P:
+        def goto(self, url, wait_until=None, timeout=None):
+            calls.append(1)
+            raise fetch_listings.PlaywrightTimeoutError("Timeout 60000ms exceeded.")
+
+        def wait_for_timeout(self, ms):
+            pass
+
+    fetch_listings._goto_with_retry(P(), "https://example.com", ready=lambda: True)
+    assert calls == [1]  # no retries, no exception
+
+
+def test_timeout_still_raises_when_nothing_was_captured(monkeypatch):
+    class P:
+        def goto(self, url, wait_until=None, timeout=None):
+            raise fetch_listings.PlaywrightTimeoutError("Timeout 60000ms exceeded.")
+
+        def wait_for_timeout(self, ms):
+            pass
+
+    with pytest.raises(fetch_listings.PlaywrightTimeoutError):
+        fetch_listings._goto_with_retry(P(), "https://example.com", retries=1, ready=lambda: False)

@@ -187,6 +187,13 @@ re-triggering TM bot detection by reloading the page.
   every scrape ~4x slower, one TM bot block; capped 9/9 in under 5 min.
   Halftime jitter went back to 0-45s. Re-run that load test before changing
   the cap.
+  **Root cause found 2026-10-26**: the cap cut failures (7-8 -> 6 on 10/18, 4
+  on 10/25) but didn't end them. The logs show the inventory/places XHRs
+  were *captured*, then the scrape was discarded on `Page.goto` timing out
+  while waiting for the full "load" event (TM's trackers never finish on a
+  busy Sunday). Navigation now waits for "domcontentloaded", and a timeout
+  is non-fatal once the inventory request is in hand (`_goto_with_retry`'s
+  `ready`). First live Sunday with this: 2026-11-01.
 - A **plausibility gate** now exists in `nfl_run_game.py`
   (`MIN_HALFTIME_RATIO = 0.15`): if the halftime listing count is below 15%
   of the pre-game count, the code treats this as "marketplace collapsed, not

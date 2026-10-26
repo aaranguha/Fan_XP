@@ -382,7 +382,7 @@ def browser_slot(label: str = ""):
         time.sleep(random.uniform(2, 4))
 
 
-def _goto_with_retry(page, url: str, timeout: int = 60000, retries: int = 3) -> None:
+def _goto_with_retry(page, url: str, timeout: int = 60000, retries: int = 3, ready=None) -> None:
     """
     page.goto() with a few retries on a bare navigation timeout.
     A cluster of teams re-navigating for their halftime scrape within the
@@ -415,12 +415,25 @@ def _goto_with_retry(page, url: str, timeout: int = 60000, retries: int = 3) -> 
     real, cold TM page load competing for this machine's CPU/network with
     its slot-mates, however few; raised to 60s so a genuinely-slow-but-
     still-loading page gets to finish instead of being killed mid-load.
+
+    The actual root cause (found 2026-10-26): the timeout was on the page's
+    full "load" event, which also waits for TM's ad/analytics/tracker
+    requests -- and on a busy Sunday those don't finish. The 10/18 Browns log
+    shows the inventory and places XHRs *captured* during the halftime load,
+    then the scrape thrown away anyway on `Timeout ... waiting until "load"`.
+    So navigation now waits only for "domcontentloaded" (the caller then
+    waits WAIT_MS for the XHRs), and a timeout is not fatal once `ready()`
+    says the data we need has already arrived.
     """
     for attempt in range(retries + 1):
         try:
-            page.goto(url, wait_until="load", timeout=timeout)
+            page.goto(url, wait_until="domcontentloaded", timeout=timeout)
             return
         except PlaywrightTimeoutError:
+            if ready is not None and ready():
+                print("  [goto] page never finished loading, but the listings request "
+                      "was already captured -- continuing with it.")
+                return
             if attempt == retries:
                 raise
             backoff_ms = random.randint(5000, 20000)
@@ -523,7 +536,7 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
 
         try:
             print(f"  Loading: {event_url}")
-            _goto_with_retry(page, event_url)
+            _goto_with_retry(page, event_url, ready=lambda: captured["inventory"] is not None)
             human_browse(page)
             page.wait_for_timeout(WAIT_MS)
 
@@ -540,7 +553,7 @@ def scrape_listings(event_url: str, max_retries: int = 1, team_slug: str = "defa
                 captured["inventory"] = None
                 captured["pricing"]   = None
                 captured["places"]    = None
-                _goto_with_retry(page, event_url)
+                _goto_with_retry(page, event_url, ready=lambda: captured["inventory"] is not None)
                 human_browse(page)
                 page.wait_for_timeout(WAIT_MS)
                 if is_bot_blocked(page):
@@ -712,7 +725,7 @@ def refresh_endpoints(page, event_url: str, endpoints_path: str) -> bool:
 
     page.on("request", on_request)
     try:
-        page.goto(event_url, wait_until="load", timeout=45000)
+        page.goto(event_url, wait_until="domcontentloaded", timeout=60000)
         page.wait_for_timeout(WAIT_MS)
     finally:
         page.remove_listener("request", on_request)
