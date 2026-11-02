@@ -46,7 +46,9 @@ env:
 
 jobs:
   guard:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04 (2026-11), which Playwright's
+    # chromium doesn't support yet; the guard's first run died installing it.
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +85,7 @@ jobs:
           fi
 
       - name: Install dependencies
+        id: install
         run: |
           pip install -r requirements.txt -r fanxp_app/requirements.txt pytest playwright
           playwright install --with-deps chromium
@@ -292,3 +295,13 @@ jobs:
 
           # Red X on the run: a broken push should never look green.
           exit 1
+
+      # The guard itself broke before it could check anything (setup,
+      # dependency install). That says nothing about the pushed code, so no
+      # rollback, but don't fail silently either.
+      - name: Report guard failure
+        if: failure() && steps.install.outcome != 'success'
+        run: |
+          gh issue create --repo "${{ github.repository }}" \
+            --title "[deploy-guard] Guard could not run for ${GITHUB_SHA:0:7}" \
+            --body "The deploy guard failed during setup, so push ${{ github.sha }} was NOT verified. Nothing was rolled back. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
