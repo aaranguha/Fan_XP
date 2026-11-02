@@ -7,6 +7,7 @@ with the service-role client, so the browser never holds a Supabase key.
 Name, phone and roles ("buyer", "seller") live in the user's
 user_metadata. Signed-in calls send `Authorization: Bearer <access_token>`.
 
+  GET    /api/auth/providers             which sign-in options are switched on
   GET    /api/auth/google?redirect_to=   start "Continue with Google"
   POST   /api/auth/register              create an account and sign in
   POST   /api/auth/login                 email + password -> session
@@ -206,6 +207,30 @@ def _validated_profile(body: dict, partial: bool = False) -> tuple[dict, str | N
             return {}, "That phone number doesn't look right."
         out["phone"] = phone
     return out, None
+
+
+_providers_cache = {"at": 0.0, "value": None}
+
+
+@bp.route("/api/auth/providers")
+def auth_providers():
+    """Whether Google sign-in is enabled in Supabase, so account.html only
+    shows the button when it actually works (it 400s while switched off).
+    Cached 5 minutes; flipping it on in the Supabase dashboard is enough."""
+    import time
+    import requests
+    now = time.time()
+    if _providers_cache["value"] is None or now - _providers_cache["at"] > 300:
+        google = False
+        try:
+            r = requests.get(
+                os.getenv("SUPABASE_URL", "").strip().rstrip("/") + "/auth/v1/settings",
+                headers={"apikey": os.getenv("SUPABASE_SERVICE_KEY", "").strip()}, timeout=5)
+            google = bool(r.json().get("external", {}).get("google"))
+        except Exception:
+            pass
+        _providers_cache.update(at=now, value={"google": google, "email": True})
+    return jsonify(_providers_cache["value"])
 
 
 @bp.route("/api/auth/google")
