@@ -1,0 +1,294 @@
+# Deploy guard: keeps whatever is deployed fully working.
+#
+# Usage notes
+#  - Runs after every push to main (except pushes that only touch
+#    scraping/data/**) and on manual dispatch (gh workflow run deploy-guard.yml).
+#  - Runs both test suites, waits for the Vercel ("Production") and Render
+#    ("main - fanxp-api") deployments of the pushed sha, then runs
+#    scripts/smoke_check.py against the live site and API. Render's /healthz
+#    commit is only checked when the push touched fanxp_app/ or render.yaml.
+#  - All green: the `last-good` git tag moves to the pushed sha.
+#  - Anything red: the pushed commits are reverted (newest first, "NFL
+#    auto-update" data commits are never reverted) and pushed to main, the
+#    redeploy is smoke-checked again, and a "[deploy-guard] Rolled back ..."
+#    issue is opened. If a revert is impossible (first push, merge commit,
+#    conflict, manual run) it only opens a "could NOT auto-revert" issue.
+#  - Pushes made with GITHUB_TOKEN do not trigger workflows, so the revert
+#    push cannot loop (Vercel and Render still redeploy it).
+#  - To manually recover, `git reset --hard last-good` is the known-good state.
+#  - Alerts go to GitHub issues only; Telegram is reserved for scrape outcomes.
+name: Deploy Guard
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "scraping/data/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  deployments: read
+
+# One guard at a time so two overlapping pushes can't race on reverts or the
+# last-good tag. Queue instead of cancelling: a cancelled guard checks nothing.
+concurrency:
+  group: deploy-guard
+  cancel-in-progress: false
+
+env:
+  SITE_URL: https://fan-xp.vercel.app
+  API_URL: https://fanxp-api.onrender.com
+  VERCEL_ENV: Production
+  RENDER_ENV: main - fanxp-api
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Work out what this push touched
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            # First push, manual run, or force-push: no usable range. Assume
+            # everything changed so nothing is skipped, and never auto-revert.
+            echo "RANGE_OK=0" >> "$GITHUB_ENV"
+            echo "APP_TOUCHED=1" >> "$GITHUB_ENV"
+            echo "SITE_TOUCHED=1" >> "$GITHUB_ENV"
+          else
+            echo "RANGE_OK=1" >> "$GITHUB_ENV"
+            files=$(git diff --name-only "$BEFORE" "${{ github.sha }}")
+            if echo "$files" | grep -qE '^(fanxp_app/|render\.yaml$)'; then
+              echo "APP_TOUCHED=1" >> "$GITHUB_ENV"
+            else
+              echo "APP_TOUCHED=0" >> "$GITHUB_ENV"
+            fi
+            if echo "$files" | grep -qE '^docs/'; then
+              echo "SITE_TOUCHED=1" >> "$GITHUB_ENV"
+            else
+              echo "SITE_TOUCHED=0" >> "$GITHUB_ENV"
+            fi
+          fi
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt -r fanxp_app/requirements.txt pytest playwright
+          playwright install --with-deps chromium
+
+      # continue-on-error on the three checks below: we need to reach the
+      # rollback step even when one of them fails.
+      - name: Run test suites
+        id: tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          {
+            echo "== scraping/tests =="
+            (cd scraping && python -m pytest tests -q -x)
+            echo "== fanxp_app/tests =="
+            (cd fanxp_app && python -m pytest tests -q -x)
+          } 2>&1 | tee "$RUNNER_TEMP/tests.log"
+
+      - name: Wait for Vercel and Render deployments
+        id: deploys
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          # Latest GitHub deployment for this sha in one environment. Prints
+          # success/failure/error, or "pending" while it is missing/running.
+          deploy_state() {
+            local env="$1" id
+            id=$(gh api "repos/${{ github.repository }}/deployments?sha=$2&per_page=50" \
+              --jq "[.[] | select(.environment == \"$env\")] | sort_by(.id) | last | .id // empty")
+            if [ -z "$id" ]; then echo "missing"; return; fi
+            gh api "repos/${{ github.repository }}/deployments/$id/statuses" \
+              --jq '[.[] | select(.state != "queued" and .state != "in_progress" and .state != "pending")] | first | .state // "pending"'
+          }
+
+          # wait_for <label> <environment> <sha> <required 0|1>
+          wait_for() {
+            local label="$1" env="$2" sha="$3" required="$4" state
+            local deadline=$(( $(date +%s) + 900 ))
+            while :; do
+              state=$(deploy_state "$env" "$sha")
+              case "$state" in
+                # "inactive" = it went live and a newer push's deploy replaced it.
+                success|inactive) echo "$label deployment succeeded ($state)"; return 0 ;;
+                failure|error) echo "$label deployment ended in state: $state"; return 1 ;;
+              esac
+              if [ "$(date +%s)" -gt "$deadline" ]; then
+                if [ "$state" = "missing" ] && [ "$required" = "0" ]; then
+                  echo "$label: no deployment recorded, push did not touch it - OK"; return 0
+                fi
+                echo "$label deployment still '$state' after 15 min"; return 1
+              fi
+              echo "$label: $state, waiting..."
+              sleep 20
+            done
+          }
+
+          # A deployment that this push should not have triggered is not worth
+          # waiting 15 min for: skip it when its paths were untouched.
+          rc=0
+          if [ "$SITE_TOUCHED" = "1" ]; then
+            wait_for Vercel "$VERCEL_ENV" "${{ github.sha }}" 1 || rc=1
+          fi
+          if [ "$APP_TOUCHED" = "1" ]; then
+            wait_for Render "$RENDER_ENV" "${{ github.sha }}" 1 || rc=1
+          fi
+          exit $rc
+
+      - name: Smoke check live site and API
+        id: smoke
+        continue-on-error: true
+        run: |
+          args=(--site "$SITE_URL" --api "$API_URL")
+          # /healthz reports the commit Render serves; only meaningful when
+          # this push actually redeploys the API.
+          if [ "$APP_TOUCHED" = "1" ]; then args+=(--expect-commit "${{ github.sha }}"); fi
+          python scripts/smoke_check.py "${args[@]}" 2>&1 | tee "$RUNNER_TEMP/smoke.log"
+          exit "${PIPESTATUS[0]}"
+
+      - name: Mark last-good
+        if: steps.tests.outcome == 'success' && steps.deploys.outcome == 'success' && steps.smoke.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f last-good "${{ github.sha }}"
+          git push -f origin refs/tags/last-good
+
+      - name: Roll back and report
+        id: rollback
+        if: steps.tests.outcome != 'success' || steps.deploys.outcome != 'success' || steps.smoke.outcome != 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BEFORE="${{ github.event.before }}"
+          SHA="${{ github.sha }}"
+          SHORT="${SHA:0:7}"
+
+          reasons=()
+          [ "${{ steps.tests.outcome }}" != "success" ] && reasons+=("tests failed")
+          [ "${{ steps.deploys.outcome }}" != "success" ] && reasons+=("Vercel/Render deployment failed or timed out")
+          [ "${{ steps.smoke.outcome }}" != "success" ] && reasons+=("live smoke check failed")
+          reason=$(IFS=,; echo "${reasons[*]}" | sed 's/,/, /g')
+
+          reverted=""      # one line per reverted commit
+          cannot=""        # why no revert happened, if so
+          after_state=""   # smoke result after rollback
+
+          # --- decide whether a revert is possible -----------------------------
+          if [ "$RANGE_OK" != "1" ]; then
+            cannot="no usable before..sha range (first push, force-push or manual run)"
+          elif git rev-list --merges "$BEFORE..$SHA" | grep -q .; then
+            cannot="push contains a merge commit; refusing to guess a mainline for git revert"
+          else
+            # Newest first, data commits excluded (they bypass this workflow
+            # anyway, but never undo scraped data).
+            commits=$(git log --no-merges --format='%H %s' "$BEFORE..$SHA" | grep -v ' NFL auto-update' || true)
+            if [ -z "$commits" ]; then
+              cannot="no revertable commits in $BEFORE..$SHA (only NFL auto-update commits)"
+            fi
+          fi
+
+          do_revert() {
+            # Revert on top of the CURRENT origin/main, which may have moved on
+            # since this run started.
+            git fetch origin main
+            git checkout -B main origin/main
+            while read -r h subj; do
+              [ -z "$h" ] && continue
+              if ! git revert --no-edit "$h"; then
+                git revert --abort || true
+                return 2
+              fi
+            done <<< "$commits"
+          }
+
+          if [ -z "$cannot" ]; then
+            if ! do_revert; then
+              cannot="git revert conflicted (later commits build on the broken ones)"
+              git reset --hard origin/main
+            elif ! git push origin main; then
+              # main moved while we were reverting: redo once from the new tip.
+              echo "push rejected, retrying once on the new origin/main"
+              if ! do_revert || ! git push origin main; then
+                cannot="revert push to main failed twice (main kept moving, or revert conflicted)"
+              fi
+            fi
+          fi
+
+          if [ -z "$cannot" ]; then
+            NEW=$(git rev-parse HEAD)
+            reverted=$(echo "$commits" | cut -c1-80)
+            echo "Reverted; new main tip is $NEW. Waiting for redeploy..."
+
+            # Give Vercel/Render time to pick the revert up, then re-verify.
+            # Same wait logic as above, trimmed: the smoke check itself polls
+            # /healthz for the new commit for up to 10 min.
+            sleep 90
+            args=(--site "$SITE_URL" --api "$API_URL")
+            if [ "$APP_TOUCHED" = "1" ]; then args+=(--expect-commit "$NEW"); fi
+            if python scripts/smoke_check.py "${args[@]}" > "$RUNNER_TEMP/smoke_after.log" 2>&1; then
+              after_state="Smoke check on the reverted state PASSED."
+              git tag -f last-good "$NEW" && git push -f origin refs/tags/last-good
+            else
+              after_state="Smoke check on the reverted state ALSO FAILED. The breakage may predate this push: check manually."
+            fi
+          fi
+
+          # --- open the issue -------------------------------------------------
+          {
+            echo "Deploy guard run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo "Pushed commit: $SHA (range $BEFORE..$SHA)"
+            echo "Failure: $reason"
+            echo
+            if [ -n "$cannot" ]; then
+              echo "**Could NOT auto-revert:** $cannot"
+              echo "The last known-good commit is tagged \`last-good\`."
+            else
+              echo "Commits reverted (newest first):"
+              echo '```'
+              echo "$reverted"
+              echo '```'
+              echo "$after_state"
+            fi
+            echo
+            for f in tests smoke smoke_after; do
+              if [ -s "$RUNNER_TEMP/$f.log" ]; then
+                echo "<details><summary>$f output (tail)</summary>"
+                echo
+                echo '```'
+                tail -c 6000 "$RUNNER_TEMP/$f.log"
+                echo '```'
+                echo "</details>"
+                echo
+              fi
+            done
+            if [ "${{ steps.deploys.outcome }}" != "success" ]; then
+              echo "A Vercel or Render deployment failed or never finished; see the run log."
+            fi
+          } > "$RUNNER_TEMP/issue.md"
+
+          if [ -n "$cannot" ]; then
+            title="[deploy-guard] Broken deploy, could NOT auto-revert: $SHORT ($reason)"
+          else
+            title="[deploy-guard] Rolled back $SHORT: $reason"
+          fi
+          gh issue create --repo "${{ github.repository }}" --title "$title" --body-file "$RUNNER_TEMP/issue.md"
+
+          # Red X on the run: a broken push should never look green.
+          exit 1

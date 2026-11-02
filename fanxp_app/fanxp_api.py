@@ -15,6 +15,7 @@ Run locally:
 import os
 import re
 import secrets
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from datetime import datetime, timedelta, timezone
 
 from flask import Flask, jsonify, request, Response
@@ -101,6 +102,47 @@ def latest_surrender(sb, seat_id, game_id):
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
+
+HEALTH_DB_TIMEOUT_SEC = 2.5
+
+
+@app.route("/healthz")
+def healthz():
+    """
+    Liveness for Render (render.yaml healthCheckPath) and the deploy guard's
+    "is the new commit live" probe: 200 whenever the app is up, with
+    `commit` = Render's RENDER_GIT_COMMIT. Deliberately does NOT touch
+    Supabase: Render probes this every few seconds, and a paused Supabase
+    (has happened, see CLAUDE.md section 5) must not make Render restart a
+    healthy API or refuse new deploys.
+
+    /healthz?deep=1 also runs a cheap Supabase query (503 if it fails) for
+    the deploy guard and monitoring. Error text stays short and generic.
+    """
+    checks = {}
+    if request.args.get("deep"):
+        try:
+            # Worker thread so a hung connection can't stall past the budget.
+            pool = ThreadPoolExecutor(max_workers=1)
+            try:
+                pool.submit(
+                    lambda: get_supabase().table("games").select("id").limit(1).execute()
+                ).result(timeout=HEALTH_DB_TIMEOUT_SEC)
+            finally:
+                pool.shutdown(wait=False)
+            checks["supabase"] = "ok"
+        except FuturesTimeout:
+            checks["supabase"] = "timeout"
+        except Exception:
+            checks["supabase"] = "unreachable"
+
+    ok = all(v == "ok" for v in checks.values())
+    return jsonify({
+        "ok": ok,
+        "commit": os.getenv("RENDER_GIT_COMMIT", ""),
+        "checks": checks,
+    }), (200 if ok else 503)
+
 
 @app.route("/api/empty-seats")
 def empty_seats():

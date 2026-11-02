@@ -350,6 +350,18 @@ GitHub's own hosted-runner IP ranges, confirmed via a live 403):
   this early in the day before a late primetime kickoff, make sure the
   timeout still covers the gap.
 
+**Deploy guard (2026-11-02)**: `.github/workflows/deploy-guard.yml` runs on
+every push to main: both test suites, waits for the Vercel and Render
+deploys of that sha (GitHub deployments API), then `scripts/smoke_check.py`
+against the live site and API (pages + markers, headless-browser page errors,
+`/healthz` commit, `/healthz?deep=1` database check, seat and auth
+endpoints). Green moves the `last-good` tag; red reverts that push's commits
+on main (never "NFL auto-update" data commits), re-checks, and opens a
+"[deploy-guard]" GitHub issue. Render's `healthCheckPath` is plain `/healthz`,
+which is liveness only and deliberately doesn't touch Supabase, so a paused
+database can't make Render restart a healthy API. Keep both test suites green
+and network-free: a flaky test now rolls back good pushes.
+
 **Supabase**: the single source of truth (`games`, `listings`, `no_shows`
 tables) for all four leagues. **Real risk, already happened once**: Supabase
 free-tier projects auto-pause after roughly a week of inactivity. This

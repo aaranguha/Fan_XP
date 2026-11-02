@@ -41,6 +41,7 @@ import os
 
 import pytest
 
+import run_game
 from run_game import find_team_game, get_tipoff_utc, parse_clock_minutes, save_game_meta
 
 
@@ -266,12 +267,13 @@ def test_save_game_meta_does_not_overwrite_existing_file(tmp_path):
 
 # ── save_game_meta() — draw-score computation ────────────────────────────────
 
-def test_draw_scores_use_known_opponent_slug(tmp_path):
+def test_draw_scores_use_known_opponent_slug(tmp_path, monkeypatch):
     # Opponent recognized via slug_from_fullname() -> team_draw_score() uses
     # the Lakers' real TEAM_DRAW entry (star=10, market=10), not the
-    # unknown-team default (5, 5). get_opponent_record() fails closed to {}
-    # here since nba_api isn't installed in this environment, so win_pct
-    # defaults to 0.5 either way.
+    # unknown-team default (5, 5). get_opponent_record() makes a live NBA
+    # standings call when nba_api is installed (real, changing win_pct), so
+    # stub it to fail closed to {} -> win_pct defaults to 0.5 deterministically.
+    monkeypatch.setattr(run_game, "get_opponent_record", lambda name: {})
     save_game_meta(_event("Golden State Warriors vs. Los Angeles Lakers"), _team("warriors"), str(tmp_path))
     meta = _read_meta(tmp_path)
     # team_draw_score("lakers", 0.5) = round(10*0.5 + 10*0.3 + 5*0.2, 2) = 9.0
@@ -281,7 +283,10 @@ def test_draw_scores_use_known_opponent_slug(tmp_path):
     assert meta["game_appeal_score"] == round((8.7 + 9.0) / 2, 2)
 
 
-def test_draw_score_falls_back_to_default_formula_for_unrecognized_opponent(tmp_path):
+def test_draw_score_falls_back_to_default_formula_for_unrecognized_opponent(tmp_path, monkeypatch):
+    # No live NBA standings call: a network blip here would fail the deploy
+    # guard's test step and roll back a good push.
+    monkeypatch.setattr(run_game, "get_opponent_record", lambda name: {})
     save_game_meta(_event("Golden State Warriors vs. Some Unrecognized Team"), _team("warriors"), str(tmp_path))
     meta = _read_meta(tmp_path)
     # slug_from_fullname() finds no match -> explicit fallback formula:
