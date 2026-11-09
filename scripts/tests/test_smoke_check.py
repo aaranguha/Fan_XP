@@ -10,9 +10,9 @@ check_site()'s retry-then-fail behavior, check_healthz()'s strict-vs-lenient
 decides whether deploy-guard waits, passes, or times out and triggers a
 revert), check_deep_health()'s bounded retry, check_api()'s failure
 aggregation across its four sub-checks, and main()'s exit-code mapping.
-check_browser() is intentionally left uncovered here — exercising its real
-path means launching an actual headless browser, which isn't a pure-logic
-test and isn't needed to protect the decision logic above.
+check_browser() is deliberately left out of this file — it needs its own
+sys.modules-mocked playwright.sync_api fake to exercise without launching a
+real Chromium; see test_smoke_check_browser.py.
 """
 import urllib.error
 
