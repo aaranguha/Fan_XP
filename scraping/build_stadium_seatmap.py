@@ -95,6 +95,9 @@ def main():
         vb_h = vb_w / TARGET_ASPECT
     vb_x, vb_y = cx - vb_w / 2, cy - vb_h / 2
 
+    # The ticket's mini-map keeps this tight crop around the seats.
+    MINI_VIEWBOX_ATTR = f"{vb_x:.1f} {vb_y:.1f} {vb_w:.1f} {vb_h:.1f}"
+
     # Ticketmaster frames the whole 10240x7680 map canvas (their art is drawn for exactly that box),
     # so the overview shows the full canvas too -- identical framing to TM's own seat map.
     if extract.get("outlines"):
@@ -236,18 +239,21 @@ circle.dot-gray{fill:var(--gray-dot);}
 circle.dot-open{fill:var(--tm-blue);cursor:pointer;}
 circle.dot-open:hover{fill:var(--team-dark);}
 circle.dot-picked{fill:var(--good) !important;}
+#dots-open circle,#dots-gray circle{animation:dotin .35s ease-out both;}
+@keyframes dotin{from{opacity:0}}
 
 #tip{
-  position:fixed;pointer-events:none;
-  background:rgba(20,22,26,.96);border:1px solid rgba(170,0,0,.35);
-  border-radius:8px;padding:9px 13px;display:none;z-index:40;white-space:nowrap;
-  box-shadow:0 8px 24px rgba(0,0,0,.28);
+  position:fixed;pointer-events:none;min-width:170px;
+  background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--tm-blue);
+  border-radius:10px;padding:10px 13px;display:none;z-index:40;white-space:nowrap;
+  box-shadow:0 10px 28px rgba(15,20,30,.18);
 }
 #tip.show{display:block;}
-.tip-sec{font-size:.74rem;font-weight:700;color:#fff;margin-bottom:3px;}
-.tip-tag{font-size:.64rem;color:var(--team);font-weight:600;margin-bottom:2px;}
-.tip-price{font-size:.66rem;color:rgba(255,255,255,.6);}
-.tip-price strong{color:#fff;}
+#tip.closed{border-left-color:var(--muted-dim);}
+.tip-sec{font-size:.8rem;font-weight:800;color:var(--text);}
+.tip-tag{font-size:.68rem;color:var(--muted);font-weight:600;margin-top:2px;}
+.tip-price{display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-top:7px;font-size:.66rem;color:var(--muted);font-weight:600;}
+.tip-price strong{font-size:.98rem;font-weight:800;color:var(--tm-blue);font-variant-numeric:tabular-nums;}
 
 #cart{
   position:sticky;top:65px;align-self:start;padding:24px 22px 26px;border-left:1px solid var(--border);
@@ -256,13 +262,29 @@ circle.dot-picked{fill:var(--good) !important;}
 @media (max-width:920px){#cart{position:static;border-left:none;border-top:1px solid var(--border);min-height:0;}}
 #cart h4{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:14px;}
 #cart-empty{font-size:.84rem;color:var(--muted);line-height:1.6;padding:20px 0;}
-#cart-item{display:none;background:var(--surface-sunken);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;}
-#cart-item.filled{display:block;}
-#cart-item .seatname{font-weight:800;font-size:.95rem;}
-#cart-item .secname{font-size:.76rem;color:var(--muted);margin-top:2px;}
-#cart-divider{border-top:1px solid var(--border);margin:14px 0;}
-#cart-row{display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted);margin-bottom:6px;}
-#cart-total{display:flex;justify-content:space-between;font-size:1rem;font-weight:800;margin-top:8px;font-variant-numeric:tabular-nums;}
+/* The selected seat, as a ticket: where it is in the building, then the price stub. */
+#cart-item{display:none;position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;box-shadow:0 6px 20px rgba(15,20,30,.08);}
+#cart-item.filled{display:block;animation:ticketin .35s cubic-bezier(.2,.8,.2,1) both;}
+@keyframes ticketin{from{opacity:0;transform:translateY(10px) scale(.98)}}
+.tk-map{position:relative;background:#f4f4f2;border-radius:13px 13px 0 0;overflow:hidden;border-bottom:1px solid var(--border);}
+.tk-map svg{display:block;width:100%;height:auto;}
+.tk-maptag{position:absolute;left:10px;top:10px;font-size:.62rem;font-weight:700;letter-spacing:.04em;color:var(--text);background:rgba(255,255,255,.92);border:1px solid var(--border);padding:3px 8px;border-radius:999px;}
+#tk-pin{fill:var(--good);stroke:#fff;stroke-width:40;}
+#tk-pulse{fill:var(--good);opacity:.35;transform-box:fill-box;transform-origin:center;animation:pinpulse 1.8s ease-out infinite;}
+@keyframes pinpulse{0%{transform:scale(.4);opacity:.5}100%{transform:scale(1.6);opacity:0}}
+.tk-body{padding:14px 16px 12px;}
+.tk-eyebrow{font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.tk-sec{font-size:1.15rem;font-weight:800;letter-spacing:-.01em;margin-top:3px;}
+.tk-grid{display:flex;gap:22px;margin-top:10px;}
+.tk-grid span{display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.tk-grid b{display:block;font-size:1.45rem;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums;}
+.tk-game{font-size:.74rem;color:var(--muted);margin-top:10px;}
+.tk-perf{border-top:2px dashed var(--border);margin:0 14px;}
+#tk-sec path{fill:var(--tm-blue);stroke:#fff;stroke-width:10;}
+.tk-stub{padding:12px 16px 14px;}
+.cart-row{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);margin-bottom:5px;font-variant-numeric:tabular-nums;}
+#cart-total{display:flex;justify-content:space-between;align-items:baseline;font-size:.86rem;font-weight:800;margin-top:8px;}
+#cart-total-amt{font-size:1.3rem;color:var(--tm-blue);font-variant-numeric:tabular-nums;}
 #claimbtn{width:100%;padding:14px;margin-top:auto;border-radius:10px;background:var(--brand);color:#fff;font-weight:700;font-size:.9rem;transition:background .15s,transform .1s;}
 #claimbtn:disabled{background:var(--surface-sunken);color:var(--muted-dim);cursor:not-allowed;}
 #claimbtn:not(:disabled):hover{background:#0e3f9c;}
@@ -322,7 +344,9 @@ circle.dot-picked{fill:var(--good) !important;}
 
     <div id="mapwrap">
       <svg id="bowlsvg" viewBox="__VIEWBOX_ATTR__" xmlns="http://www.w3.org/2000/svg">
+        <g id="arena">
 __ARENA_INNER__
+        </g>
         <g id="sections"></g>
         <g id="labels"></g>
         <g id="badges"></g>
@@ -337,12 +361,29 @@ __ARENA_INNER__
     <h4>Your selection</h4>
     <div id="cart-empty">Tap a section, then tap a blue seat to select it.</div>
     <div id="cart-item">
-      <div class="seatname" id="cart-seatname">&mdash;</div>
-      <div class="secname" id="cart-secname">&mdash;</div>
-      <div id="cart-divider"></div>
-      <div id="cart-row"><span id="cart-price-label">Seat price</span><span id="cart-face">$0</span></div>
-      <div id="cart-row"><span>Service fee</span><span id="cart-fee">$0</span></div>
-      <div id="cart-total"><span>Total</span><span id="cart-total-amt">$0</span></div>
+      <div class="tk-map">
+        <svg viewBox="__MINI_VIEWBOX_ATTR__" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <use href="#arena"/><g id="tk-sec"></g>
+          <circle id="tk-pulse" r="300"/><circle id="tk-pin" r="120"/>
+        </svg>
+        <span class="tk-maptag">Where you'll sit</span>
+      </div>
+      <div class="tk-body">
+        <div class="tk-eyebrow" id="cart-tier">&mdash;</div>
+        <div class="tk-sec" id="cart-secname">&mdash;</div>
+        <div class="tk-grid">
+          <div><span>Row</span><b id="cart-row-num">&mdash;</b></div>
+          <div><span>Seat</span><b id="cart-seat-num">&mdash;</b></div>
+          <div><span>Half</span><b>2nd</b></div>
+        </div>
+        <div class="tk-game" id="cart-game"></div>
+      </div>
+      <div class="tk-perf"></div>
+      <div class="tk-stub">
+        <div class="cart-row"><span id="cart-price-label">Seat price</span><span id="cart-face">$0</span></div>
+        <div class="cart-row"><span>Service fee</span><span id="cart-fee">$0</span></div>
+        <div id="cart-total"><span>Total</span><span id="cart-total-amt">$0</span></div>
+      </div>
     </div>
     <div id="fan-fields">
       <input type="text" id="fan-name" placeholder="Full name" autocomplete="name">
@@ -411,7 +452,9 @@ OUTLINES.forEach(o => {
   path.dataset.secName = names[0];
   path.dataset.secs = names.join('|');
   path.classList.add('tm-sec', 'sec-path', 'clickable', hasOpen ? 'tm-open' : 'tm-closed');
-  path.addEventListener('click', () => zoomToSections(names, o.label ? o.label.text : names.join(' / ')));
+  const title = o.label ? String(o.label.text).replace('\\n', ' ') : names.join(' / ');
+  path.addEventListener('click', () => zoomToSections(names, title));
+  attachSecTip(path, names, title);
   sectionsG.appendChild(path);
   o._path = path;
 
@@ -460,18 +503,44 @@ Object.keys(SECS).forEach(name => {
   path.dataset.secs = name;
   path.classList.add('tm-sec', 'sec-path', 'clickable', openIn(name) > 0 ? 'tm-open' : 'tm-closed');
   path.addEventListener('click', () => zoomToSections([name], name));
+  attachSecTip(path, [name], name);
   sectionsG.appendChild(path);
 });
 
 const tipEl = document.getElementById('tip');
 function showTip(e, secName, rowLabel, num, price, source){
   const tag = source === 'release' ? 'Released by the seat owner' : (currentGame ? 'Empty, confirmed no-show' : 'Empty, preview');
+  tipEl.classList.remove('closed');
   tipEl.innerHTML =
-    `<div class="tip-sec">Sec ${secName} · Row ${rowLabel} · Seat ${num}</div>` +
+    `<div class="tip-sec">Section ${secName} · Row ${rowLabel} · Seat ${num}</div>` +
     `<div class="tip-tag">${tag}</div>` +
     `<div class="tip-price">${currentGame ? 'Price' : 'Est. price'} <strong>$${price}</strong></div>`;
   tipEl.classList.add('show');
   moveTip(e);
+}
+
+const TIER_NAMES = {upper: 'Upper level', lower: 'Lower level', mezz: 'Mezzanine', club: 'Club level', field: 'Field level', suite: 'Suite'};
+const tierName = sec => TIER_NAMES[(META.tiers || {})[sec]] || '';
+
+// Overview hover (mouse only, so a tap on a phone just zooms): the section's
+// level, how many seats are open, and their price range.
+function attachSecTip(path, names, title){
+  path.addEventListener('pointerenter', e => {
+    if (e.pointerType !== 'mouse' || zoomedSec) return;
+    const open = names.flatMap(n => (SECS[n] || []).filter(d => d[5]));
+    const prices = open.map(seatPrice);
+    const lo = Math.min(...prices), hi = Math.max(...prices);
+    const level = tierName(names[0]);
+    tipEl.classList.toggle('closed', !open.length);
+    tipEl.innerHTML =
+      `<div class="tip-sec">Section ${title}</div>` +
+      `<div class="tip-tag">${[level, open.length ? `${open.length} open seat${open.length === 1 ? '' : 's'}` : 'No open seats'].filter(Boolean).join(' · ')}</div>` +
+      (open.length ? `<div class="tip-price">${currentGame ? '' : 'Est. '}${lo === hi ? 'Price' : 'From'} <strong>$${lo}${lo === hi ? '' : ' – $' + hi}</strong></div>` : '');
+    tipEl.classList.add('show');
+    moveTip(e);
+  });
+  path.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' && !zoomedSec) moveTip(e); });
+  path.addEventListener('pointerleave', hideTip);
 }
 function moveTip(e){
   const tw = tipEl.offsetWidth;
@@ -480,6 +549,7 @@ function moveTip(e){
   tipEl.style.top  = Math.min(e.clientY - 10, window.innerHeight - 90) + 'px';
 }
 function hideTip(){ tipEl.classList.remove('show'); }
+window.addEventListener('scroll', hideTip, {passive: true});
 
 function setVB(vb){ svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
 
@@ -489,7 +559,7 @@ function animVB(from, to, dur, onDone){
   const t0 = performance.now();
   function frame(now){
     const t = Math.min((now - t0) / dur, 1);
-    const e = 1 - Math.pow(1 - t, 3);
+    const e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     curVB = {
       x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e,
       w: from.w + (to.w - from.w) * e, h: from.h + (to.h - from.h) * e,
@@ -528,7 +598,8 @@ function zoomToSections(names, title){
   const tx = (minX + maxX) / 2 - w / 2, ty = (minY + maxY) / 2 - h / 2;
 
   dotsGray.innerHTML = ''; dotsOpen.innerHTML = '';
-  animVB(curVB, {x: tx, y: ty, w, h}, 380, () => names.forEach(n => buildDots(n)));
+  hideTip();
+  animVB(curVB, {x: tx, y: ty, w, h}, 650, () => names.forEach(n => buildDots(n)));
 
   const openCount = dots.filter(d => d[5]).length;
   document.getElementById('resetbtn').classList.add('show');
@@ -568,7 +639,8 @@ function resetView(){
   document.querySelectorAll('.sec-path').forEach(el => el.classList.remove('faded', 'zoomed'));
   badgesG.style.display = '';
   labelsG.style.display = '';
-  animVB(curVB, FULL_VB, 360);
+  hideTip();
+  animVB(curVB, FULL_VB, 550);
   document.getElementById('resetbtn').classList.remove('show');
   document.getElementById('seclabel').classList.remove('show');
   document.getElementById('headline').textContent = 'Claim an empty seat';
@@ -591,9 +663,31 @@ document.getElementById('mapwrap').addEventListener('wheel', (e) => {
 function fillCart(secName, rowLabel, num, price){
   document.getElementById('cart-empty').style.display = 'none';
   const item = document.getElementById('cart-item');
+  item.classList.remove('filled'); void item.offsetWidth;  // replay the slide-in for each new seat
   item.classList.add('filled');
-  document.getElementById('cart-seatname').textContent = `Row ${rowLabel}, Seat ${num}`;
-  document.getElementById('cart-secname').textContent = `Section ${secName} · ${ARENA_NAME}`;
+  document.getElementById('cart-tier').textContent = [tierName(secName), ARENA_NAME].filter(Boolean).join(' · ');
+  document.getElementById('cart-secname').textContent = `Section ${secName}`;
+  document.getElementById('cart-row-num').textContent = rowLabel;
+  document.getElementById('cart-seat-num').textContent = num;
+  const vs = currentGame && currentGame.opponent ? `vs ${currentGame.opponent} · ` : '';
+  document.getElementById('cart-game').textContent =
+    currentGame ? `${vs}${currentGame.live ? 'Today' : fmtDate(currentGame.date)}` : 'Preview seat';
+  // The ticket's mini-map: the seat's section in blue, and a pin on the seat
+  // itself (or the section's middle if the seat isn't on the map).
+  const tkSec = document.getElementById('tk-sec');
+  tkSec.innerHTML = '';
+  OUTLINES.filter(o => o.secs.includes(secName)).forEach(o => {
+    const sp = document.createElementNS(svgNS, 'path');
+    sp.setAttribute('d', o.d);
+    tkSec.appendChild(sp);
+  });
+  const d = SEAT_INDEX[seatKey(secName, rowLabel, num)];
+  const at = d ? [d[0], d[1]] : (META.centroids || {})[secName];
+  ['tk-pin', 'tk-pulse'].forEach(id => {
+    const c = document.getElementById(id);
+    c.style.display = at ? '' : 'none';
+    if (at) { c.setAttribute('cx', at[0]); c.setAttribute('cy', at[1]); }
+  });
   const fee = Math.round(price * 0.12);
   document.getElementById('cart-face').textContent = '$' + price;
   document.getElementById('cart-fee').textContent = '$' + fee;
@@ -604,12 +698,17 @@ function pickSeat(el, secName, rowLabel, num, price){
   document.querySelectorAll('.dot-picked').forEach(s => { s.classList.remove('dot-picked'); s.classList.add('dot-open'); });
   el.classList.remove('dot-open'); el.classList.add('dot-picked');
   pickedSeat = {secName, rowLabel, num, price};
+  hideTip();
   fillCart(secName, rowLabel, num, price);
 
   document.getElementById('fan-fields').classList.add('show');
   const btn = document.getElementById('claimbtn');
   btn.disabled = false;
   btn.textContent = 'Claim this seat';
+  // Phones: the ticket sits under the map, so bring it into view.
+  if (window.matchMedia('(max-width:920px)').matches) {
+    document.getElementById('cart-item').scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  }
 }
 
 function showToast(msg, isError){
@@ -746,9 +845,8 @@ async function resumeFromCheckoutReturn(){
 // seats owners released -- load from the API, so a game in progress shows
 // up here as soon as its halftime scrape lands, not when the site rebuilds.
 const SEAT_INDEX = {};
-Object.entries(SECS).forEach(([name, dots]) => dots.forEach(d => {
-  SEAT_INDEX[[name, d[2], d[3]].map(v => String(v).trim().toUpperCase()).join('|')] = d;
-}));
+const seatKey = (sec, row, seat) => [sec, row, seat].map(v => String(v).trim().toUpperCase()).join('|');
+Object.entries(SECS).forEach(([name, dots]) => dots.forEach(d => { SEAT_INDEX[seatKey(name, d[2], d[3])] = d; }));
 const gamePick = document.getElementById('gamepick');
 let games = [], livePoll = null;
 
@@ -769,7 +867,7 @@ function applySeats(list){
   Object.values(SECS).flat().forEach(d => { d[5] = false; d[6] = null; d[7] = null; });
   let matched = 0;
   list.forEach(([sec, row, seat, price, source]) => {
-    const d = SEAT_INDEX[[sec, row, seat].map(v => String(v).trim().toUpperCase()).join('|')];
+    const d = SEAT_INDEX[seatKey(sec, row, seat)];
     if (!d) return;
     d[5] = true; d[6] = price; d[7] = source; matched++;
   });
@@ -836,6 +934,7 @@ loadGames();
             .replace("__META_JSON__", META_JSON)
             .replace("__FULL_VB_JSON__", FULL_VB_JSON)
             .replace("__VIEWBOX_ATTR__", VIEWBOX_ATTR)
+            .replace("__MINI_VIEWBOX_ATTR__", MINI_VIEWBOX_ATTR)
             .replace("__ARENA_INNER__", ARENA_INNER)
             .replace("__ARENA_NAME_JSON__", json.dumps(arena_name))
             .replace("__TEAM_SLUG_JSON__", json.dumps(slug))
