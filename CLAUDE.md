@@ -8,6 +8,12 @@ this file should stay a living, accurate snapshot, not a historical log.
 
 Owner: Aaran Guha (aaranguhaca@gmail.com)
 
+**Read the brain first**: `~/.brain/AGENTS.md` (private repo
+`aaranguha/brain`; `gh repo clone aaranguha/brain ~/.brain` if missing,
+`git -C ~/.brain pull -q` if present). It holds how Aaran works: what needs
+Aaran's approval, shipping/review/testing rules, and decisions already made.
+This file is the project's own context.
+
 ---
 
 ## 1. What this is
@@ -361,6 +367,12 @@ on main (never "NFL auto-update" data commits), re-checks, and opens a
 which is liveness only and deliberately doesn't touch Supabase, so a paused
 database can't make Render restart a healthy API. Keep both test suites green
 and network-free: a flaky test now rolls back good pushes.
+Since 2026-11-17 the guard only reverts a push that could have caused the
+failure: failing tests always do; a failed deploy or live check only when the
+push changed something deployed (`docs/`, `vercel.json`, `fanxp_app/` outside
+`tests/`, `render.yaml`). Otherwise it opens a "not caused by" issue and leaves
+the push alone (#130 and #137 had reverted good test-only pushes during a
+Render outage). The browser check waits for "load", not "networkidle".
 
 **Supabase**: the single source of truth (`games`, `listings`, `no_shows`
 tables) for all four leagues. **Real risk, already happened once**: Supabase
