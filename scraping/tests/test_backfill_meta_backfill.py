@@ -95,7 +95,11 @@ def _install_fake_nba_api(monkeypatch, rows):
 def _block_nba_api(monkeypatch):
     """Forces `import nba_api...` to raise ImportError, deterministically
     simulating the package not being installed (CPython treats a None
-    entry in sys.modules as 'this import must fail')."""
+    entry in sys.modules as 'this import must fail'). Submodules too: another
+    test module importing nba_api.stats.endpoints at collection time leaves
+    them cached, and a cached full name would bypass a parent-only block."""
+    for name in [m for m in sys.modules if m.startswith("nba_api.")]:
+        monkeypatch.setitem(sys.modules, name, None)
     monkeypatch.setitem(sys.modules, "nba_api", None)
 
 
