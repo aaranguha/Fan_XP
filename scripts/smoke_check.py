@@ -145,8 +145,11 @@ def check_browser(site, failures):
                 errors = []
                 page.on("pageerror", lambda e, errors=errors: errors.append(str(e)))
                 try:
-                    page.goto("%s/%s" % (site, path), wait_until="networkidle", timeout=60000)
-                    page.wait_for_timeout(2000)
+                    # "load", not "networkidle": the seat map polls the API, so a
+                    # slow API never lets the network go idle (#137). Then give
+                    # the page's scripts a few seconds to throw.
+                    page.goto("%s/%s" % (site, path), wait_until="load", timeout=60000)
+                    page.wait_for_timeout(4000)
                 except Exception as e:
                     errors.append("navigation failed: %s" % e)
                 if errors:

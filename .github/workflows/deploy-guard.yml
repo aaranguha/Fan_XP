@@ -8,7 +8,12 @@
 #    scripts/smoke_check.py against the live site and API. Render's /healthz
 #    commit is only checked when the push touched fanxp_app/ or render.yaml.
 #  - All green: the `last-good` git tag moves to the pushed sha.
-#  - Anything red: the pushed commits are reverted (newest first, "NFL
+#  - Only a push that could have caused the failure is reverted: failing
+#    tests always count; a failed deploy or live check only counts when the
+#    push changed something deployed (docs/, vercel.json, the API outside its
+#    tests, render.yaml). Otherwise the live site was already flaky (e.g. a
+#    Render outage during a test-only push): no revert, just an issue.
+#  - Anything red that the push caused: the pushed commits are reverted (newest first, "NFL
 #    auto-update" data commits are never reverted) and pushed to main, the
 #    redeploy is smoke-checked again, and a "[deploy-guard] Rolled back ..."
 #    issue is opened. If a revert is impossible (first push, merge commit,
@@ -72,12 +77,13 @@ jobs:
           else
             echo "RANGE_OK=1" >> "$GITHUB_ENV"
             files=$(git diff --name-only "$BEFORE" "${{ github.sha }}")
-            if echo "$files" | grep -qE '^(fanxp_app/|render\.yaml$)'; then
+            # API tests don't change what Render serves.
+            if echo "$files" | grep -vE '^fanxp_app/tests/' | grep -qE '^(fanxp_app/|render\.yaml$)'; then
               echo "APP_TOUCHED=1" >> "$GITHUB_ENV"
             else
               echo "APP_TOUCHED=0" >> "$GITHUB_ENV"
             fi
-            if echo "$files" | grep -qE '^docs/'; then
+            if echo "$files" | grep -qE '^(docs/|vercel\.json$)'; then
               echo "SITE_TOUCHED=1" >> "$GITHUB_ENV"
             else
               echo "SITE_TOUCHED=0" >> "$GITHUB_ENV"
@@ -172,9 +178,37 @@ jobs:
           git tag -f last-good "${{ github.sha }}"
           git push -f origin refs/tags/last-good
 
+      # Tests and deploys passed and the push changed nothing deployed, yet
+      # the live check failed: the site or API was already unhealthy. Reverting
+      # this push would not fix it (#130, #137 reverted good test-only pushes).
+      - name: Report live failure not caused by this push
+        if: >-
+          steps.tests.outcome == 'success' && env.APP_TOUCHED == '0' && env.SITE_TOUCHED == '0'
+          && (steps.deploys.outcome != 'success' || steps.smoke.outcome != 'success')
+        run: |
+          {
+            echo "Deploy guard run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo "Push ${{ github.sha }} changed nothing deployed (no docs/, vercel.json, API code or render.yaml), and its tests passed, so it was **not** rolled back."
+            echo "But the live site or API failed its check. Look at the live site and Render now."
+            echo
+            if [ -s "$RUNNER_TEMP/smoke.log" ]; then
+              echo '```'
+              tail -c 6000 "$RUNNER_TEMP/smoke.log"
+              echo '```'
+            fi
+          } > "$RUNNER_TEMP/issue.md"
+          gh issue create --repo "${{ github.repository }}" \
+            --title "[deploy-guard] Live check failed, not caused by ${GITHUB_SHA:0:7} (no rollback)" \
+            --body-file "$RUNNER_TEMP/issue.md"
+          exit 1
+
       - name: Roll back and report
         id: rollback
-        if: steps.tests.outcome != 'success' || steps.deploys.outcome != 'success' || steps.smoke.outcome != 'success'
+        if: >-
+          steps.tests.outcome != 'success'
+          || ((steps.deploys.outcome != 'success' || steps.smoke.outcome != 'success')
+              && (env.APP_TOUCHED == '1' || env.SITE_TOUCHED == '1'))
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
