@@ -138,3 +138,45 @@ def test_missing_api_key_raises(monkeypatch):
 
     with pytest.raises(RuntimeError):
         nfl_runner.get_home_teams_tm("2026-09-13")
+
+
+# ── get_home_teams_with_retry(): one network blip must not kill a game day ──
+
+def test_retry_recovers_from_transient_network_error(monkeypatch):
+    calls, sleeps = [], []
+
+    def flaky(today):
+        calls.append(today)
+        if len(calls) < 3:
+            raise nfl_runner.requests.ConnectionError("Failed to resolve 'app.ticketmaster.com'")
+        return ["chargers"]
+
+    monkeypatch.setattr(nfl_runner, "get_home_teams_tm", flaky)
+    assert nfl_runner.get_home_teams_with_retry("2026-11-22", sleep=sleeps.append) == ["chargers"]
+    assert len(calls) == 3
+    assert sleeps == [30, 60]
+
+
+def test_retry_gives_up_after_max_wait(monkeypatch):
+    sleeps = []
+
+    def down(today):
+        raise nfl_runner.requests.ConnectionError("down")
+
+    monkeypatch.setattr(nfl_runner, "get_home_teams_tm", down)
+    with pytest.raises(nfl_runner.requests.ConnectionError):
+        nfl_runner.get_home_teams_with_retry("2026-11-22", sleep=sleeps.append)
+    assert sum(sleeps) <= nfl_runner.SCHEDULE_RETRY_MAX_S
+    assert sleeps[:4] == [30, 60, 120, 240] and max(sleeps) == 300
+
+
+def test_retry_does_not_retry_non_network_errors(monkeypatch):
+    sleeps = []
+
+    def no_key(today):
+        raise RuntimeError("TICKETMASTER_API_KEY not set in .env")
+
+    monkeypatch.setattr(nfl_runner, "get_home_teams_tm", no_key)
+    with pytest.raises(RuntimeError):
+        nfl_runner.get_home_teams_with_retry("2026-11-22", sleep=sleeps.append)
+    assert sleeps == []

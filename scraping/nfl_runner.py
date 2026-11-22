@@ -131,6 +131,31 @@ def launch_team(slug: str, today: str) -> tuple:
     return proc, log_file
 
 
+# 2026-11-22: one DNS failure on this lookup at 8:30 AM ET killed the whole
+# day's job, and 7 of 8 home games lost their pre-game snapshot before anyone
+# re-ran it. Network errors are retried for up to SCHEDULE_RETRY_MAX_S, which
+# still leaves hours before any 1 PM kickoff's pre-game scrape.
+SCHEDULE_RETRY_MAX_S = 30 * 60
+
+
+def get_home_teams_with_retry(today: str, sleep=time.sleep) -> list[str]:
+    """get_home_teams_tm(), retrying network errors with backoff (30s doubling
+    to 5 min) for up to SCHEDULE_RETRY_MAX_S. Anything else (e.g. a missing
+    API key) raises immediately."""
+    waited, delay, attempt = 0, 30, 1
+    while True:
+        try:
+            return get_home_teams_tm(today)
+        except requests.RequestException as e:
+            if waited + delay > SCHEDULE_RETRY_MAX_S:
+                raise
+            print(f"  Schedule fetch failed (attempt {attempt}): {e}. Retrying in {delay}s...")
+            sleep(delay)
+            waited += delay
+            delay = min(delay * 2, 300)
+            attempt += 1
+
+
 def main():
     # NFL_GAME_DATE lets a manual dispatch start the night before a game day
     # (see nfl.yml's game_date input) instead of relying on the scheduled
@@ -139,7 +164,7 @@ def main():
     print(f"[{today}] Checking today's NFL schedule...")
 
     try:
-        slugs = get_home_teams_tm(today)
+        slugs = get_home_teams_with_retry(today)
     except Exception as e:
         print(f"Error fetching NFL schedule: {e}")
         sys.exit(1)
