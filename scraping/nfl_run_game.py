@@ -68,6 +68,8 @@ HALFTIME_FALLBACK_MIN = 45   # fallback: minutes after kick-off if live clock un
                               # catches meaningful inventory or needs to move earlier.
 Q2_TRIGGER_MIN        = 2    # trigger halftime scrape when Q2 ≤ this many minutes
 POLL_INTERVAL_SEC     = 30
+PRE_GAME_RETRY_LIMIT      = 3    # extra pre-game scrape attempts, if the window allows
+PRE_GAME_RETRY_BACKOFF_SEC = 120 # wait between pre-game retries
 
 
 
@@ -163,6 +165,35 @@ def run_snapshot(event: dict, url: str, snapshot: str, out_csv: str, team_slug: 
     save_csv(rows, out_csv)
     print_summary(event, rows, out_csv)
     return rows
+
+
+def run_pre_game_with_retry(event: dict, url: str, out_csv: str, team_slug: str, kickoff: datetime) -> list[dict]:
+    """
+    Retry a failed pre-game scrape instead of letting one bad attempt lose
+    the team's whole game day. Confirmed live 2026-11-22 (run 45059262868):
+    TM put the Broncos event behind a virtual queue/lobby page for the
+    entire attempt, scrape_listings() never saw an inventory XHR and raised,
+    and main() used to crash immediately on that -- even though there was
+    still 40+ minutes of slack left in the pre-game window (kick-off - 60min
+    to kick-off - MIN_PREGAME_LEAD_MIN) in which a retry could have worked.
+    Bounded by both a retry count and the window deadline, so this can't
+    retry past the point where a baseline would no longer be meaningful.
+    """
+    for attempt in range(PRE_GAME_RETRY_LIMIT + 1):
+        try:
+            return run_snapshot(event, url, "pre_game", out_csv, team_slug)
+        except Exception as e:
+            if attempt == PRE_GAME_RETRY_LIMIT:
+                raise
+            remaining_s = (kickoff - timedelta(minutes=MIN_PREGAME_LEAD_MIN)
+                           - datetime.now(timezone.utc)).total_seconds()
+            if remaining_s <= PRE_GAME_RETRY_BACKOFF_SEC:
+                print(f"  Pre-game scrape failed ({e}); only {remaining_s / 60:.0f} min left "
+                      f"before the baseline window closes -- giving up instead of retrying.")
+                raise
+            print(f"  Pre-game scrape failed ({e}); retrying in {PRE_GAME_RETRY_BACKOFF_SEC}s "
+                  f"(attempt {attempt + 2}/{PRE_GAME_RETRY_LIMIT + 1})...")
+            time.sleep(PRE_GAME_RETRY_BACKOFF_SEC)
 
 
 def save_game_meta(event: dict, team: dict, gdir: str, opponent: str) -> dict:
@@ -376,7 +407,7 @@ def main():
         time.sleep(jitter)
 
     try:
-        pre_rows = run_snapshot(event, url, "pre_game", pg_csv, team["slug"])
+        pre_rows = run_pre_game_with_retry(event, url, pg_csv, team["slug"], kickoff)
         supabase_client.insert_listings(game_id, pre_rows, "pre_game", team["slug"], game_dt, league="nfl")
     except Exception as e:
         notify_scrape_status(f"❌ {game_label}: NOT scraped. Pre-game scrape failed: {e}")
